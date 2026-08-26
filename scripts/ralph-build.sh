@@ -57,7 +57,12 @@ run_bounded() { # <seconds> <cmd...> -> 124 on timeout, else the command's exit 
 
 SPEC="$SPEC_DIR/spec.md"; VERIFY="$SPEC_DIR/verify.sh"; TASKS="$SPEC_DIR/tasks.txt"
 for f in "$SPEC" "$VERIFY" "$TASKS"; do [ -f "$f" ] || { echo "missing $f" >&2; exit 1; }; done
-ROOT="$(git rev-parse --show-toplevel)"
+# EXPORTED, because the executor binding is a separate process and the contract
+# (README, "binding") says it reads ROOT from the environment. It never actually did: bindings
+# only worked because exec-qwen.sh falls back to ${ROOT:-$PWD} and the loop happens to run with
+# cwd inside the worktree. A binding that trusted the documented contract got an unset variable
+# — caught the first time one was written strictly, dispatching to a repo outside pi-cluster.
+export ROOT="$(git rev-parse --show-toplevel)"
 
 # Durable heartbeat (see ralph-status.sh). Sourced so a dashboard can see live
 # loop state without attaching tmux. No-op stubs if the helper is absent, so the
