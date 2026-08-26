@@ -1,7 +1,7 @@
 # Loop strategies — named bindings, not new machinery
 
 A strategy is one `.env` file: which phases run, and the operator-layer bindings
-they need. The loops themselves (`ralph-qwen.sh`, `ralph-judge.sh`) do not change —
+they need. The loops themselves (`ralph-build.sh`, `ralph-judge.sh`) do not change —
 per the judge-loop spec §3, command bindings live at the operator layer, and a
 strategy file IS that layer, written down and named.
 

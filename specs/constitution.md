@@ -22,7 +22,7 @@ of parallel agents** (and Claude runs alongside). Shared-checkout work races on
 `git switch`/`git checkout`. The rule that lets us fan out safely:
 
 - **Each agent loop runs from its OWN `git worktree` on its own throwaway branch.** The
-  operator launches `scripts/ralph-qwen.sh` from inside that worktree — the script's
+  operator launches `scripts/ralph-build.sh` from inside that worktree — the script's
   usage already states this. Don't run a loop from the primary checkout.
 - **Before any commit, verify the branch:** `git branch --show-current`. If it's not
   the branch your task was opened on, STOP and ask. Committing default-branch work onto
@@ -32,7 +32,7 @@ of parallel agents** (and Claude runs alongside). Shared-checkout work races on
   ```bash
   git worktree add ../pi-cluster-<task> -b ralph/<task>   # isolated dir + branch
   cd ../pi-cluster-<task>
-  scripts/ralph-qwen.sh <spec-dir>
+  scripts/ralph-build.sh <spec-dir>
   ```
 - **Cherry-pick or PR back to `main` deliberately** (`PR-gated` rule above). Never push
   the throwaway branch straight to `main`.
@@ -77,7 +77,7 @@ to innovate.
   acceptable). The loop runs it; **the model never self-certifies "done".**
 - **One task per loop iteration, fresh context.** Decompose; never hand the model the whole
   repo or whole spec at once. Small scope = small context = reliable, fast, cheap. The
-  fixture (loop) carries the rigor, not the model. See `scripts/ralph-qwen.sh`.
+  fixture (loop) carries the rigor, not the model. See `scripts/ralph-build.sh`.
 - **Verify the exact thing a criterion depends on — not a proxy.** An ExternalSecret needs a
   *field*; checking the *item* exists isn't enough (the prowlarr/lidarr lesson: the items
   existed, the `api-key` field didn't). Resolve at the right granularity in the Plan phase —

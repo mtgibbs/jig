@@ -4,7 +4,7 @@
 - **Owner:** Matt (design by Claude; executor TBD)
 - **Constitution:** `specs/constitution.md` + `specs/amendments.md` (v1.3.0) (+ `/CLAUDE.md` Core Mandates)
 - **Touches:** new `scripts/loop-doctor.sh`; new `specs/loop-doctor/{tasks.txt,verify.sh,fixtures/}`.
-  **No change** to `ralph-qwen.sh`, `ralph-status.sh`, `ralph-log.sh`, `gate-score.sh`, or `loop-report.sh`.
+  **No change** to `ralph-build.sh`, `ralph-status.sh`, `ralph-log.sh`, `gate-score.sh`, or `loop-report.sh`.
 
 ---
 
@@ -117,7 +117,7 @@ rules because a killed loop cannot update its own file, so its last transcript i
 | `unknown` | nothing above matched | what was looked for and not found |
 
 > The `512` threshold and the `Killed: 9` marker are **not invented here** — they are the
-> literals `ralph-qwen.sh:100-108` already uses for its stillborn guard. See §6.
+> literals `ralph-build.sh:100-108` already uses for its stillborn guard. See §6.
 
 ### 3.4 `unparsed`
 
@@ -157,7 +157,7 @@ MCP wrapper over it is a later, additive step.
 
 **Rejected — instrumenting the driver instead** (quill's `StreamProgress` parses the agent CLI's
 stdout live, tracking turns/tools/context-fraction/output-tokens). Richer, but it requires
-editing `ralph-qwen.sh` and `ralph-codex.sh` and re-deploying containers, and it cannot read the
+editing `ralph-build.sh` and `ralph-codex.sh` and re-deploying containers, and it cannot read the
 runs that already happened. Reading artifacts after the fact works on today's corpus with zero
 changes to the loops. **Live-stream instrumentation is the natural v2** and §12/OQ3 keeps the
 door open — the §3.2 schema deliberately leaves room for `tokens`/`turns`/`tools` columns.
@@ -197,12 +197,12 @@ door open — the §3.2 schema deliberately leaves room for `tokens`/`turns`/`to
   across runs and named a different task nearly every time. The `^T[0-9]+-attempt[0-9]+` matcher
   is unchanged and still authoritative: a spec whose tasks are not labelled `T<n>` produces a
   name that does not match, and that is an honest `unparsed`, not a silent mislabel.
-- **`.diff` is written on exactly one path.** `ralph-qwen.sh:140` calls `log_failure` *only*
+- **`.diff` is written on exactly one path.** `ralph-build.sh:140` calls `log_failure` *only*
   after a verify failure, deliberately *before* the tree reset that would erase the evidence.
   Therefore **`.diff` present ⇔ the gate ran and said no** — the healthy failure. Its absence is
   the discriminator for every harness-fault class. This is the single most load-bearing fact in
   the spec.
-- **The `512` literal is ralph's own.** `ralph-qwen.sh:100-108` (the test is line 102):
+- **The `512` literal is ralph's own.** `ralph-build.sh:100-108` (the test is line 102):
   `if [ "$_rc" != 0 ] && [ "$_sz" -lt 512 ]` → prints *"the executor did not start"* and exits 3.
   Reuse the same threshold so loop-doctor agrees with the loop rather than inventing a second
   standard.
@@ -211,7 +211,7 @@ door open — the §3.2 schema deliberately leaves room for `tokens`/`turns`/`to
   reports *"the executor did not start — the container needs attention"*. Different causes,
   different fixes. loop-doctor must classify `watchdog-kill` **before** `executor-stillborn`
   (§3.3 order) so it is right where ralph is wrong.
-- **The no-op path writes no `.diff`.** `ralph-qwen.sh:119-125`: an attempt that leaves
+- **The no-op path writes no `.diff`.** `ralph-build.sh:119-125`: an attempt that leaves
   `git status --porcelain` empty is failed with `hb_write failed false` and `continue` — no
   `log_failure`. This is why the `permission requested:` corpus has three logs and zero diffs.
 - **Staleness threshold.** `ralph-status.sh` sets `HB_TICK_SEC` default 20 and the console's

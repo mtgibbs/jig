@@ -16,7 +16,7 @@
 # literal edit and only then asserts behaviour — the grep arms the check, it never is the check.
 set -uo pipefail
 
-Q="scripts/ralph-qwen.sh"
+Q="scripts/ralph-build.sh"
 H="scripts/ralph-retry.sh"
 FIX="specs/run-regression-guard/fixtures"
 ROOT_ABS="$(pwd)"

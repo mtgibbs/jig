@@ -3,7 +3,7 @@
 - **Status:** Draft v0.1
 - **Owner:** Matt (design by Claude; executor TBD)
 - **Constitution:** `specs/constitution.md` + `specs/amendments.md` (v1.3.0)
-- **Touches:** new `scripts/ralph-ledger.sh`, `scripts/ralph-qwen.sh`, `scripts/ralph-codex.sh`,
+- **Touches:** new `scripts/ralph-ledger.sh`, `scripts/ralph-build.sh`, `scripts/ralph-codex.sh`,
   new `specs/tasks-ledger/{tasks.txt,verify.sh,fixtures/}`.
 - **Source:** Codex spec-review finding #8 (2026-08-17, `notes-from-hearing`), field-confirmed
   by the VoiceCapture Phase 1 build loop on 2026-08-18 — 10 runs, 36 executor attempts.
@@ -14,7 +14,7 @@
 
 ### 1.1 The loop cannot remember anything between runs
 
-`scripts/ralph-qwen.sh:81` opens the task queue and `:177` closes it:
+`scripts/ralph-build.sh:81` opens the task queue and `:177` closes it:
 
 ```bash
 while IFS= read -r task || [ -n "$task" ]; do
@@ -87,7 +87,7 @@ The ledger lives at `$HOME/.harness/ledger/`, beside `logs/` and `status/` — t
 for durable loop artefacts (`ralph-log.sh:24`, `ralph-status.sh:41`) — but see §6 on culling.
 
 It cannot live in the repo. The loop resets the worktree between attempts
-(`ralph-qwen.sh:162-164`):
+(`ralph-build.sh:162-164`):
 
 ```bash
 git reset -q -- . ; git checkout -- . ; git clean -fd -- .
@@ -161,7 +161,7 @@ degraded means *don't skip*. Both err toward doing more work and claiming less.
 ### In scope
 
 - `scripts/ralph-ledger.sh` — the sidecar helper and its CLI.
-- Recording at the commit boundary in **both** `ralph-qwen.sh` and `ralph-codex.sh`, identically.
+- Recording at the commit boundary in **both** `ralph-build.sh` and `ralph-codex.sh`, identically.
 - Resume-skip behind `RALPH_RESUME`, in both.
 - `list` / `forget` / `clear` subcommands.
 
@@ -181,7 +181,7 @@ degraded means *don't skip*. Both err toward doing more work and claiming less.
 - **Shell is macOS bash 3.2.** No `declare -A`, no `mapfile`, no `${var,,}`, no unguarded
   `"${arr[@]}"` under `set -u`. See `AGENTS.md`. This is the single most repeated mistake in this
   repo's loop history.
-- **`ralph-qwen.sh` and `ralph-codex.sh` are deliberate structural twins.** Every change lands in
+- **`ralph-build.sh` and `ralph-codex.sh` are deliberate structural twins.** Every change lands in
   both, identically. `specs/run-regression-guard` AC11 asserts this by comparing extracted lines.
 - **`specs/run-regression-guard` introduces a *different* state file** —
   `$RETRY_STATE_DIR/ralph-run-$$.passed`, keyed on `$$`, which dies with the process. That is
@@ -194,7 +194,7 @@ degraded means *don't skip*. Both err toward doing more work and claiming less.
   `attempt`, and — after `git commit` — the new sha. **The twins' line numbers differ; both are
   given so neither has to be hunted:**
 
-  | site | `ralph-qwen.sh` | `ralph-codex.sh` |
+  | site | `ralph-build.sh` | `ralph-codex.sh` |
   |---|---|---|
   | task loop opens | `:81` | `:108` |
   | `git add -A` | `:139` | `:145` |
@@ -202,7 +202,7 @@ degraded means *don't skip*. Both err toward doing more work and claiming less.
   | task loop closes | `:177` | `:183` |
 
 - **Nothing in `scripts/` writes `tasks.txt` today** — it is opened for existence
-  (`ralph-qwen.sh:25`, `ralph-codex.sh:28`) and line-counted (`ralph-status.sh:37`), never
+  (`ralph-build.sh:25`, `ralph-codex.sh:28`) and line-counted (`ralph-status.sh:37`), never
   written. AC10 preserves that property; it does not establish it.
 - `SPEC_DIR` is the loop's first argument and is relative to the target repo's root.
 - Culling, for contrast with §6's no-cull rule: logs at `-mmin +4320` (3 days,
@@ -284,7 +284,7 @@ its own test suite.
   print the current ledger's rows (or a clear "no ledger yet" line), never a usage error.
 - **AC12** (Event-driven) When `ralph-ledger.sh forget <task>` is run, that task's rows shall be
   removed and every other row preserved byte-for-byte.
-- **AC13** (Ubiquitous) `ralph-qwen.sh` and `ralph-codex.sh` shall carry identical ledger call
+- **AC13** (Ubiquitous) `ralph-build.sh` and `ralph-codex.sh` shall carry identical ledger call
   sites — asserted by comparing the extracted lines, so the twins cannot drift.
 - **AC14** (Unwanted) If the ledger contains a malformed line, then the walk shall not abort and
   shall not skip past it.
@@ -311,7 +311,7 @@ with `set -u`, with `HOME` redirected to a scratch dir.
   assertion cannot tell. Feed it `alpha`=PASS, `beta`=FAIL, `gamma`=PEND and require exactly
   `alpha`.
 
-**Integration tier** (AC5-AC10, AC13): real `ralph-qwen.sh` runs in a throwaway git repo, mock `oc`
+**Integration tier** (AC5-AC10, AC13): real `ralph-build.sh` runs in a throwaway git repo, mock `oc`
 first on `PATH`, `RALPH_STATUS_DIR`/`RALPH_LOG_DIR` redirected, `RALPH_BUS=off`.
 
 | fixture | shape | proves |

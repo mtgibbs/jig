@@ -6,7 +6,7 @@
 # stopping logic — the loop owns all of that. If this file ever grows a decision, the decision
 # belongs in the loop, or every future binding has to reimplement it.
 #
-# The watchdog is the LOOP's job (ralph-qwen.sh run_bounded), so no timeout here. OC_SHEET=off
+# The watchdog is the LOOP's job (ralph-build.sh run_bounded), so no timeout here. OC_SHEET=off
 # because ralph already injects the codesheet once per loop; letting oc add it again would put
 # the same bytes in twice and break the prefix-cache stability that makes it ~free.
 set -uo pipefail

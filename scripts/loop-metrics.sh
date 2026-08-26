@@ -40,7 +40,15 @@ stillborn=0
 if [ -d "$LOGDIR" ]; then
   for f in "$LOGDIR"/"$TASK"-attempt*.log; do
     [ -f "$f" ] || continue
-    [ "$(stat -f %z "$f")" -le 40 ] && stillborn=$((stillborn + 1))
+    # File size via wc -c: POSIX, identical on both platforms, no branch to get wrong.
+    #
+    # `stat -f %z` was BSD-only and this is subtler than a missing fallback: on Linux `-f`
+    # means FILESYSTEM status, so it EXITS 0 and prints a block of filesystem info. An
+    # `|| stat -c` fallback therefore never fires and the variable fills with multi-line
+    # garbage. Any `stat -f X || stat -c Y` in this repo is broken on Linux for that reason —
+    # the guard looks right and cannot work.
+    _sz="$(wc -c < "$f" 2>/dev/null | tr -d " ")"
+    [ "${_sz:-0}" -le 40 ] 2>/dev/null && stillborn=$((stillborn + 1))
   done
 fi
 restarts=0
@@ -76,8 +84,12 @@ if [ -d "$LOGDIR" ] && [ -f "$OC_DB" ] && command -v sqlite3 >/dev/null 2>&1; th
   _stamps=""
   for f in "$LOGDIR"/"$TASK"-attempt*.log; do
     [ -f "$f" ] || continue
-    _b="$(stat -f %B "$f" 2>/dev/null || stat -c %W "$f" 2>/dev/null || echo 0)"
-    [ "${_b:-0}" -gt 0 ] 2>/dev/null || _b="$(stat -f %m "$f" 2>/dev/null || stat -c %Y "$f" 2>/dev/null || echo 0)"
+    # GNU FIRST, then BSD. Reversed, `stat -f` succeeds on Linux and returns filesystem
+    # info instead of a timestamp (see the wc -c note above). Numeric-validated after.
+    _b="$(stat -c %W "$f" 2>/dev/null || stat -f %B "$f" 2>/dev/null || echo 0)"
+    case "$_b" in *[!0-9]*|"") _b=0 ;; esac
+    [ "${_b:-0}" -gt 0 ] 2>/dev/null || _b="$(stat -c %Y "$f" 2>/dev/null || stat -f %m "$f" 2>/dev/null || echo 0)"
+    case "$_b" in *[!0-9]*|"") _b=0 ;; esac
     [ "${_b:-0}" -gt 0 ] 2>/dev/null && _stamps="$_stamps $_b"
   done
   if [ -n "$_stamps" ]; then
@@ -165,34 +177,63 @@ files="$(num "$files")"; ins="$(num "$ins")"; del="$(num "$del")"
 pass="$(num "$pass")"; fail="$(num "$fail")"; pend="$(num "$pend")"
 j_acc="$(num "$j_acc")"; j_rej="$(num "$j_rej")"; j_gaps="$(num "$j_gaps")"
 
-python3 - "$OUT" <<PY
-import json, sys, datetime
+# QUOTED delimiter, values via the environment. Unquoted, the shell expanded this Python
+# block: a backtick inside a comment executed as a command, and bare `null` reached
+# Python as an undefined name. Interpolating into a foreign language is the same defect
+# that leaked six credentials on 2026-08-02 — do not reintroduce it for convenience.
+export M_TASK="$TASK" M_SHA="$sha" M_WHEN="$when" \
+  M_ATT="$attempts" M_FAIL="$failed_attempts" M_STILL="$stillborn" M_RESTART="$restarts" \
+  M_FILES="$files" M_INS="$ins" M_DEL="$del" \
+  M_PASS="$pass" M_GFAIL="$fail" M_PEND="$pend" \
+  M_NEG="${ev_neg:-0}" M_EXEC="${ev_exec:-0}" M_BODY="${ev_body:-0}" \
+  M_DEL2="${ev_del:-0}" M_WIRE="${ev_wire:-0}" M_PRES="${ev_pres:-0}" \
+  M_JUDGED="$judged" M_JACC="$j_acc" M_JREJ="$j_rej" M_JGAP="$j_gaps" \
+  M_SESS="$tok_sessions" M_TIN="$tok_in" M_TOUT="$tok_out" M_TCACHE="$tok_cache" M_TCOST="$tok_cost"
+python3 - "$OUT" <<'PY'
+import json, os, sys, datetime
+
+def num(name):
+    """Environment -> number, or None. `null`/empty means NOT MEASURED, which is a different
+    claim from measured-zero and must never collapse into 0 (the file's honesty rule)."""
+    v = os.environ.get(name, "")
+    if v in ("", "null", "None"):
+        return None
+    try:
+        return int(v)
+    except ValueError:
+        try:
+            return float(v)
+        except ValueError:
+            return None
+
 row = {
-  "task": "$TASK",
+  "task": os.environ.get("M_TASK") or None,
   "recorded_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-  "commit": "$sha" or None,
-  "committed_at": "$when" or None,
-  "attempts": $attempts,
-  "failed_attempts": $failed_attempts,
-  "stillborn_attempts": $stillborn,
-  "supervisor_restarts": $restarts,
-  "diff": {"files": $files, "insertions": $ins, "deletions": $del},
-  "gate": {"pass": $pass, "fail": $fail, "pend": $pend},
+  "commit": os.environ.get("M_SHA") or None,
+  "committed_at": os.environ.get("M_WHEN") or None,
+  "attempts": num("M_ATT"),
+  "failed_attempts": num("M_FAIL"),
+  "stillborn_attempts": num("M_STILL"),
+  "supervisor_restarts": num("M_RESTART"),
+  "diff": {"files": num("M_FILES"), "insertions": num("M_INS"), "deletions": num("M_DEL")},
+  "gate": {"pass": num("M_PASS"), "fail": num("M_GFAIL"), "pend": num("M_PEND")},
   "evidence": {
-    "negative": ${ev_neg:-0}, "exec": ${ev_exec:-0}, "body": ${ev_body:-0},
-    "delegate": ${ev_del:-0}, "wiring": ${ev_wire:-0}, "presence": ${ev_pres:-0}
+    "negative": num("M_NEG"), "exec": num("M_EXEC"), "body": num("M_BODY"),
+    "delegate": num("M_DEL2"), "wiring": num("M_WIRE"), "presence": num("M_PRES"),
   },
-  "judged": $judged,
-  "judge_cumulative": {"accepted": $j_acc, "rejected": $j_rej, "gate_gaps": $j_gaps},
-  # null, not 0, when the session store was unreadable or matched nothing — "not measured"
-  # and "measured zero" are different claims and this file's honesty rule forbids conflating
-  # them. `cost` is 0.0 against a local model with no pricing configured; that IS measured.
+  "judged": os.environ.get("M_JUDGED") == "True",
+  "judge_cumulative": {
+    "accepted": num("M_JACC"), "rejected": num("M_JREJ"), "gate_gaps": num("M_JGAP"),
+  },
+  # null, not 0, when the session store was unreadable or matched nothing. "not measured" and
+  # "measured zero" are different claims. cost_usd 0.0 against a local model with no pricing
+  # configured IS measured, and stays 0.0.
   "spend": {
-    "sessions": $tok_sessions,
-    "tokens_input": $tok_in,
-    "tokens_output": $tok_out,
-    "tokens_cache_read": $tok_cache,
-    "cost_usd": $tok_cost,
+    "sessions": num("M_SESS"),
+    "tokens_input": num("M_TIN"),
+    "tokens_output": num("M_TOUT"),
+    "tokens_cache_read": num("M_TCACHE"),
+    "cost_usd": num("M_TCOST"),
     "source": "opencode-session-db",
   },
 }

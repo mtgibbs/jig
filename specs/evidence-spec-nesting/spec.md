@@ -123,7 +123,7 @@ every existing parser untouched.
 - **SG-4 — evidence pathing has exactly one source.** No loop script computes a `LOG_DIR`,
   `LOG_ROOT`, `HB_DIR` or `HB_STATUS_ROOT` of its own; every loop takes it from the two sourced
   helpers. Stated as single-source rather than as twin-symmetry deliberately: `run-loop.sh`'s
-  build phase invokes `ralph-qwen.sh` and nothing else, and every strategy in `scripts/loops/`
+  build phase invokes `ralph-build.sh` and nothing else, and every strategy in `scripts/loops/`
   binds Codex as the **judge**, not as a builder — so a rule naming a qwen/codex pair protects a
   roster the architecture has already moved past, and would flag the removal of an unused loop as
   drift. Two loops with identical *wrong* pathing also satisfy a symmetry check perfectly.

@@ -25,7 +25,7 @@ HB=scripts/ralph-status.sh
 IDX=scripts/loop-index.py
 MET=scripts/loop-metrics.sh
 AUD=scripts/loop-meta-audit.py
-QWEN=scripts/ralph-qwen.sh
+QWEN=scripts/ralph-build.sh
 JUDGE=scripts/ralph-judge.sh
 
 # STAGING, for MODIFICATION tasks. The three-verdict contract is written for creation —
@@ -77,7 +77,7 @@ for f in "$LOG:LOG_ROOT:runs" "$HB:HB_DIR:status"; do
 done
 
 echo "== T3  the record is distilled by the harness, not by the project (AC-2)"
-for f in scripts/ralph-qwen.sh; do   # one build loop since specs/executor-binding
+for f in scripts/ralph-build.sh; do   # one build loop since specs/executor-binding
   if [ ! -f "$f" ]; then pend "$(basename "$f")-indexes-after-task" "$f absent"; continue; fi
   if ! grep -q 'loop-index.py' "$f"; then
     pend "$(basename "$f")-indexes-after-task" "no loop-index.py call"
@@ -93,24 +93,24 @@ done
 # script bash is currently executing kills the run mid-flight. Keep it last.
 if [ -f specs/evidence-convention/tasks.txt ]; then
   # Self-editing tasks must form a contiguous SUFFIX: bash reads the running script
-  # incrementally, so any task after one that rewrites ralph-qwen.sh runs against a file
+  # incrementally, so any task after one that rewrites ralph-build.sh runs against a file
   # that moved under it. More than one such task is fine; a non-self-editing task after
   # them is not.
-  first_self=$(grep -n 'ralph-qwen.sh' specs/evidence-convention/tasks.txt | head -1 | cut -d: -f1)
-  last_other=$(grep -vn 'ralph-qwen.sh' specs/evidence-convention/tasks.txt | grep -c . >/dev/null; grep -n . specs/evidence-convention/tasks.txt | grep -v 'ralph-qwen.sh' | tail -1 | cut -d: -f1)
+  first_self=$(grep -n 'ralph-build.sh' specs/evidence-convention/tasks.txt | head -1 | cut -d: -f1)
+  last_other=$(grep -vn 'ralph-build.sh' specs/evidence-convention/tasks.txt | grep -c . >/dev/null; grep -n . specs/evidence-convention/tasks.txt | grep -v 'ralph-build.sh' | tail -1 | cut -d: -f1)
   if [ -z "$first_self" ]; then
     ok "self-editing-tasks-are-a-suffix" negative
   elif [ -z "$last_other" ] || [ "$last_other" -lt "$first_self" ]; then
     ok "self-editing-tasks-are-a-suffix" negative
   else
-    no "self-editing-tasks-are-a-suffix" "task line $last_other does not edit ralph-qwen.sh but follows line $first_self which does; bash reads scripts incrementally (§6b)" negative
+    no "self-editing-tasks-are-a-suffix" "task line $last_other does not edit ralph-build.sh but follows line $first_self which does; bash reads scripts incrementally (§6b)" negative
   fi
 fi
 
 echo "== T4  'did work happen' vs 'was evidence collected' are separate questions"
 # The convention put the harness's own bookkeeping into the tree the harness measures.
 # Two control-flow decisions broke on that, both by asking git status about EVERYTHING:
-#   ralph-qwen.sh  no-op guard      -> its own status heartbeat counted as "work happened"
+#   ralph-build.sh  no-op guard      -> its own status heartbeat counted as "work happened"
 #   ralph-judge.sh clean preflight  -> its own index made the tree permanently dirty
 # Presence of evidence is not proof of work. Scope the work question AND assert the
 # evidence question separately — excluding .evidence/ on its own just moves the blind spot.

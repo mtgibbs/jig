@@ -19,7 +19,7 @@
 set -uo pipefail
 
 L="scripts/ralph-ledger.sh"
-Q="scripts/ralph-qwen.sh"
+Q="scripts/ralph-build.sh"
 FIX="specs/tasks-ledger/fixtures"
 ROOT_ABS="$(pwd)"
 fail=0
@@ -281,7 +281,7 @@ git -C "$T5/repo" log -1 --pretty=%s | grep -q '^ralph(' \
 
 # AC5's other half: with a FULL ledger present but RESUME OFF, the loop must still hand T1 to
 # the executor. Asserted on T1 alone, deliberately. A second run over an already-built tree makes
-# every task a no-op, ralph correctly refuses a no-op attempt (ralph-qwen.sh:126) and stops at
+# every task a no-op, ralph correctly refuses a no-op attempt (ralph-build.sh:126) and stops at
 # T1 — so "all three executed" is unreachable here and would be a fixture artefact, not the AC.
 # What AC5 actually forbids is SKIPPING, and T1 being asked for is exactly that observable.
 if [ -f "$L" ]; then

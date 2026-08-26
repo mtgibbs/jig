@@ -3,7 +3,7 @@
 - **Status:** Draft v0.1
 - **Owner:** mtgibbs
 - **Constitution:** `specs/constitution.md` (+ `/CLAUDE.md` Core Mandates)
-- **Touches:** `scripts/ralph-qwen.sh`, new `scripts/exec-{qwen,codex}.sh`,
+- **Touches:** `scripts/ralph-build.sh`, new `scripts/exec-{qwen,codex}.sh`,
   `scripts/run-loop.sh`, `scripts/loops/*.env`, **deletes** `scripts/ralph-codex.sh`;
   strikes the twin clauses in `specs/{run-regression-guard,tasks-ledger,ralph-retry-contract}`
 
@@ -20,7 +20,7 @@
 ## 1. Why · [R — Requirements]
 
 `scripts/ralph-codex.sh` is 204 lines whose entire reason to exist is **one line** — the
-executor invocation. `ralph-qwen.sh` calls `oc run`; `ralph-codex.sh` calls `codex exec`.
+executor invocation. `ralph-build.sh` calls `oc run`; `ralph-codex.sh` calls `codex exec`.
 Everything else that differs is an environment knob (`CODEX_SANDBOX`, `CODEX_RUN_TIMEOUT`,
 `RALPH_SHEET` defaulting off) plus a watchdog that `oc` already provides on the qwen side.
 
@@ -30,7 +30,7 @@ two copies identical — `run-regression-guard` AC11, `tasks-ledger` AC13, and
 harness change now costs a second edit and is gated on the symmetry.
 
 That tax buys nothing. **Nothing invokes the codex builder:** `run-loop.sh`'s `build` phase is
-hardcoded to `ralph-qwen.sh`, all three strategies in `scripts/loops/` bind Codex as the
+hardcoded to `ralph-build.sh`, all three strategies in `scripts/loops/` bind Codex as the
 **judge** (`JUDGE_CMD=ralph-judge-codex.sh`) with qwen as executor, `scripts/loops/README.md`
 does not count it among "the loops", and its container is documented *"Provisioned but not
 activated."*
@@ -93,7 +93,7 @@ must stop being a copy.
 ## 5. Scope · [S — Structure: boundary]
 
 ### In scope
-- `scripts/ralph-qwen.sh` — executor call becomes a binding (the file keeps its name; see below)
+- `scripts/ralph-build.sh` — executor call becomes a binding (the file keeps its name; see below)
 - new `scripts/exec-qwen.sh`, `scripts/exec-codex.sh`
 - `scripts/run-loop.sh` — `BUILD_CMD` binding for the `build` phase
 - `scripts/loops/` — `build-codex.env`; existing strategies keep working untouched
@@ -102,7 +102,7 @@ must stop being a copy.
   and the "deliberate twins" prose in all three
 
 ### Out of scope
-- **Renaming `ralph-qwen.sh` → `ralph-build.sh`.** It is the right name — the file is the build
+- **Renaming `ralph-build.sh` → `ralph-build.sh`.** It is the right name — the file is the build
   loop, not the qwen loop — and it is deferred anyway, because the rename ripples into **seven**
   other specs' gates (`loop-doctor`, `codesheet-docs`, `evidence-convention`, `tasks-ledger`,
   `run-regression-guard`, `ralph-retry-contract`, `evidence-spec-nesting`), one of which gates on
@@ -124,7 +124,7 @@ must stop being a copy.
   command's code. Copy that shape; do not add a dependency on `timeout(1)`.
 - **bash 3.2 is the floor** (macOS ships it; `docs/AGENTS.md`). No `mapfile`, no `${x^^}`, and an
   empty array expanded under `set -u` is an error — that exact defect was #196's D3.
-- `ralph-qwen.sh` is referenced by `run-loop.sh`, `scripts/harness`, `supervise.sh`,
+- `ralph-build.sh` is referenced by `run-loop.sh`, `scripts/harness`, `supervise.sh`,
   `scripts/README.md` and seven specs' gates — which is why §5 defers the rename.
 - The stillborn-executor check (`_rc != 0 && _sz < 512` → abort) must survive the seam. It is what
   stops a broken container from reporting 3/3 tasks green — observed 2026-07-22.
@@ -174,7 +174,7 @@ must stop being a copy.
 - **AC-6** No file under `specs/*/verify.sh` or `scripts/` shall reference a per-executor build
   loop; `scripts/ralph-codex.sh` shall not exist. *(SG-4)*
 - **AC-7** The build loop plus its executor bindings shall total **fewer lines than the two
-  duplicated loops they replaced** (424 at `6d9dcb3^`: `ralph-qwen.sh` 220 + `ralph-codex.sh` 204).
+  duplicated loops they replaced** (424 at `6d9dcb3^`: `ralph-build.sh` 220 + `ralph-codex.sh` 204).
 
   > **Twice-corrected, and worth keeping both corrections visible.** The first draft measured
   > *gate* lines only, a target this change provably cannot hit (+132 gate, −15 twin guard). The

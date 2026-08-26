@@ -10,7 +10,7 @@ two strategies on one spec needs those on one screen per branch, diffable by eye
 
 - **Creates:** `scripts/loop-report.sh` — the only file this spec may create or modify.
 - Read-only over everything else. No network. No writes anywhere.
-- Style: match `scripts/ralph-qwen.sh` — bash, `set -uo pipefail`, macOS bash 3.2 (no `declare -A`).
+- Style: match `scripts/ralph-build.sh` — bash, `set -uo pipefail`, macOS bash 3.2 (no `declare -A`).
 - `jq` may be used (already a ralph prerequisite).
 
 ## §3 Contract (literal — checks grep for these exact tokens)

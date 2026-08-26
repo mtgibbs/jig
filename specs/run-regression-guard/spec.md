@@ -3,7 +3,7 @@
 - **Status:** Draft v0.1
 - **Owner:** Matt (design by Claude; executor TBD)
 - **Constitution:** `specs/constitution.md` + `specs/amendments.md` (v1.3.0)
-- **Touches:** `scripts/ralph-retry.sh`, `scripts/ralph-qwen.sh`, `scripts/ralph-codex.sh`,
+- **Touches:** `scripts/ralph-retry.sh`, `scripts/ralph-build.sh`, `scripts/ralph-codex.sh`,
   new `specs/run-regression-guard/{tasks.txt,verify.sh,fixtures/}`.
 - **Source:** run `qwen-10668` on `specs/loop-doctor`, 2026-08-18 — six tasks passed
   individually, and the final `STRICT=1` gate then found ten checks unbuilt.
@@ -128,7 +128,7 @@ meaningful.
 ### In scope
 - `scripts/ralph-retry.sh` — add `retry_run_init`, `retry_run_record`, `retry_run_regressions`;
   **fix the bash 3.2 defect in §6.**
-- `scripts/ralph-qwen.sh`, `scripts/ralph-codex.sh` — call them; convert a detected regression
+- `scripts/ralph-build.sh`, `scripts/ralph-codex.sh` — call them; convert a detected regression
   into a failed attempt.
 - `specs/run-regression-guard/{tasks.txt,verify.sh,fixtures/}`.
 
@@ -166,7 +166,7 @@ meaningful.
   status differently would misbehave. Fix with the standard 3.2 guard —
   `[ ${#regressions[@]} -gt 0 ] && for i in …` — or drop the array for a temp file, which is
   what the rest of the helper already uses.
-- **Exact hook site.** `ralph-qwen.sh` — the gate block is `if out="$(cd "$ROOT" && bash "$VERIFY" 2>&1)"; then`,
+- **Exact hook site.** `ralph-build.sh` — the gate block is `if out="$(cd "$ROOT" && bash "$VERIFY" 2>&1)"; then`,
   followed by `git add -A`, `git commit`, `passed=1`, `hb_write passed true`, `break`. The guard
   goes **after `out` is known and before `git add -A`**. `ralph-codex.sh` has the same block.
   Anchor on the literal strings; line numbers move.
@@ -178,7 +178,7 @@ meaningful.
 - **`retry_record` is already called on both the pass and fail paths** (T4 of the retry contract).
   The run-scoped recorder is a *different* call with different timing — commit boundary only.
 - **Testing a loop is solved here**: `specs/ralph-retry-contract/verify.sh` runs the real
-  `ralph-qwen.sh` in a throwaway git repo against a mock `oc` first on `PATH`. Copy that harness
+  `ralph-build.sh` in a throwaway git repo against a mock `oc` first on `PATH`. Copy that harness
   wholesale, including its lesson — **create every directory you point the loop at.** The
   retry-contract gate failed a correct implementation for three attempts because `run_loop` set
   `RETRY_STATE_DIR` to a directory it never created, so the helper degraded to silence exactly as
@@ -253,7 +253,7 @@ Deferred to `tasks.txt`. Sketch, each with its own observable:
 - **AC10** (State-driven) While a multi-task spec has no cross-task regression, the loop shall
   produce the same number of commits, the same `ralph(` message prefix, and the same exit status
   as before this spec.
-- **AC11** (Ubiquitous) `ralph-qwen.sh` and `ralph-codex.sh` shall carry identical guard call
+- **AC11** (Ubiquitous) `ralph-build.sh` and `ralph-codex.sh` shall carry identical guard call
   sites — asserted by comparing the extracted lines, so the twins cannot drift.
 
 ## 11. Verification (the harness)
@@ -267,7 +267,7 @@ with `set -u` so the §6 empty-array defect is actually exercised. AC2 must asse
 not merely empty stdout — the current defect produces the right stdout and the wrong stderr, so a
 stdout-only assertion would pass against the broken version.
 
-**Integration tier** (AC7-AC10): a real `ralph-qwen.sh` run in a throwaway git repo, mock `oc`
+**Integration tier** (AC7-AC10): a real `ralph-build.sh` run in a throwaway git repo, mock `oc`
 first on `PATH`, two-task inner spec.
 
 | fixture | task 1 | task 2 | proves |

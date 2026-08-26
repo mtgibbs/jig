@@ -61,7 +61,10 @@ log(){ printf '[supervise %s] %s\n' "$(date -u +%H:%M:%S)" "$*"; }
 # BSD stat and GNU stat disagree on every flag; the loops run on both a macOS laptop and Linux
 # containers, so ask both. Size goes through wc, which needs no dialect at all.
 fsize(){ wc -c < "$1" 2>/dev/null | tr -d ' ' || echo 0; }
-fmtime(){ stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null || date +%s; }
+# GNU first. `stat -f` SUCCEEDS on Linux and prints filesystem status, so a BSD-first
+# form never falls through and returns garbage instead of an mtime.
+fmtime(){ _t="$(stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || date +%s)"
+          case "$_t" in *[!0-9]*|"") date +%s ;; *) printf '%s' "$_t" ;; esac; }
 
 kill_tree(){ # <pgid>
   # The job leader's process group first — scoped, and it reaches every descendant the shell
@@ -71,7 +74,7 @@ kill_tree(){ # <pgid>
   # and a detached or re-parented executor survives the group kill. This WILL take out any other
   # ralph loop on this host — acceptable because the supervisor is meant to own the machine's
   # loop, and a survivor holds the GPU lane the relaunch needs.
-  for pat in 'run-loop.sh' 'ralph-qwen.sh' 'ralph-judge.sh' 'exec-qwen.sh' 'exec-codex.sh'; do
+  for pat in 'run-loop.sh' 'ralph-build.sh' 'ralph-judge.sh' 'exec-qwen.sh' 'exec-codex.sh'; do
     pgrep -f "$pat" 2>/dev/null | while read -r p; do kill -9 "$p" 2>/dev/null; done
   done
   pgrep -x opencode 2>/dev/null | while read -r p; do kill -9 "$p" 2>/dev/null; done

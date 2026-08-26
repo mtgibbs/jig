@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ralph-qwen.sh — THE bounded SDD build loop. One loop; the executor is a binding
+# ralph-build.sh — THE bounded SDD build loop. One loop; the executor is a binding
 # (RALPH_EXEC_CMD), so this drives qwen, Codex, or anything else without being copied.
 # The filename still says qwen for now — renaming it ripples into seven specs' gates;
 # see specs/executor-binding §5.
@@ -18,12 +18,12 @@
 # The model executes; the loop carries the rigor; the human reviews the PR at the end.
 #
 # Usage (run from inside a git worktree on a throwaway branch):
-#   scripts/ralph-qwen.sh specs/<feature>              # default binding: qwen
+#   scripts/ralph-build.sh specs/<feature>              # default binding: qwen
 #   scripts/run-loop.sh build-codex specs/<feature>    # or pick a strategy
 # spec dir must contain: spec.md, verify.sh, tasks.txt (one task per line, e.g. "T1: arr widgets")
 set -uo pipefail
 
-SPEC_DIR="${1:?usage: ralph-qwen.sh <spec-dir>}"
+SPEC_DIR="${1:?usage: ralph-build.sh <spec-dir>}"
 RETRIES="${RALPH_RETRIES:-2}"
 
 # The executor is a binding, exactly as JUDGE_CMD/EXECUTOR_CMD are for ralph-judge.sh. A

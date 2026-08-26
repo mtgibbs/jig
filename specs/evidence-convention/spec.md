@@ -112,11 +112,11 @@ written, `runs/` is free to expire.
 exited 2 with:
 
 ```
-scripts/ralph-qwen.sh: line 198: syntax error: unexpected end of file
+scripts/ralph-build.sh: line 198: syntax error: unexpected end of file
 ```
 
 `bash -n` on the committed file is clean. Bash reads a script **incrementally**, by byte
-offset, so rewriting `ralph-qwen.sh` while bash is executing it leaves the running shell
+offset, so rewriting `ralph-build.sh` while bash is executing it leaves the running shell
 reading the *new* file from an offset that lands mid-token. The work was correct and
 committed; the process that made it died on its own edit.
 
@@ -128,7 +128,7 @@ Two rules follow, and neither is optional:
    point is expected and is not evidence of a defect — check `bash -n` on the file before
    treating it as one.
 
-`log_init`/`hb_init` resolve their roots once at startup (`ralph-qwen.sh:74`), so a run
+`log_init`/`hb_init` resolve their roots once at startup (`ralph-build.sh:74`), so a run
 that changes those defaults still records itself in the OLD location. The change takes
 effect on the next invocation. That is not a bug; it just means the evidence for the run
 that moved the evidence lives where the evidence used to be.
@@ -157,7 +157,7 @@ the whole tree:
 
 | Reads | Asks | Broke because |
 |---|---|---|
-| `ralph-qwen.sh` no-op guard | *did the executor do work?* | its own status heartbeat landed in `.evidence/status/`, so a task with nothing left to do "changed something" and committed a T1 whose entire content was one status JSON |
+| `ralph-build.sh` no-op guard | *did the executor do work?* | its own status heartbeat landed in `.evidence/status/`, so a task with nothing left to do "changed something" and committed a T1 whose entire content was one status JSON |
 | `ralph-judge.sh:70` preflight | *is the worktree clean?* | `loop-index.py` runs after every task by design (T3), so the tree is guaranteed dirty exactly when the judge starts. It refused to run at all |
 
 The judge was right to refuse — `fail-closed` is the correct posture. The rule was never

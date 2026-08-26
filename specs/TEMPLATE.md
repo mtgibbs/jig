@@ -214,7 +214,7 @@
 
 ## 11b. Loop execution (handing to a local model)
 <!-- Local models (qwen) are faithful literal executors with no stamina/taste/self-check.
-     Run via scripts/ralph-qwen.sh: ONE task per iteration, FRESH context each time,
+     Run via scripts/ralph-build.sh: ONE task per iteration, FRESH context each time,
      timeboxed (watchdog), gated on verify.sh, retry-with-feedback, stop-for-human when
      stuck. Decompose §9 into a tasks.txt. Bound scope = small context = reliable. Never
      hand the model the whole repo or whole spec at once. -->

@@ -36,7 +36,7 @@ cls(){  case "$1" in negative) N_NEG=$((N_NEG+1));; exec) N_EXEC=$((N_EXEC+1));;
 LOG=scripts/ralph-log.sh
 HB=scripts/ralph-status.sh
 IDX=scripts/loop-index.py
-QWEN=scripts/ralph-qwen.sh
+QWEN=scripts/ralph-build.sh
 ROOT_ABS="$(pwd)"
 SLUG=asset-ladder                       # the fixture's spec dir basename
 TMPROOT="$(mktemp -d "${TMPDIR:-/tmp}/esn.XXXXXX")"
@@ -255,7 +255,7 @@ fi
 
 # ================================================================ AC-10 SG-4, twins don't drift
 echo "== AC-10  evidence pathing lives in the helpers, not in any loop (SG-4)"
-# EXECUTOR-AGNOSTIC ON PURPOSE. The obvious way to write this is `for f in ralph-qwen.sh
+# EXECUTOR-AGNOSTIC ON PURPOSE. The obvious way to write this is `for f in ralph-build.sh
 # <the other loop>` — assert two loops carry identical call sites, the way run-regression-guard
 # AC11 and tasks-ledger AC13 used to. That is the wrong invariant twice over:
 #

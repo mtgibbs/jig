@@ -11,9 +11,9 @@
 - **Constitution:** `specs/constitution.md` (+ `/CLAUDE.md` Core Mandates)
 - **Depends on:** `scripts/gate-score.sh` **with the amended fail-closed contract** (§6 — it must
   expose `verify_rc` and propagate a nonzero verifier exit). Implementation is blocked until that
-  contract exists. Wiring the score into `ralph-qwen.sh` is **not** a prerequisite (OQ-5).
+  contract exists. Wiring the score into `ralph-build.sh` is **not** a prerequisite (OQ-5).
 - **Touches (proposed):** new `scripts/ralph-judge.sh`; a small amendment to
-  `scripts/gate-score.sh` (separate, prerequisite PR). No change to `ralph-qwen.sh` or `review-hub`.
+  `scripts/gate-score.sh` (separate, prerequisite PR). No change to `ralph-build.sh` or `review-hub`.
 
 ---
 
@@ -157,13 +157,13 @@ Rejected alternative: a judge with no deterministic anchor. That is a slot machi
 
 ### In scope (proposed)
 - `scripts/ralph-judge.sh` — the post-convergence judge loop. Standalone; composes AFTER
-  `ralph-qwen.sh`, so the deterministic loop stays pure and terminating (OQ-4).
+  `ralph-build.sh`, so the deterministic loop stays pure and terminating (OQ-4).
 - **Prerequisite amendment to `scripts/gate-score.sh`** (separate PR, sequenced first): expose
   `verify_rc=<n>` on the score line and exit nonzero whenever the underlying verifier exits
   nonzero. Fail-closed gating is impossible without it (§6).
 
 ### Out of scope
-- Modifying `ralph-qwen.sh` (score-into-retry wiring is independent work, no longer sequenced
+- Modifying `ralph-build.sh` (score-into-retry wiring is independent work, no longer sequenced
   before this — OQ-5). Modifying `review-hub` internals. Auto-merging. Auto-hardening the gate
   from gate-gaps (v1 only *reports* them).
 
@@ -185,9 +185,9 @@ Rejected alternative: a judge with no deterministic anchor. That is a slot machi
   sentinel, so a verifier that itself prints `score=` or a sentinel string must not fool the
   parser. Reject missing / duplicate-after-final / malformed / nonnumeric fields.
 - **STRICT parity:** every baseline and post-mutation gate invocation runs from repo root with
-  `STRICT=1` exported through `gate-score.sh` — the same final convergence gate `ralph-qwen.sh`
+  `STRICT=1` exported through `gate-score.sh` — the same final convergence gate `ralph-build.sh`
   uses (`STRICT=1 bash "$VERIFY"`), not a weaker variant.
-- **Executor pattern to mirror** (`ralph-qwen.sh`): `OC_RUN_TIMEOUT=… oc run --dir "$ROOT" "$prompt"`.
+- **Executor pattern to mirror** (`ralph-build.sh`): `OC_RUN_TIMEOUT=… oc run --dir "$ROOT" "$prompt"`.
   Its tree-restore (`git checkout -- . && git clean -fd`) is NOT sufficient here — it restores
   from the index (staged rejected edits survive) — hence the §8 `before_head` protocol.
 - **`review-hub` reuse rejected for v1 (OQ-1):** its validators are coupled to GitHub webhooks,
@@ -209,7 +209,7 @@ Rejected alternative: a judge with no deterministic anchor. That is a slot machi
 
 ## 7. Norms · [N]
 
-- POSIX-ish bash, matching `ralph-qwen.sh`. Optional-and-never-fatal side channels (heartbeat, log).
+- POSIX-ish bash, matching `ralph-build.sh`. Optional-and-never-fatal side channels (heartbeat, log).
 - **Judge ≠ executor.** Default judge is Codex (different family = real independence); default
   executor is qwen. Both are knobs (`JUDGE_CMD`/`EXECUTOR_CMD`), but a same-model pairing is an
   explicit operator override the operator chooses, never a silent default (OQ-2).
@@ -283,8 +283,8 @@ Deterministic, offline, like #104.
    real independence; qwen-as-judge is an explicit operator override only.
 3. **Autonomy boundary → conservative set** (comments, naming, clarity, literal spec-fidelity).
    Dead-code and refactors excluded in v1 — reported as gate-gaps instead (§8.8).
-4. **Placement → standalone `ralph-judge.sh` after `ralph-qwen.sh`.** Folding a stochastic
+4. **Placement → standalone `ralph-judge.sh` after `ralph-build.sh`.** Folding a stochastic
    reviewer into ralph would corrupt its one-task/fresh-context contract.
 5. **Sequencing → the gate-score fail-closed amendment is the prerequisite** (it blocks
-   implementation). Wiring the score into `ralph-qwen.sh` retry is independent, valuable, and no
+   implementation). Wiring the score into `ralph-build.sh` retry is independent, valuable, and no
    longer sequenced before this.

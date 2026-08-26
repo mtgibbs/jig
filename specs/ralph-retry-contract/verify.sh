@@ -17,7 +17,7 @@
 # presence-gate is the arming condition; the behavioural assertion is the real check.
 set -uo pipefail
 
-Q="scripts/ralph-qwen.sh"
+Q="scripts/ralph-build.sh"
 H="scripts/ralph-retry.sh"
 FIX="specs/ralph-retry-contract/fixtures"
 ROOT_ABS="$(pwd)"          # $OLDPWD is unreliable inside the nested subshells below
@@ -158,8 +158,8 @@ if grep -q 'section 10 acceptance criteria' "$Q" 2>/dev/null; then
   a="$(grep -h 'section 10 acceptance criteria\|Do not run git add\|reset -q -- \.' "$Q" | sed 's/^[[:space:]]*//')"
   # ac12 (twin symmetry) removed by specs/executor-binding — the twin is gone.
 else
-  pend "ac11:ralph-qwen.sh-section-pointers"; pend "ac11:ralph-qwen.sh-index-prohibition"
-  pend "ac11:ralph-qwen.sh-old-wording-removed"
+  pend "ac11:ralph-build.sh-section-pointers"; pend "ac11:ralph-build.sh-index-prohibition"
+  pend "ac11:ralph-build.sh-old-wording-removed"
 fi
 
 # --------------------------------------------------------------------------------- T4 (pend)

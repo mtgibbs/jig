@@ -3,7 +3,7 @@
 - **Status:** Draft v0.1
 - **Owner:** Matt (design by Claude; executor TBD)
 - **Constitution:** `specs/constitution.md` + `specs/amendments.md` (v1.3.0) (+ `/CLAUDE.md` Core Mandates)
-- **Touches:** `scripts/ralph-qwen.sh`, `scripts/ralph-codex.sh`, new `scripts/ralph-retry.sh`,
+- **Touches:** `scripts/ralph-build.sh`, `scripts/ralph-codex.sh`, new `scripts/ralph-retry.sh`,
   new `specs/ralph-retry-contract/{tasks.txt,verify.sh,fixtures/}`.
 - **Source:** dogfood run `qwen-61568` on `specs/loop-doctor`, 2026-08-18 — stopped on T1 after
   3 attempts having twice held the right answer, never at the same time.
@@ -31,7 +31,7 @@ had.
 
 ### 1.2 D1 — the feedback is regression-blind
 
-`ralph-qwen.sh:142-145` (identical at `ralph-codex.sh:148-151`):
+`ralph-build.sh:142-145` (identical at `ralph-codex.sh:148-151`):
 
 ```bash
 feedback="
@@ -71,7 +71,7 @@ whose message claims to be about something else.
 
 ### 1.4 D3 — the prompt never forbids staging
 
-`ralph-qwen.sh:82-86` tells the model what to build and never mentions git. The judge loop's
+`ralph-build.sh:82-86` tells the model what to build and never mentions git. The judge loop's
 executor binding is explicit — `ralph-judge-exec-qwen.sh`: *"Do NOT run `git add` or
 `git commit`"* — because the loop, not the executor, owns the index. The build loops make the
 same assumption and never state it. D3 is what pulls D2's trigger.
@@ -95,7 +95,7 @@ this misdirection.
 3. The executor is **told not to touch the index** (`git add`/`commit`/`stash`), matching the
    contract the judge loop already states.
 4. The prompt's spec-section pointers match `specs/TEMPLATE.md`.
-5. Both build loops (`ralph-qwen.sh`, `ralph-codex.sh`) get all four, with the regression logic
+5. Both build loops (`ralph-build.sh`, `ralph-codex.sh`) get all four, with the regression logic
    **shared, not duplicated**.
 6. The gate proves each of these against a **real ralph run driven by a mock executor** — not by
    grepping the script for the fix.
@@ -174,7 +174,7 @@ trees, which is a different (and larger) feature. OQ2.
 ## 5. Scope · [S]
 
 ### In scope
-- `scripts/ralph-qwen.sh` — reset (§3.4), prompt (D3, D4), source + call the helper.
+- `scripts/ralph-build.sh` — reset (§3.4), prompt (D3, D4), source + call the helper.
 - `scripts/ralph-codex.sh` — the same four, identically.
 - `scripts/ralph-retry.sh` — new, sourced, best-effort.
 - `specs/ralph-retry-contract/{tasks.txt,verify.sh,fixtures/}`.
@@ -190,10 +190,10 @@ trees, which is a different (and larger) feature. OQ2.
 
 ## 6. Prior decisions / facts the implementer must know · [S]
 
-- **Exact sites.** `ralph-qwen.sh`: prompt 82-86, feedback 142-145, reset 146-147.
+- **Exact sites.** `ralph-build.sh`: prompt 82-86, feedback 142-145, reset 146-147.
   `ralph-codex.sh`: prompt 109-113, feedback 148-151, reset 152-153. Line numbers will move as
   the file is edited — anchor on the literal strings, not the numbers.
-- **There are TWO `feedback=` assignment sites in `ralph-qwen.sh`, not one.** Line 142 is the
+- **There are TWO `feedback=` assignment sites in `ralph-build.sh`, not one.** Line 142 is the
   verify-failure path this spec is about; **line 122 is the no-op guard's** ("A previous attempt
   produced NO file changes at all…"). Only the verify-failure site gets a regression block — a
   no-op attempt regressed nothing, it wrote nothing. Appending to both would attach a regression
@@ -208,10 +208,10 @@ trees, which is a different (and larger) feature. OQ2.
 - **The verdict classifier already exists.** `scripts/gate-score.sh` lines 45-59 hold the awk
   that classifies by leading token only. Copy that shape; do not write a second dialect.
 - **Best-effort helper pattern to mirror.** `scripts/ralph-log.sh` — sourced, `*_init` guarded,
-  no-op stubs defined by the caller when the file is absent (`ralph-qwen.sh:51`). Copy the shape
+  no-op stubs defined by the caller when the file is absent (`ralph-build.sh:51`). Copy the shape
   including the stub line.
 - **The loops are near-copies, deliberately.** `ralph-codex.sh` is a structural twin of
-  `ralph-qwen.sh` (`scripts/README.md`: *"Structurally identical... Only the executor swaps"*).
+  `ralph-build.sh` (`scripts/README.md`: *"Structurally identical... Only the executor swaps"*).
   Every change here lands in both. Divergence between them is a defect.
 - **Testing a loop is a solved problem here.** `specs/judge-loop/verify.sh` runs the real
   `ralph-judge.sh` against mock judge/executor commands — *"the outer loop's gate spawned eleven
@@ -292,7 +292,7 @@ Deferred to `tasks.txt`. Sketch, ordered so each task has its own observable:
 - **AC11** (Ubiquitous) Both loops' prompts shall reference `section 7` as Norms and `section 10`
   as acceptance criteria, and shall instruct the executor not to run `git add`, `git commit`, or
   `git stash`.
-- **AC12** (Ubiquitous) `ralph-qwen.sh` and `ralph-codex.sh` shall carry the same reset sequence
+- **AC12** (Ubiquitous) `ralph-build.sh` and `ralph-codex.sh` shall carry the same reset sequence
   and the same prompt clauses — asserted by comparing the extracted strings, so the twins cannot
   drift.
 - **AC13** (State-driven) While a task passes on its first attempt, the loop shall commit exactly
@@ -315,7 +315,7 @@ mktemp -d  ->  git init  ->  seed a trivial spec dir (spec.md, tasks.txt, verify
                fixtures/mock-exec/ so attempt 1 and attempt 2 behave differently
            ->  RALPH_STATUS_DIR/RALPH_LOG_DIR under the temp dir, RALPH_BUS=off,
                RALPH_SHEET=off, OC_RUN_TIMEOUT small
-           ->  run scripts/ralph-qwen.sh <temp spec dir>, capture the prompts the mock saw
+           ->  run scripts/ralph-build.sh <temp spec dir>, capture the prompts the mock saw
 ```
 
 The mock records each prompt it receives to a file — that captured prompt is what AC9 asserts
@@ -328,7 +328,7 @@ against. Mock behaviours needed:
 | `pass-first-try` | makes the gate pass | (never runs) | AC13 — one commit, unchanged |
 
 **Red-before-green** (amendment): each of AC7, AC9, AC12 must be shown RED against the
-**current, unmodified** `ralph-qwen.sh` before the fix lands — AC7 and AC9 are literally the
+**current, unmodified** `ralph-build.sh` before the fix lands — AC7 and AC9 are literally the
 `qwen-61568` failure, so the pre-fix red run is the reproduction, and it belongs in
 `evidence/`. AC10 and AC11 must be shown red by a deliberately wrong edit.
 
@@ -343,7 +343,7 @@ regression notice. That is measurable only by re-running `specs/loop-doctor` aft
 branch, `opencode.json` copied in first.
 
 **Caution, unique to this spec:** the loop being modified is the loop doing the modifying. The
-executor edits `scripts/ralph-qwen.sh` **while a copy of it is running the task**. bash reads
+executor edits `scripts/ralph-build.sh` **while a copy of it is running the task**. bash reads
 scripts incrementally, so editing a running script can change what it executes next. Mitigation:
 the gate's integration tier runs a **copy** of the loop from the temp dir, and the operator should
 prefer `ralph-codex.sh` as the driver (`run-loop.sh` is qwen-only today — see OQ3) or accept that
@@ -361,7 +361,7 @@ restructure the file it is running.
   best tree needs per-attempt stashing plus a comparison rule; `gate-score.sh` already emits the
   score to compare on, and the judge loop's `total == total_base` shows score alone is not enough.
   Out of scope here; genuinely valuable.
-- **OQ3 — `run-loop.sh` build phase is qwen-only.** It hardcodes `ralph-qwen.sh`, so a
+- **OQ3 — `run-loop.sh` build phase is qwen-only.** It hardcodes `ralph-build.sh`, so a
   `build-converge` run can never use codex. That is a strategy-layer gap, not a retry-contract
   one, but it is what forces the §11b caution above. Sequenced separately.
 - **OQ4 — Should a regression be more than a message?** A regressed check is arguably a stronger

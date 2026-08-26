@@ -23,7 +23,7 @@ printf '%s' "$n" > "$MOCK_DIR/attempt"
 printf '%s\n===END-PROMPT-%s===\n' "$PROMPT" "$n" >> "$MOCK_DIR/prompts.txt"
 
 # ralph aborts when a nonzero exit is paired with <512 bytes of transcript (the stillborn
-# guard at ralph-qwen.sh:109). A real attempt is chatty, so be chatty.
+# guard at ralph-build.sh:109). A real attempt is chatty, so be chatty.
 i=0; while [ $i -lt 40 ]; do echo "mock-oc: working on the task, line $i"; i=$((i+1)); done
 
 act="$MOCK_DIR/scenario/default.sh"

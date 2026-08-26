@@ -18,7 +18,7 @@ no(){   printf '  FAIL  %s — %s\n' "$1" "$2"; FAIL=$((FAIL+1)); cls "${3:-pres
 pend(){ printf '  pend  %s (%s)\n' "$1" "$2"; PEND=$((PEND+1)); }
 cls(){  case "$1" in negative) N_NEG=$((N_NEG+1));; exec) N_EXEC=$((N_EXEC+1));; *) N_PRES=$((N_PRES+1));; esac; }
 
-BUILD=scripts/ralph-qwen.sh          # the build loop; §5 defers renaming it to ralph-build.sh
+BUILD=scripts/ralph-build.sh          # the build loop; §5 defers renaming it to ralph-build.sh
 CODEX=scripts/ralph-codex.sh
 XQ=scripts/exec-qwen.sh
 XC=scripts/exec-codex.sh
@@ -78,7 +78,7 @@ echo "== AC-7  the executor layer is smaller than the loop pair it replaced"
 # What this spec can honestly claim is bounded and stable: the build loop plus its bindings are
 # smaller than the two duplicated loops they replaced (220 + 204 = 424 lines at 6d9dcb3^).
 BASE_PAIR=424
-now=$(cat scripts/ralph-qwen.sh scripts/exec-qwen.sh scripts/exec-codex.sh \
+now=$(cat scripts/ralph-build.sh scripts/exec-qwen.sh scripts/exec-codex.sh \
           scripts/loops/build-codex.env 2>/dev/null | wc -l | tr -d ' ')
 [ "$now" -gt 0 ] && [ "$now" -lt "$BASE_PAIR" ] \
   && ok "AC-7:executor-layer-shrank ($now < $BASE_PAIR)" negative \

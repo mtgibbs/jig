@@ -45,7 +45,7 @@ stray="$(find specs/loop-doctor -type f \
 BASE="${LOOP_DOCTOR_BASE:-origin/main}"
 if git rev-parse --verify --quiet "$BASE" >/dev/null 2>&1; then
   if git diff --quiet "$BASE" -- \
-       scripts/ralph-qwen.sh scripts/ralph-judge.sh \
+       scripts/ralph-build.sh scripts/ralph-judge.sh \
        scripts/ralph-status.sh scripts/ralph-log.sh scripts/ralph-bus.sh \
        scripts/run-loop.sh scripts/gate-score.sh scripts/loop-report.sh \
        scripts/harness harness-console 2>/dev/null; then
@@ -190,7 +190,7 @@ fi
 
 # --------------------------------------------------------------------------------- T5 (pend)
 if [ -n "$(j qwen-1004 .fault)" ] && [ "$(j qwen-1004 .fault)" != "unknown" ]; then
-  # AC6 — the conflation ralph-qwen.sh:100-108 gets wrong: 114B + kill marker is NOT stillborn.
+  # AC6 — the conflation ralph-build.sh:100-108 gets wrong: 114B + kill marker is NOT stillborn.
   [ "$(j qwen-1004 .fault)" = "watchdog-kill" ] && ok "ac6:watchdog-kill-beats-stillborn" \
     || no "ac6:watchdog-kill-beats-stillborn — got '$(j qwen-1004 .fault)'"
   [ "$(j qwen-1002 .fault)" = "verify-fail" ] && ok "ac8:verify-fail-on-diff" \

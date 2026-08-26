@@ -11,16 +11,16 @@
 
 `verify.sh` already knows more than it says. Internally it decides every check `PASS` / `FAIL` /
 `pend`, but it collapses all of that to one exit code: `0` or `1`. The loop
-(`scripts/ralph-qwen.sh`) therefore sees a light switch, not a dimmer.
+(`scripts/ralph-build.sh`) therefore sees a light switch, not a dimmer.
 
 That costs us the thing we most want from an eval loop: **"getting closer."** Attempt 2 cannot
 tell whether it improved on attempt 1 (went 3-fails → 1-fail) or regressed — both read as "not
-0, retry." And the feedback it hands back is a blind `grep -E 'FAIL'` (`ralph-qwen.sh:127`),
+0, retry." And the feedback it hands back is a blind `grep -E 'FAIL'` (`ralph-build.sh:127`),
 which drops every `pend` — i.e. every *not-built-yet* check, which for a presence-gated per-task
 run is usually exactly the work the current task should do.
 
 We are one small tool away from a score. This spec builds that tool. It does **not** touch the
-loop — wiring the score into `ralph-qwen.sh` is a deliberate second step (see §5).
+loop — wiring the score into `ralph-build.sh` is a deliberate second step (see §5).
 
 ## 2. Outcomes (Definition of Done) · [R]
 
@@ -68,7 +68,7 @@ normalization can come later if ever; it is explicitly out of scope here.
 - `scripts/gate-score.sh` — new file, the whole deliverable.
 
 ### Out of scope here, but the REASON this exists — separate step, done by hand
-- Wiring `gate-score.sh` into `scripts/ralph-qwen.sh` (score-driven retry + itemized feedback +
+- Wiring `gate-score.sh` into `scripts/ralph-build.sh` (score-driven retry + itemized feedback +
   score in the heartbeat). Deliberately excluded: a loop must not be rewritten by a run of
   itself, and the integration is delicate. Claude does that step directly after this lands.
 
@@ -237,6 +237,6 @@ them. No network, no cluster.
 
 - **v2, not now:** should the loop grant *extra* retry attempts while the score is strictly
   improving (true "closer and closer"), capped hard to prevent a 0.01-per-turn crawl? Deferred to
-  the `ralph-qwen.sh` integration step — this spec only builds the readout the loop would steer on.
+  the `ralph-build.sh` integration step — this spec only builds the readout the loop would steer on.
 - Should `gate-score.sh` optionally emit the block as JSON (`--json`) for the heartbeat/console?
   The `key=value` line parses trivially in bash; JSON adds a dep or hand-rolling. Decide at wiring.
