@@ -4,8 +4,8 @@
 **Branch:** `run/evidence-replayable` · **Host:** `coding-harness-claude` (container, not the laptop)
 
 The first time this spec was run by the loop rather than reasoned about. Seven tasks, five loop
-invocations, ~90 minutes. Six of the seven tasks were written by qwen and passed the gate. The
-run also surfaced **five defects in the harness itself**, four of which are invisible when a spec
+invocations, ~90 minutes. All seven tasks were written by qwen. The loop converged: `run-loop exited 0`, STRICT gate green, 28 PASS / 0 FAIL. The
+run also surfaced **six defects in the harness itself**, four of which are invisible when a spec
 is validated on an empty tree.
 
 Findings are ordered by how much they cost, not by where they were found.
@@ -97,7 +97,39 @@ executor.
 
 ---
 
-## 3. A passing attempt's work is thrown away — the hole this spec exists to close
+## 3. The per-task gate and the convergence gate are not the same gate
+
+T7 has two halves: call sites in `ralph-build.sh`, and one in `ralph-judge.sh` (`ac15`). The
+executor wrote the first half and skipped the second — **twice** — and the loop reported `✓ T7`
+both times:
+
+```
+✓ T7: wire every call site, and this task is LAST because it edits the script the loop…
+✋ STOP: every task passed, but the final STRICT gate found unbuilt work:
+   FAIL  ac15: log_prompt call site in ralph-judge.sh — still unbuilt at the final check (STRICT)
+```
+
+`ralph-build.sh:189` runs the per-task gate with the ambient environment; `:275` runs the final
+one as `STRICT=1`. So the gate that drives the retry loop **cannot fail on a `pend`**, and `ac15`
+was invisible to exactly the feedback mechanism that exists to fix it. Two full T7 passes were
+spent producing work that could not fail, and the gap only surfaced after the loop had stopped
+retrying.
+
+`pend` is documented as "for a LATER task's deliverable", but nothing binds it to that. Here it
+silently absorbed a missing piece of the **current** task.
+
+**The resolution needed no code.** Re-running with `STRICT=1` exported makes the per-task gate
+identical to the convergence gate; `ac15` became a failure the executor could see, and qwen wrote
+the call site on its **first** attempt. The executor was never the problem — it had never once
+been told it was wrong.
+
+**Suggested fix:** a task's own ACs should be strict for that task while later tasks' stay
+`pend`. Failing that, `build-converge` should simply export `STRICT=1` — nothing in this spec's
+run wanted the lenient per-task gate.
+
+---
+
+## 4. A passing attempt's work is thrown away — the hole this spec exists to close
 
 Run 3 produced a **correct** T4. It failed only on the broken control above, so the loop reset
 the working tree, and the sole surviving copy of correct code was inside the *failure forensics*
@@ -110,7 +142,7 @@ the recovery would have been `git apply` and thirty seconds.
 
 ---
 
-## 4. Failed attempts leak `ralph-build.sh`, and the executor keeps editing it
+## 5. Failed attempts leak `ralph-build.sh`, and the executor keeps editing it
 
 Twice, a failed T4 left the working tree dirty with `scripts/ralph-build.sh` modified after the
 loop's post-failure reset. `ralph-log.sh` was restored correctly both times; `ralph-build.sh` was
@@ -129,7 +161,7 @@ measured here.
 
 ---
 
-## 5. Two portability defects, both in code whose job is to be reliable
+## 6. Two portability defects, both in code whose job is to be reliable
 
 - **`/tmp` is `noexec` in this container** (`tmpfs … rw,nosuid,nodev,noexec`). Both gates
   `chmod +x` a script inside `mktemp -d`. The TMPDIR preflight PR #5 added lives only in
@@ -177,7 +209,10 @@ should not be read as evidence the harness works.
 | T4 `log_meta` | **9 failed attempts across 3 runs**; correct code written on run 3, recovered by hand |
 | T5 `latest` symlink | qwen, attempt 1 |
 | T6 loop-doctor arms | qwen, attempt 1 |
-| T7 call sites | see PR |
+| T7 call sites | qwen — but passed twice with half the task missing, see §3; converged once the gate was made strict |
 
-Six of seven written by the executor. The one it could not finish was blocked by a broken gate
-for two of its three runs.
+All seven written by the executor. The one it could not finish unaided (T4) was blocked by a
+broken gate for two of its three runs; the one it half-finished (T7) was passing a gate that
+could not fail. In both cases the executor was working correctly against a broken signal.
+
+**Final state:** `STRICT=1 bash specs/evidence-replayable/verify.sh` → rc 0, 28 PASS, 0 FAIL.
