@@ -140,6 +140,11 @@ for rid in $run_ids; do
       [ -f "$p" ] || continue
       b="$(basename "$p")"
       case "$b" in
+        latest) ;; 
+        T*-attempt*.prompt.md) ;;
+        T*-attempt*.gate.txt) ;;
+        T*-attempt*.patch) ;;
+        T*-attempt*.json) ;;
         T*-attempt*.log)
           attempts=$((attempts + 1))
           t="${b#T}"; t="${t%%-*}"; a="${b#*-attempt}"; a="${a%.log}"
