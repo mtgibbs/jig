@@ -79,6 +79,9 @@ log_init() {
   LOG_SLUG="${HB_SLUG:-$(_ralph_slug "${SPEC_DIR:-}")}"
   LOG_DIR="$LOG_ROOT/$LOG_SLUG/${HB_AGENT:-${RALPH_AGENT:-agent}}-$$"
   mkdir -p "$LOG_DIR" 2>/dev/null || { echo "logs: unavailable ($LOG_DIR not writable)" >&2; return 0; }
+  local _log_basename; _log_basename="${LOG_DIR##*/}"
+  local _log_parent="${LOG_DIR%/*}"
+  [ -w "$_log_parent" ] && ln -sfn "$_log_basename" "$_log_parent/latest" 2>/dev/null || true
   # Cap accumulation the same way the heartbeat does — these hold whole model transcripts.
   #
   # DEPTH 2, not 1: a run directory now lives at <root>/<slug>/<agent>-<pid>, so depth 1 is the
@@ -119,6 +122,19 @@ log_path() {
   printf '%s/%s-attempt%s.%s' "$LOG_DIR" "$(log_task "${1:-T0}")" "${2:-0}" "${3:-log}"
 }
 
+# log_patch <task-label> <attempt> — write an applyable patch for a passing attempt.
+# Uses intent-to-add (`git add -A -N`) so new files appear in the diff; must precede the real
+# `git add -A` that follows in the pass branch. Excludes `.evidence/` so the harness's own
+# record never enters the patch.
+log_patch() {
+  [ "${LOG_OK:-0}" = 1 ] || return 0
+  local f; f="$(log_path "$1" "$2" patch)"
+  {
+    git -C "${ROOT:-.}" add -A -N -- . ':!.evidence' 2>/dev/null
+    git -C "${ROOT:-.}" diff -- . ':!.evidence' 2>/dev/null
+  } > "$f" 2>/dev/null || { echo "$f" >&2; return 0; }
+}
+
 # log_failure <task-label> <attempt> <verify-output>
 # MUST be called before `git checkout -- .` / `git clean -fd`, which is the whole point: after
 # the reset the evidence is gone.
@@ -157,6 +173,71 @@ log_failure() {
           printf -- '--- %s --- [binary, not captured]\n' "$_p"
         fi
       done
+  } > "$f" 2>/dev/null || true
+}
+
+# log_prompt <task-label> <attempt> <text>
+# Write the prompt that preceded the model's attempt. Like log_failure, call before the reset.
+log_prompt() {
+  [ "${LOG_OK:-0}" = 1 ] || return 0
+  local f; f="$(log_path "$1" "$2" prompt.md)"
+  { printf '%s' "$3"; } > "$f" 2>/dev/null || true
+}
+
+# log_gate <task-label> <attempt> <output> <rc>
+# Write the gate's output and exit status to <stem>.gate.txt.
+# NEVER invokes verify.sh; records output its caller already captured.
+log_gate() {
+  [ "${LOG_OK:-0}" = 1 ] || return 0
+  local f; f="$(log_path "$1" "$2" gate.txt)"
+  { printf '%s\n' "$3"; printf '%s\n' "---GATE-RC---"; printf '%s\n' "$4"; } > "$f" 2>/dev/null || { echo "$f" >&2; return 0; }
+}
+
+# log_meta <task-label> <attempt> — write the per-attempt metadata JSON.
+# Uses jq -n with --arg/--argjson so a quote in a task label or binding path does not produce
+# invalid JSON. Every field is always emitted; null means unmeasurable, 0 means measured-zero.
+log_meta() {
+  [ "${LOG_OK:-0}" = 1 ] || return 0
+  [ -x "$(command -v jq 2>/dev/null)" ] || { echo "logs: jq unavailable" >&2; return 0; }
+  local f; f="$(log_path "$1" "$2" json)"
+  {
+    jq -n \
+      --arg run_id "${LOG_DIR##*/}" \
+      --argjson run_label "$([ -n "${RUN_LABEL:-}" ] && printf '%s' "$RUN_LABEL" | jq -R . || jq -n null)" \
+      --arg repo "$([ -n "${ROOT:-}" ] && basename "$ROOT" || echo null)" \
+      --arg spec "$([ -n "${SPEC_DIR:-}" ] && basename "$SPEC_DIR" || echo null)" \
+      --arg task "$1" \
+      --argjson attempt "$2" \
+      --arg binding "${RALPH_EXEC_CMD:-}" \
+      --arg agent "${RALPH_AGENT:-}" \
+      --argjson started "${LOG_STARTED:-0}" \
+      --argjson ended "${LOG_ENDED:-0}" \
+      --argjson duration_s "$([ "${LOG_ENDED:-}" ] && echo "$((LOG_ENDED - LOG_STARTED))" || echo null)" \
+      --argjson exec_rc "${LOG_EXEC_RC:-0}" \
+      --argjson verify_rc "$([ -n "${LOG_VERIFY_RC:-}" ] && echo "$LOG_VERIFY_RC" || jq -n null)" \
+      --arg outcome "${LOG_OUTCOME:-}" \
+      --argjson bytes_prompt "$([ -f "$(log_path "$1" "$2" prompt.md)" ] && wc -c < "$(log_path "$1" "$2" prompt.md)" || echo null)" \
+      --argjson bytes_transcript "$([ -f "$(log_path "$1" "$2" log)" ] && wc -c < "$(log_path "$1" "$2" log)" || echo null)" \
+      --argjson bytes_patch "$([ -f "$(log_path "$1" "$2" patch)" ] && wc -c < "$(log_path "$1" "$2" patch)" || echo null)" \
+      '{
+        run_id: $run_id,
+        run_label: $run_label,
+        repo: $repo,
+        spec: $spec,
+        task: $task,
+        attempt: $attempt,
+        binding: $binding,
+        agent: $agent,
+        started: $started,
+        ended: $ended,
+        duration_s: $duration_s,
+        exec_rc: $exec_rc,
+        verify_rc: $verify_rc,
+        outcome: $outcome,
+        bytes_prompt: $bytes_prompt,
+        bytes_transcript: $bytes_transcript,
+        bytes_patch: $bytes_patch
+      }'
   } > "$f" 2>/dev/null || true
 }
 

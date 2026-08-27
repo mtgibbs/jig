@@ -147,6 +147,8 @@ URLs/UIDs. When done, stop.${feedback}"
     # build loop rather than one per executor — a duplicated loop is what a missing parameter
     # looks like, and the copy this replaced cost three specs a rule apiece to keep in sync.
     # See specs/executor-binding §1.
+    log_prompt "$HB_TASK" "$attempt" "$prompt"
+
     # Keep the transcript. This used to go to /dev/null, which made every STOP undiagnosable.
     # shellcheck disable=SC2086  # deliberate word-split: see below
     run_bounded "$EXEC_TIMEOUT" $RALPH_EXEC_CMD "$prompt" \
@@ -161,6 +163,7 @@ URLs/UIDs. When done, stop.${feedback}"
     if [ "$_rc" != 0 ] && [ "$_sz" -lt 512 ]; then
       echo "✋ ABORT: the executor did not start (exit $_rc, ${_sz}B of output) — the container needs attention, not another retry." >&2
       sed 's/^/    | /' "$_log" 2>/dev/null | head -4 >&2
+      log_meta "$HB_TASK" "$attempt"
       hb_write stopped false; log_where
       bus_say "✋ ABORT — executor did not start (exit $_rc). Container needs attention."
       exit 3
@@ -188,6 +191,9 @@ paths RELATIVE to the repo root (specs/... not /specs/...). Do the work this tim
     hb_write verifying
     if out="$(cd "$ROOT" && bash "$VERIFY" 2>&1)"; then
       echo "  ✓ $task passed verify (attempt $attempt)"
+   log_gate "$HB_TASK" "$attempt" "$out" "0"
+    log_patch "$HB_TASK" "$attempt"
+    log_meta "$HB_TASK" "$attempt"
       git -C "$ROOT" add -A
       # NOT "ralph(qwen)". This line named one executor while the same run filed its
       # evidence under another — a codex run committed as qwen. loop-index.py had already
@@ -228,8 +234,9 @@ paths RELATIVE to the repo root (specs/... not /specs/...). Do the work this tim
       fi
       break
     fi
-    echo "  ✗ verify failed (attempt $attempt); retrying with feedback" >&2
-    hb_write failed false
+      echo "  ✗ verify failed (attempt $attempt); retrying with feedback" >&2
+       hb_write failed false
+       log_gate "$HB_TASK" "$attempt" "$out" "1"
     log_failure "$HB_TASK" "$attempt" "$out"   # BEFORE the reset below erases the evidence
     retry_record "$out"
     # Feed the failing checks back into the next fresh attempt — targeted, not vibes.
@@ -254,6 +261,7 @@ Fix exactly those failures.${_regression_block}"
 
   if [ "$passed" != 1 ]; then
     echo "✋ STOP: '$task' failed verify after $((RETRIES + 1)) attempts — needs a human." >&2
+    log_meta "$HB_TASK" "$attempt"
     hb_write stopped false
     log_where
     bus_say "✋ STOP — '${task%%:*}' failed verify after $((RETRIES + 1)) attempts. Needs a human."
@@ -265,11 +273,12 @@ done < "$TASKS"
 # NOT prove the work was done — see the STRICT note in verify.sh. Run the gate once more with
 # pending treated as failure before declaring victory.
 if ! _strict_out="$(cd "$ROOT" && STRICT=1 bash "$VERIFY" 2>&1)"; then
-  echo "✋ STOP: every task passed, but the final STRICT gate found unbuilt work:" >&2
-  printf '%s\n' "$_strict_out" | grep -E 'FAIL' | head -10 >&2
-  hb_write stopped false; log_where
-  bus_say "✋ STOP — tasks passed individually but the final strict gate found unbuilt work."
-  exit 2
+echo "✋ STOP: every task passed, but the final STRICT gate found unbuilt work:" >&2
+   printf '%s\n' "$_strict_out" | grep -E 'FAIL' | head -10 >&2
+   log_meta "$HB_TASK" "$attempt"
+   hb_write stopped false; log_where
+   bus_say "✋ STOP — '${task%%:*}' failed verify after $((RETRIES + 1)) attempts. Needs a human."
+   exit 2
 fi
 
 hb_write done true
