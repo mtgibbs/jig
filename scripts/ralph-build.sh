@@ -147,6 +147,8 @@ URLs/UIDs. When done, stop.${feedback}"
     # build loop rather than one per executor — a duplicated loop is what a missing parameter
     # looks like, and the copy this replaced cost three specs a rule apiece to keep in sync.
     # See specs/executor-binding §1.
+    log_prompt "$HB_TASK" "$attempt" "$prompt"
+
     # Keep the transcript. This used to go to /dev/null, which made every STOP undiagnosable.
     # shellcheck disable=SC2086  # deliberate word-split: see below
     run_bounded "$EXEC_TIMEOUT" $RALPH_EXEC_CMD "$prompt" \
@@ -188,6 +190,9 @@ paths RELATIVE to the repo root (specs/... not /specs/...). Do the work this tim
     hb_write verifying
     if out="$(cd "$ROOT" && bash "$VERIFY" 2>&1)"; then
       echo "  ✓ $task passed verify (attempt $attempt)"
+      log_gate "$out" "$HB_TASK" "$attempt"
+      log_patch "$HB_TASK" "$attempt"
+      log_meta "$HB_TASK" "$attempt"
       git -C "$ROOT" add -A
       # NOT "ralph(qwen)". This line named one executor while the same run filed its
       # evidence under another — a codex run committed as qwen. loop-index.py had already
@@ -230,6 +235,8 @@ paths RELATIVE to the repo root (specs/... not /specs/...). Do the work this tim
     fi
     echo "  ✗ verify failed (attempt $attempt); retrying with feedback" >&2
     hb_write failed false
+    log_gate "$out" "$HB_TASK" "$attempt"
+    log_meta "$HB_TASK" "$attempt"
     log_failure "$HB_TASK" "$attempt" "$out"   # BEFORE the reset below erases the evidence
     retry_record "$out"
     # Feed the failing checks back into the next fresh attempt — targeted, not vibes.
