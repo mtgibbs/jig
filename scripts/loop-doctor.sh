@@ -97,7 +97,15 @@ fi
 if [ -d "$LDIR" ]; then
   for d in $(find "$LDIR" -mindepth 1 -maxdepth 3 -type d 2>/dev/null); do
     b="$(basename "$d")"
-    case "$b" in [a-z0-9]*-[0-9]*) run_ids="$run_ids $b" ;; esac
+    case "$b" in [a-z0-9]*-[0-9]*) ;;
+      *) continue ;;
+    esac
+    has_log=0
+    for f in "$d"/*; do
+      [ -f "$f" ] || continue
+      case "$(basename "$f")" in *.log|*.diff) has_log=1; break ;; esac
+    done
+    [ "$has_log" = 1 ] && run_ids="$run_ids $b"
   done
 fi
 run_ids="$(printf '%s\n' $run_ids | sort -u)"
