@@ -22,8 +22,34 @@
 - **Owner:** <name>
 - **Constitution:** `specs/constitution.md` (+ `/CLAUDE.md` Core Mandates)
 - **Touches:** <the files/paths this will change>
+- **Tools:** <comma-separated executables needed on PATH>   <!-- e.g. git, jq, swift -->
+- **MCP:** <comma-separated MCP server names>   <!-- e.g. homelab, memory; none if none required -->
+- **Permissions:** <comma-separated permission declarations>   <!-- e.g. write:scripts/**, exec:git, net:api.github.com; NOTE: unenforced until container/egress exists -->
 
 ---
+
+## 3.2 The three fields, and their very different weights
+
+| field | meaning | preflight | enforced? |
+|---|---|---|---|
+| `Tools:` | executables the tasks need on `PATH` | `command -v` each | **yes — fatal** |
+| `MCP:` | MCP servers the executor may use | a non-`none` value requires the executor's config file to be present in the worktree | **yes — fatal** |
+| `Permissions:` | what the work will ask to do | echoed in the run banner; **nothing verifies it** | **no — recorded only** |
+
+`Permissions:` is deliberately shipped unenforced, and deliberately labelled that way. Enforcing
+it needs the container and egress work that does not exist yet. **A permission list nobody checks
+is exactly the shape of a gate that cannot fail** (`specs/amendments.md`, "Gates must prove they
+can fail"), so the honest move is to record it, say plainly that it is a record, and let the
+enforcement land with the mechanism. It is the seam, not the lock.
+
+### Absent vs explicit `none`
+
+An **absent** key and an **explicit** `none` are different:
+
+- **Absent:** the key does not appear in the header block. This means "declares nothing", never "declares none".
+- **Explicit `none`:** the key appears with value `none`. This means "declares empty" (e.g. `Tools: none` means no tools required).
+
+Both pass preflight; they are different statements.
 
 ## 1. Why · [R — Requirements]
 <!-- The problem, in 2-4 sentences. Stops the agent optimizing the wrong thing. -->

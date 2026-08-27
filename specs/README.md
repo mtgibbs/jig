@@ -19,6 +19,9 @@ with Claude, or by handing it to a local agent (qwen3-coder in a Ralph loop).
 | **Plan** | Resolved unknowns + technical approach (fills the spec's open questions) | a `## Plan` section appended to the spec, or `plan.md` |
 | **Execute** | Do the work, one task at a time | by hand / Claude / Ralph loop on qwen3 |
 | **Verify** | Self-check harness + PR gate | `verify.sh` (per feature) + human PR review |
+| **Tools** | Executables required on `PATH` | `Tools:` header in `specs/<feature>/spec.md` |
+| **MCP** | MCP servers the executor may use | `MCP:` header in `specs/<feature>/spec.md` |
+| **Permissions** | What the work will ask to do (recorded only) | `Permissions:` header in `specs/<feature>/spec.md` |
 
 ## What we ship to an agent — the context budget
 
