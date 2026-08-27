@@ -129,6 +129,15 @@ must stop being a copy.
 - The stillborn-executor check (`_rc != 0 && _sz < 512` → abort) must survive the seam. It is what
   stops a broken container from reporting 3/3 tasks green — observed 2026-07-22.
 
+> **Later, in the field (2026-08-27):** `exec-codex.sh` also passes
+> `-c projects."$ROOT".trust_level="trusted"`. T2 above specifies the invocation without it, and
+> this is the reason for the difference rather than drift: the container's `codex-config.toml`
+> pre-trusts a single path, which cannot cover `run-task.sh --repo` dispatch — every spec gets a
+> fresh sibling worktree, so the set of paths is unbounded and unknown until a task starts. A
+> binding trusts the worktree it was handed; a list trusts the one somebody remembered. Nothing
+> gates on trust yet, so this changes no behaviour today; it is the mechanism that stays correct
+> when something does.
+
 ## 7. Norms · [N — Norms]
 
 - Bindings are **thin**: exec the tool, pass the prompt, inherit stdout. No retry, no gate, no
