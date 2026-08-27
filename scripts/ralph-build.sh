@@ -180,7 +180,6 @@ URLs/UIDs. When done, stop.${feedback}"
     # produced no file, and the staged gate passed T1 with "nothing to commit".
     if [ -z "$(git -C "$ROOT" status --porcelain -- . ':!.evidence' 2>/dev/null)" ]; then
       echo "  ✗ attempt $attempt changed nothing — a no-op is a failure, not a pass" >&2
-      log_meta "$HB_TASK" "$attempt"
       hb_write failed false
       feedback="
 A previous attempt produced NO file changes at all. If a tool call was rejected, use
@@ -192,9 +191,9 @@ paths RELATIVE to the repo root (specs/... not /specs/...). Do the work this tim
     hb_write verifying
     if out="$(cd "$ROOT" && bash "$VERIFY" 2>&1)"; then
       echo "  ✓ $task passed verify (attempt $attempt)"
-      log_gate "$out" "$HB_TASK" "$attempt"
-      log_patch "$HB_TASK" "$attempt"
-      log_meta "$HB_TASK" "$attempt"
+   log_gate "$HB_TASK" "$attempt" "$out" "0"
+    log_patch "$HB_TASK" "$attempt"
+    log_meta "$HB_TASK" "$attempt"
       git -C "$ROOT" add -A
       # NOT "ralph(qwen)". This line named one executor while the same run filed its
       # evidence under another — a codex run committed as qwen. loop-index.py had already
@@ -235,10 +234,9 @@ paths RELATIVE to the repo root (specs/... not /specs/...). Do the work this tim
       fi
       break
     fi
-    echo "  ✗ verify failed (attempt $attempt); retrying with feedback" >&2
-    hb_write failed false
-    log_gate "$out" "$HB_TASK" "$attempt"
-    log_meta "$HB_TASK" "$attempt"
+      echo "  ✗ verify failed (attempt $attempt); retrying with feedback" >&2
+       hb_write failed false
+       log_gate "$HB_TASK" "$attempt" "$out" "1"
     log_failure "$HB_TASK" "$attempt" "$out"   # BEFORE the reset below erases the evidence
     retry_record "$out"
     # Feed the failing checks back into the next fresh attempt — targeted, not vibes.
@@ -263,6 +261,7 @@ Fix exactly those failures.${_regression_block}"
 
   if [ "$passed" != 1 ]; then
     echo "✋ STOP: '$task' failed verify after $((RETRIES + 1)) attempts — needs a human." >&2
+    log_meta "$HB_TASK" "$attempt"
     hb_write stopped false
     log_where
     bus_say "✋ STOP — '${task%%:*}' failed verify after $((RETRIES + 1)) attempts. Needs a human."
@@ -274,11 +273,12 @@ done < "$TASKS"
 # NOT prove the work was done — see the STRICT note in verify.sh. Run the gate once more with
 # pending treated as failure before declaring victory.
 if ! _strict_out="$(cd "$ROOT" && STRICT=1 bash "$VERIFY" 2>&1)"; then
-  echo "✋ STOP: every task passed, but the final STRICT gate found unbuilt work:" >&2
-  printf '%s\n' "$_strict_out" | grep -E 'FAIL' | head -10 >&2
-  hb_write stopped false; log_where
-  bus_say "✋ STOP — tasks passed individually but the final strict gate found unbuilt work."
-  exit 2
+echo "✋ STOP: every task passed, but the final STRICT gate found unbuilt work:" >&2
+   printf '%s\n' "$_strict_out" | grep -E 'FAIL' | head -10 >&2
+   log_meta "$HB_TASK" "$attempt"
+   hb_write stopped false; log_where
+   bus_say "✋ STOP — '${task%%:*}' failed verify after $((RETRIES + 1)) attempts. Needs a human."
+   exit 2
 fi
 
 hb_write done true
