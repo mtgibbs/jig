@@ -178,7 +178,7 @@ log_failure() {
 log_prompt() {
   [ "${LOG_OK:-0}" = 1 ] || return 0
   local f; f="$(log_path "$1" "$2" prompt.md)"
-  { printf '%s' "$3"; } > "$f" 2>/dev/null || { echo "$f" >&2; return 0; }
+  { printf '%s' "$3"; } > "$f" 2>/dev/null || true
 }
 
 # log_gate <task-label> <attempt> <output> <rc>
