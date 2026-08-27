@@ -70,6 +70,28 @@ _ralph_slug() {
   printf '%s' "${s:-nospec}"
 }
 
+# _ralph_host — the host discriminator for fleet-wide uniqueness.
+# Returns the value from run-key.sh (first non-empty: RALPH_HOST_ID, hostname, "unknown").
+# Sanitised to [A-Za-z0-9._-]; every other byte becomes _.
+# Used by log_init() and log_meta() to build the run directory path and run_key field.
+#
+# Deliberately duplicated verbatim in ralph-status.sh. Both files are best-effort helpers whose
+# contract is that either may be absent without breaking the loop, so neither may depend on the
+# other. Keep the two copies identical.
+_ralph_host() {
+  if [ -n "${RALPH_HOST_ID:-}" ]; then
+    printf '%s' "$RALPH_HOST_ID"
+  else
+    local _hn
+    _hn=$(hostname 2>/dev/null)
+    if [ -n "$_hn" ]; then
+      printf '%s' "$_hn"
+    else
+      printf '%s' "unknown"
+    fi
+  fi | tr -c 'A-Za-z0-9._-' '_'
+}
+
 log_init() {
   LOG_OK=0
   [ "${RALPH_LOG:-on}" = "on" ] || { echo "logs: off (RALPH_LOG=off)" >&2; return 0; }
@@ -77,26 +99,23 @@ log_init() {
   # Prefer the heartbeat's slug when ralph-status.sh is loaded, so the two stores can never
   # disagree about which feature a run belongs to; derive our own when it is absent.
   LOG_SLUG="${HB_SLUG:-$(_ralph_slug "${SPEC_DIR:-}")}"
-  # Host discriminator from run-key.sh (first non-empty: RALPH_HOST_ID, hostname, "unknown").
-  # Sanitised to [A-Za-z0-9._-]; every other byte becomes _.
-  local _host
-  _host="$(. "${BASH_SOURCE[0]%/*}/run-key.sh" 2>/dev/null || printf '%s' "unknown")"
-  LOG_DIR="$LOG_ROOT/$LOG_SLUG/$_host/${HB_AGENT:-${RALPH_AGENT:-agent}}-$$"
+  LOG_DIR="$LOG_ROOT/$LOG_SLUG/$(_ralph_host)/${HB_AGENT:-${RALPH_AGENT:-agent}}-$$"
   mkdir -p "$LOG_DIR" 2>/dev/null || { echo "logs: unavailable ($LOG_DIR not writable)" >&2; return 0; }
   local _log_basename; _log_basename="${LOG_DIR##*/}"
   local _log_parent="${LOG_DIR%/*}"
   [ -w "$_log_parent" ] && ln -sfn "$_log_basename" "$_log_parent/latest" 2>/dev/null || true
-  # Cap accumulation the same way the heartbeat does — these hold whole model transcripts.
-  #
-  # DEPTH 3, not 2: a run directory now lives at <root>/<slug>/<host>/<agent>-<pid>, so depth 2
-  # is the host. Reaping there would delete a host's entire run history in one stroke the moment
-  # the host went quiet — and a directory's mtime tracks its newest child, so an active host
-  # would look immortal right up until it didn't. Expiry is per run; only whole runs age out.
-  #
-  # -mindepth is also what keeps `find X -maxdepth N -type d` from matching X itself, which
-  # would rm -rf the entire store. That has never fired (the mkdir -p above refreshes the root's
-  # mtime first), but the guard costs nothing and the failure mode is total.
-  find "$LOG_ROOT" -mindepth 3 -maxdepth 3 -type d -mmin "+${RALPH_LOG_KEEP_MIN:-4320}" -exec rm -rf {} + 2>/dev/null || true
+
+# Cap accumulation the same way the heartbeat does — these hold whole model transcripts.
+#
+# DEPTH 3, not 2: a run directory now lives at <root>/<slug>/<host>/<agent>-<pid>, so depth 2
+# is the host. Reaping there would delete a host's entire run history in one stroke the moment
+# the host went quiet — and a directory's mtime tracks its newest child, so an active host
+# would look immortal right up until it didn't. Expiry is per run; only whole runs age out.
+#
+# -mindepth is also what keeps `find X -maxdepth N -type d` from matching X itself, which
+# would rm -rf the entire store. That has never fired (the mkdir -p above refreshes the root's
+# mtime first), but the guard costs nothing and the failure mode is total.
+find "$LOG_ROOT" -mindepth 3 -maxdepth 3 -type d -mmin "+${RALPH_LOG_KEEP_MIN:-4320}" -exec rm -rf {} + 2>/dev/null || true
   # …then sweep up the host directories the reap just emptied, so a finished host leaves no
   # husk behind. Ours always holds the run dir created above, so it is never a candidate.
   find "$LOG_ROOT/$LOG_SLUG" -mindepth 1 -maxdepth 1 -type d -empty -delete 2>/dev/null || true
@@ -206,6 +225,8 @@ log_meta() {
   local f; f="$(log_path "$1" "$2" json)"
   {
     jq -n \
+      --arg host "$(_ralph_host)" \
+      --arg run_key "$(_ralph_host)/${HB_AGENT:-${RALPH_AGENT:-agent}}-$$" \
       --arg run_id "${LOG_DIR##*/}" \
       --argjson run_label "$([ -n "${RUN_LABEL:-}" ] && printf '%s' "$RUN_LABEL" | jq -R . || jq -n null)" \
       --arg repo "$([ -n "${ROOT:-}" ] && basename "$ROOT" || echo null)" \
@@ -240,7 +261,9 @@ log_meta() {
         outcome: $outcome,
         bytes_prompt: $bytes_prompt,
         bytes_transcript: $bytes_transcript,
-        bytes_patch: $bytes_patch
+        bytes_patch: $bytes_patch,
+        host: $host,
+        run_key: $run_key
       }'
   } > "$f" 2>/dev/null || true
 }
