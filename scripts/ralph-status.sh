@@ -6,12 +6,13 @@
 # small JSON status file per running loop so a collector can answer "what is
 # this agent doing right now?" over `docker exec cat` — no tmux, no guessing.
 #
-# Contract — file: $RALPH_STATUS_DIR/<spec-slug>/<agent>-<pid>.json (the root
+# Contract — file: $RALPH_STATUS_DIR/<spec-slug>/<host>/<agent>-<pid>.json (the root
 # defaults to the target repo's own .evidence/status, scoped so two projects'
 # loops cannot collide on a recycled PID; an explicit RALPH_STATUS_DIR is used
 # verbatim). <spec-slug> is the spec directory's basename — the same level
 # ralph-log.sh puts run dirs under, and the same key .evidence/judge/<spec>/ and
 # .evidence/supervisor/<spec>/ already use, so the four stores walk alike.
+# <host> is the host discriminator resolved by scripts/run-key.sh.
 #
 # The slug is a DIRECTORY, not part of the filename: `scripts/harness` and
 # loop-index.py both parse the pid out of the leaf, and both already handle one
@@ -85,15 +86,16 @@ hb_init() {
   HB_STARTED="$(date +%s 2>/dev/null || echo 0)"
   HB_TASK=""; HB_TIDX=0; HB_ATTEMPT=0
   HB_SLUG="$(_ralph_slug "$HB_SPEC")"
-  HB_DIR="${RALPH_STATUS_DIR:-$(git -C "${ROOT:-.}" rev-parse --show-toplevel 2>/dev/null || echo "$HOME/.harness")/.evidence/status}"
-  # The root stays addressable: the sweeps below run from it so they still span every spec,
-  # not just the one this loop happens to be running. HB_DIR then descends into this run's
-  # feature. Assigned in this order deliberately — evidence-convention's AC-1 gate reads the
-  # FIRST `HB_DIR=` line and requires the override seam and the .evidence default to be
-  # visible on it, so the root keeps that shape and the slug is appended after.
-  HB_STATUS_ROOT="$HB_DIR"
-  HB_DIR="$HB_DIR/$HB_SLUG"
-  HB_FILE="$HB_DIR/${HB_AGENT}-$$.json"
+   HB_HOST="$(scripts/run-key.sh 2>/dev/null || echo 'unknown')"
+   HB_DIR="${RALPH_STATUS_DIR:-$(git -C "${ROOT:-.}" rev-parse --show-toplevel 2>/dev/null || echo "$HOME/.harness")/.evidence/status}"
+   # The root stays addressable: the sweeps below run from it so they still span every spec,
+   # not just the one this loop happens to be running. HB_DIR then descends into this run's
+   # feature. Assigned in this order deliberately — evidence-convention's AC-1 gate reads the
+   # FIRST `HB_DIR=` line and requires the override seam and the .evidence default to be
+   # visible on it, so the root keeps that shape and the slug is appended after.
+   HB_STATUS_ROOT="$HB_DIR"
+   HB_DIR="$HB_DIR/$HB_SLUG/$HB_HOST"
+   HB_FILE="$HB_DIR/${HB_AGENT}-$$.json"
   # Cap accumulation: drop this agent's terminal files older than a day.
   #
   # BEFORE the mkdir below, not after: unlike ralph-log.sh — whose slug directory always holds
