@@ -24,10 +24,44 @@ pend(){
     echo "  pend  $1 (not built yet)"; fi
 }
 
+# tree_clean [dir] — "did the loop leave the tree as it found it?", asked the same way
+# ralph-judge.sh asks it (see its lines 94/157/191: `git status --porcelain -- . ':!.evidence'`).
+#
+# .evidence/ is NOT the executor's work product — it is the loop's own published record, written
+# INTO the target repo on purpose since specs/evidence-spec-nesting (2026-08-24). A bare
+# `git status --porcelain` counts it as dirt, so five assertions here (AC-a2/b1/b2/b4/c7s) went
+# red the moment that landed and stayed red: the loop restored the tree correctly every time and
+# the gate called it a leak. AC-b1 printed the tell for weeks — `HEAD=<x> (want <x>)`, the two
+# SHAs identical, the failure entirely in the clean-tree conjunct.
+#
+# This exclusion is NOT a blanket "ignore untracked files", and AC-h1 below is what proves it.
+# Do not reach for AC-c7s as the proof: it looks like the litter test but its teeth are the
+# `[ ! -f stray.txt ]` conjunct, and it stays GREEN under a blanket `-uno` (measured, 2026-08-27).
+# An exclusion whose only guard is a check that cannot notice it is an exclusion with no guard.
+tree_clean(){ [ -z "$(cd "${1:-.}" && git status --porcelain -- . ':!.evidence')" ]; }
+
+# The mocks are executable files under $TMPDIR. A noexec TMPDIR (common in a hardened container:
+# `tmpfs /tmp tmpfs rw,nosuid,nodev,noexec`) makes every one of them exit 126, and this gate then
+# reports ELEVEN failures that all name ralph-judge.sh — a false accusation against the code, in
+# the gate whose entire job is telling you which thing broke. Probe it and name the real cause.
+_probe="$(mktemp -d "${TMPDIR:-/tmp}/judge-loop-probe.XXXXXX")"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$_probe/x"; chmod +x "$_probe/x"
+if ! "$_probe/x" 2>/dev/null; then
+  rm -rf "$_probe"
+  echo "  FATAL  TMPDIR (${TMPDIR:-/tmp}) is noexec — the fixture mocks cannot run." >&2
+  echo "         Every case would fail and blame ralph-judge.sh. Re-run with an exec-able" >&2
+  echo "         TMPDIR, e.g.  TMPDIR=\"\$HOME/tmp\" bash specs/judge-loop/verify.sh" >&2
+  echo; echo "VERIFY: ENV"; exit 2
+fi
+rm -rf "$_probe"
+
 echo "VERIFY specs/judge-loop  ($RJ)"
 
 # ---- scope first, fatal (fail-open-ordering guard) ----
-outside="$(git status --porcelain 2>/dev/null | awk '{print $2}' | grep -vE '^(scripts/ralph-judge\.sh|specs/judge-loop/)' || true)"
+# ':!.evidence' for the same reason tree_clean uses it: a previous judge run publishes
+# .evidence/judge/<spec>/ into THIS repo (and .gitignore only covers .evidence/runs/), so
+# without the exclusion this guard fails on the loop's own output and blames your edit.
+outside="$(git status --porcelain -- . ':!.evidence' 2>/dev/null | awk '{print $2}' | grep -vE '^(scripts/ralph-judge\.sh|specs/judge-loop/)' || true)"
 if [ -n "$outside" ]; then
   no "changes outside scripts/ralph-judge.sh + specs/judge-loop/: $(echo "$outside" | tr '\n' ' ')(§5 — fixtures go in \$TMPDIR)"
 else
@@ -127,6 +161,24 @@ runjudge(){ # run ralph-judge in $REPO with the case mocks; stdout+stderr to $CA
 # =====================================================================================
 # T1 — the guardrail apply-cycle. Keyed on the script existing (checked above).
 # =====================================================================================
+# AC-h1 — tree_clean must discriminate, not just permit. Both directions, on a real fixture:
+# the loop's own .evidence/ reads clean, and anything else still reads dirty. Widening the
+# pathspec makes this check go red, which is the whole point of it existing (amendments.md:
+# a gate must prove it can fail).
+mkcase h0
+mkdir -p "$REPO/.evidence/judge/fx" && echo record > "$REPO/.evidence/judge/fx/report.json"
+if ! tree_clean "$REPO"; then
+  no "AC-h1: tree_clean counts the loop's own .evidence/ as dirt — the 2026-08-24 regression is back"
+else
+  echo stray > "$REPO/stray.txt"
+  if tree_clean "$REPO"; then
+    no "AC-h1: tree_clean ignores stray.txt — the exclusion has widened into a blanket"
+  else
+    ok "AC-h1: tree_clean passes .evidence/ and still fails on stray.txt"
+  fi
+  rm -f "$REPO/stray.txt"
+fi
+
 # case 1: safe finding -> accepted, committed, message carries the id
 mkcase c1
 finding fx-1 mutate 'swap|solution.txt|junk comment|good comment' > "$CASE/round-1.jsonl"
@@ -139,7 +191,7 @@ if [ "$c1rc" = 0 ] && grep -q 'good comment' "$REPO/solution.txt" \
 else
   no "AC-a1: safe-finding case gave rc=$c1rc, log='$(cd "$REPO" && git log --oneline -1)' — want accept+commit 'judge: fx-1'"
 fi
-(cd "$REPO" && [ -z "$(git status --porcelain)" ]) && ok "AC-a2: tree clean after accept" || no "AC-a2: dirty tree after accept"
+tree_clean "$REPO" && ok "AC-a2: tree clean after accept" || no "AC-a2: dirty tree after accept"
 
 # case 2: gate-breaking finding (removes marker A) -> rejected, HEAD + tree restored exactly
 mkcase c2
@@ -149,7 +201,7 @@ BEFORE=$(cd "$REPO" && git rev-parse HEAD)
 runjudge
 c2rc=$(cat "$CASE/rc")
 AFTER=$(cd "$REPO" && git rev-parse HEAD)
-if [ "$AFTER" = "$BEFORE" ] && grep -q 'line A' "$REPO/solution.txt" && (cd "$REPO" && [ -z "$(git status --porcelain)" ]); then
+if [ "$AFTER" = "$BEFORE" ] && grep -q 'line A' "$REPO/solution.txt" && tree_clean "$REPO"; then
   ok "AC-b1: gate-breaking mutation restored to before_head (rc=$c2rc)"
 else
   no "AC-b1: after gate-break HEAD=$AFTER (want $BEFORE), tree dirty or marker gone — the guardrail leaked"
@@ -161,7 +213,7 @@ finding fx-1 mutate 'swap|solution.txt|line A|line X' > "$CASE/round-1.jsonl"
 : > "$CASE/round-2.jsonl"
 echo stage > "$CASE/exec-mode"
 runjudge
-if grep -q 'line A' "$REPO/solution.txt" && (cd "$REPO" && [ -z "$(git status --porcelain)" ]); then
+if grep -q 'line A' "$REPO/solution.txt" && tree_clean "$REPO"; then
   ok "AC-b2: staged rejected edit fully purged (reset --hard, not checkout --)"
 else
   no "AC-b2: staged-state leak — rejected content survived in index/worktree (spec §8.4)"
@@ -184,7 +236,7 @@ finding fx-1 mutate 'swap|solution.txt|junk comment|good comment' > "$CASE/round
 echo sleep > "$CASE/exec-mode"
 runjudge
 c5rc=$(cat "$CASE/rc")
-if [ "$c5rc" = 1 ] && (cd "$REPO" && [ -z "$(git status --porcelain)" ]); then
+if [ "$c5rc" = 1 ] && tree_clean "$REPO"; then
   ok "AC-b4: executor timeout -> restored + exit 1 (run_bounded works)"
 else
   no "AC-b4: executor timeout gave rc=$c5rc / dirty tree — must restore and abort fail-closed"
@@ -315,7 +367,7 @@ EOP
   runjudge
   if [ ! -f "$REPO/stray.txt" ] && grep -q 'junk comment' "$REPO/solution.txt" \
      && grep -q '"reason":"scope-violation"' "$STATE/ledger.jsonl" 2>/dev/null \
-     && (cd "$REPO" && [ -z "$(git status --porcelain)" ]); then
+     && tree_clean "$REPO"; then
     ok "AC-c7s: out-of-file executor change rejected as scope-violation + restored"
   else
     no "AC-c7s: littering executor not caught (spec §8.4 staging scope)"
