@@ -79,6 +79,9 @@ log_init() {
   LOG_SLUG="${HB_SLUG:-$(_ralph_slug "${SPEC_DIR:-}")}"
   LOG_DIR="$LOG_ROOT/$LOG_SLUG/${HB_AGENT:-${RALPH_AGENT:-agent}}-$$"
   mkdir -p "$LOG_DIR" 2>/dev/null || { echo "logs: unavailable ($LOG_DIR not writable)" >&2; return 0; }
+  local _log_basename; _log_basename="${LOG_DIR##*/}"
+  local _log_parent="${LOG_DIR%/*}"
+  [ -w "$_log_parent" ] && ln -sfn "$_log_basename" "$_log_parent/latest" 2>/dev/null || true
   # Cap accumulation the same way the heartbeat does — these hold whole model transcripts.
   #
   # DEPTH 2, not 1: a run directory now lives at <root>/<slug>/<agent>-<pid>, so depth 1 is the
