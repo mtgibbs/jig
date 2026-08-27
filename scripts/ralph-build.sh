@@ -189,7 +189,10 @@ paths RELATIVE to the repo root (specs/... not /specs/...). Do the work this tim
 
     # The gate: deterministic, external. The model does NOT get to say "done".
     hb_write verifying
-    if out="$(cd "$ROOT" && bash "$VERIFY" 2>&1)"; then
+    # Last task is HB_TIDX equals HB_TOTAL. If HB_TOTAL is empty/0, lenient (safe default).
+    STRICT=0
+    [ "${HB_TOTAL:-0}" -gt 0 ] && [ "$HB_TIDX" -eq "$HB_TOTAL" ] && STRICT=1
+    if out="$(cd "$ROOT" && STRICT="$STRICT" bash "$VERIFY" 2>&1)"; then
       echo "  ✓ $task passed verify (attempt $attempt)"
    log_gate "$HB_TASK" "$attempt" "$out" "0"
     log_patch "$HB_TASK" "$attempt"
