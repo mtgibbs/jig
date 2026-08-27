@@ -254,6 +254,8 @@ validate_findings(){ # stdin: raw judge output; stdout: the validated lines; rc 
 # ---- the rounds ---------------------------------------------------------------------------
 for round in $(seq 1 "$MAX_ROUNDS"); do
   rounds_run="$round"
+  prompt="You are an independent reviewer (the judge) examining the spec at $SPEC_DIR against the current code state. Baseline score: $s_base / $total_base. Propose findings that improve the code while preserving or improving the gate score. Follow the spec's section 10 acceptance criteria and section 7 norms EXACTLY. Output one finding per line in JSONL format with fields: id, file, line, kind, category, problem, spec_anchor, suggested_change."
+  log_prompt "judge" "$round" "$prompt"
   raw="$(run_bounded "$JUDGE_TIMEOUT" $JUDGE_CMD "$SPEC_DIR")"; jrc=$?
   [ "$jrc" = 0 ] || die 1 "judge failed (rc=$jrc)"
   if ! valid="$(printf '%s\n' "$raw" | validate_findings)"; then
