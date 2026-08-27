@@ -239,6 +239,10 @@ if has log_meta; then
         # …and the positive control for that null: with RUN_LABEL set it must be the string.
         rm -f "$f"
         RUN_LABEL=s1-run1 probe 'log_meta T1 1' || true
+        # Recompute the path: probe() runs a NEW bash, log_init derives the run dir from that
+        # process's pid, so $D moved. Reading the pre-probe $f asserted against a file this
+        # probe never wrote, and the control could not pass for ANY implementation.
+        f="$D/T1-attempt1.json"
         if [ "$(jq -r '.run_label' "$f" 2>/dev/null)" = "s1-run1" ]; then
           ok "control: run_label carries RUN_LABEL when it is set (so the null above is measured, not broken)"
         else
