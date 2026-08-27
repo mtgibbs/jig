@@ -160,6 +160,14 @@ log_failure() {
   } > "$f" 2>/dev/null || true
 }
 
+# log_prompt <task-label> <attempt> <text>
+# Write the prompt that preceded the model's attempt. Like log_failure, call before the reset.
+log_prompt() {
+  [ "${LOG_OK:-0}" = 1 ] || return 0
+  local f; f="$(log_path "$1" "$2" prompt.md)"
+  { printf '%s' "$3"; } > "$f" 2>/dev/null || { echo "$f" >&2; return 0; }
+}
+
 # log_where — one line telling a human where to look. Called on STOP.
 log_where() {
   [ "${LOG_OK:-0}" = 1 ] || return 0
