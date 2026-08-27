@@ -168,6 +168,15 @@ log_prompt() {
   { printf '%s' "$3"; } > "$f" 2>/dev/null || { echo "$f" >&2; return 0; }
 }
 
+# log_gate <task-label> <attempt> <output> <rc>
+# Write the gate's output and exit status to <stem>.gate.txt.
+# NEVER invokes verify.sh; records output its caller already captured.
+log_gate() {
+  [ "${LOG_OK:-0}" = 1 ] || return 0
+  local f; f="$(log_path "$1" "$2" gate.txt)"
+  { printf '%s\n' "$3"; printf '%s\n' "---GATE-RC---"; printf '%s\n' "$4"; } > "$f" 2>/dev/null || { echo "$f" >&2; return 0; }
+}
+
 # log_where — one line telling a human where to look. Called on STOP.
 log_where() {
   [ "${LOG_OK:-0}" = 1 ] || return 0
