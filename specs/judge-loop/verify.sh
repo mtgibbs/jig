@@ -364,5 +364,46 @@ else
   pend "T3: terminate + report (report.json not yet emitted)"
 fi
 
+# ---- the judge BINDING must be able to reach the anchors it is told to cite -----------------
+# §65 / §7 make an unanchored finding a DROPPED finding. That rule is only safe if the anchor
+# documents are actually reachable — otherwise "no anchor, no finding" quietly becomes "no
+# findings", which is indistinguishable from a clean review. The binding used to name
+# specs/constitution.md relative to the TARGET repo with "skip silently if absent", so off
+# pi-cluster it degraded without a word. Tested here because the rule it protects is this
+# spec's, with a stub codex so no model is spent.
+RJC="${RJC:-scripts/ralph-judge-codex.sh}"
+if [ ! -f "$RJC" ]; then
+  pend "AC-g1: judge binding resolves anchors absolutely ($RJC absent)"
+else
+  A="$(mktemp -d "${TMPDIR:-/tmp}/jl-anchor.XXXXXX")"
+  RJC_ABS="$(cd "$(dirname "$RJC")" && pwd)/$(basename "$RJC")"
+  mkdir -p "$A/bin" "$A/proj/specs/demo"
+  printf '#!/usr/bin/env bash\nout=""; prompt=""\nwhile [ $# -gt 0 ]; do case "$1" in --output-last-message) out="$2"; shift 2;; exec|--sandbox|read-only) shift;; *) prompt="$1"; shift;; esac; done\nprintf "%%s" "$prompt" > "$PROMPT_CAPTURE"\n: > "$out"\n' > "$A/bin/codex"
+  chmod +x "$A/bin/codex"
+  ( cd "$A/proj" && git init -q && echo x > f && git add -A && git commit -qm x ) >/dev/null 2>&1
+
+  # (1) target repo with NO specs of its own — the notes-from-hearing shape
+  err="$( cd "$A/proj" && PATH="$A/bin:$PATH" PROMPT_CAPTURE="$A/p1" bash "$RJC_ABS" specs/demo 2>&1 >/dev/null )"
+  named="$(grep -c '^- /' "$A/p1" 2>/dev/null || echo 0)"
+  missing="$(grep -o '^- /[^ ]*' "$A/p1" 2>/dev/null | cut -c3- | while read -r f; do [ -f "$f" ] || echo "$f"; done)"
+  if [ "$named" -ge 1 ] && [ -z "$missing" ] && printf '%s' "$err" | grep -q 'ABSENT'; then
+    ok "AC-g1: binding names $named existing absolute anchor(s) and reports the absent ones (§65)"
+  else
+    no "AC-g1: named=$named unreadable=[$(echo "$missing" | tr '\n' ' ')] stderr=[$err]"
+  fi
+
+  # (2) fail-closed: no harness constitution => refuse, do not review with nothing to cite
+  mkdir -p "$A/broken/specs"; cp -R "$(dirname "$RJC_ABS")" "$A/broken/scripts"
+  rm -f "$A/broken/specs/constitution.md"
+  ( cd "$A/proj" && PATH="$A/bin:$PATH" PROMPT_CAPTURE="$A/p2" bash "$A/broken/scripts/$(basename "$RJC")" specs/demo ) >/dev/null 2>&1
+  rc2=$?
+  if [ "$rc2" != 0 ] && [ ! -s "$A/p2" ]; then
+    ok "AC-g2: no constitution to cite -> refuses (rc=$rc2), judge never invoked"
+  else
+    no "AC-g2: reviewed anyway with no principles available (rc=$rc2, prompt written=$([ -s "$A/p2" ] && echo yes || echo no))"
+  fi
+  rm -rf "$A"
+fi
+
 echo
 [ "$fail" = 0 ] && { echo "VERIFY: PASS"; exit 0; } || { echo "VERIFY: FAIL"; exit 1; }
