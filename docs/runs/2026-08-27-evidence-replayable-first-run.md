@@ -123,9 +123,14 @@ identical to the convergence gate; `ac15` became a failure the executor could se
 the call site on its **first** attempt. The executor was never the problem — it had never once
 been told it was wrong.
 
-**Suggested fix:** a task's own ACs should be strict for that task while later tasks' stay
-`pend`. Failing that, `build-converge` should simply export `STRICT=1` — nothing in this spec's
-run wanted the lenient per-task gate.
+**Suggested fix:** a task's own ACs should be strict *for that task* while later tasks' ACs stay
+`pend`. The gate already keys each `pend` on the owning task's artifact, so the information needed
+to make that split exists.
+
+**Not the fix:** exporting `STRICT=1` for the whole run. It worked here only because T7 is the
+**last** task and everything else was already built. Applied from T1 it promotes every later
+task's `pend` to a failure and no early task can ever pass — which is precisely why the lenient
+per-task gate exists. The knob rescued this run; it is not the general answer.
 
 ---
 
