@@ -36,12 +36,32 @@ branch="$(git branch --show-current 2>/dev/null || true)"
 [ -n "$branch" ] && [ "$branch" != "main" ] \
   || { echo "run-loop: refuse to run on '$branch' — use a worktree on a throwaway branch" >&2; exit 1; }
 
+# Preflight: validate tools declared in spec (Tools: key)
+if [ -f "$SPEC_DIR/spec.md" ]; then
+  tools_line="$(grep -E '^Tools: ' "$SPEC_DIR/spec.md" 2>/dev/null || true)"
+  if [ -n "$tools_line" ]; then
+    tools_list="${tools_line#Tools: }"
+    misses=""
+    for tool in $tools_list; do
+      tool="$(echo "$tool" | sed 's/,//g')"
+      if ! command -v "$tool" >/dev/null 2>&1; then
+        misses="$misses $tool"
+      fi
+    done
+    if [ -n "$misses" ]; then
+      echo "run-loop: missing tools$misses declared in $SPEC_DIR/spec.md — container needs attention, not another retry" >&2
+      exit 3
+    fi
+  fi
+fi
+
 # shellcheck source=/dev/null
 . "$ENV_FILE"
 : "${STRATEGY_PHASES:?$ENV_FILE must set STRATEGY_PHASES}"
 
 echo "strategy: $STRATEGY — ${STRATEGY_DESC:-}"
 echo "spec:     $SPEC_DIR   branch: $branch"
+echo "permissions: recorded, not verified"
 
 for phase in $STRATEGY_PHASES; do
   echo
