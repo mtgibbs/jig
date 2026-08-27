@@ -163,6 +163,7 @@ URLs/UIDs. When done, stop.${feedback}"
     if [ "$_rc" != 0 ] && [ "$_sz" -lt 512 ]; then
       echo "✋ ABORT: the executor did not start (exit $_rc, ${_sz}B of output) — the container needs attention, not another retry." >&2
       sed 's/^/    | /' "$_log" 2>/dev/null | head -4 >&2
+      log_meta "$HB_TASK" "$attempt"
       hb_write stopped false; log_where
       bus_say "✋ ABORT — executor did not start (exit $_rc). Container needs attention."
       exit 3
@@ -179,6 +180,7 @@ URLs/UIDs. When done, stop.${feedback}"
     # produced no file, and the staged gate passed T1 with "nothing to commit".
     if [ -z "$(git -C "$ROOT" status --porcelain -- . ':!.evidence' 2>/dev/null)" ]; then
       echo "  ✗ attempt $attempt changed nothing — a no-op is a failure, not a pass" >&2
+      log_meta "$HB_TASK" "$attempt"
       hb_write failed false
       feedback="
 A previous attempt produced NO file changes at all. If a tool call was rejected, use
