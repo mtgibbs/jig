@@ -244,6 +244,16 @@ Rejected alternative: a judge with no deterministic anchor. That is a slot machi
    merge.
 7. **Grounded.** An ungrounded / no-`spec_anchor` finding is dropped — no taste-only churn. The
    JSONL contract (§3) is fail-closed: parse failure rejects the invocation, never fakes a dry round.
+
+   **7a. Grounded requires the ground to be reachable.** Dropping unanchored findings is only
+   safe while the anchor documents can actually be read. A binding that names them by a path
+   relative to the target repo, and skips them when absent, turns "no anchor, no finding" into
+   "no findings" — and a judge that found nothing because it could not read the constitution is
+   byte-identical to a judge that found nothing because the work was good. So: a binding shall
+   resolve its anchors to paths it has verified exist, name which resolved and which did not,
+   and refuse to review at all rather than review with no principles available to cite. Not a
+   hypothetical — measured in `notes-from-hearing` on 2026-08-27: constitution present,
+   amendments absent, judge-loop spec absent, and the judge said nothing about any of it.
 8. **Conservative mutation surface (OQ-3).** v1 accepts only localized comments, naming, clarity,
    and literal spec-fidelity corrections. Dead-code deletion and behavior-preserving refactors are
    OUT — both can change behavior the gate doesn't observe, which is precisely this loop's founding
