@@ -36,22 +36,49 @@ branch="$(git branch --show-current 2>/dev/null || true)"
 [ -n "$branch" ] && [ "$branch" != "main" ] \
   || { echo "run-loop: refuse to run on '$branch' — use a worktree on a throwaway branch" >&2; exit 1; }
 
-# Preflight: validate tools declared in spec (Tools: key)
+# Preflight: validate tools and MCP declared in spec
 if [ -f "$SPEC_DIR/spec.md" ]; then
-  tools_line="$(grep -E '^Tools: ' "$SPEC_DIR/spec.md" 2>/dev/null || true)"
-  if [ -n "$tools_line" ]; then
-    tools_list="${tools_line#Tools: }"
-    misses=""
-    for tool in $tools_list; do
-      tool="$(echo "$tool" | sed 's/,//g')"
-      if ! command -v "$tool" >/dev/null 2>&1; then
-        misses="$misses $tool"
-      fi
-    done
-    if [ -n "$misses" ]; then
-      echo "run-loop: missing tools$misses declared in $SPEC_DIR/spec.md — container needs attention, not another retry" >&2
-      exit 3
+  FIELD="$SCRIPT_DIR/spec-field.sh"
+  
+  # Collect all missing tools
+  misses=""
+  if bash "$FIELD" "$SPEC_DIR/spec.md" --list >/dev/null 2>&1; then
+    tools_out="$(bash "$FIELD" "$SPEC_DIR/spec.md" Tools 2>/dev/null || true)"
+    if [ -n "$tools_out" ]; then
+      while IFS= read -r tool || [ -n "$tool" ]; do
+        tool="$(echo "$tool" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+        [ -z "$tool" ] && continue
+        if [ "$tool" != "none" ]; then
+          if ! command -v "$tool" >/dev/null 2>&1; then
+            misses="$misses $tool"
+          fi
+        fi
+      done <<< "$tools_out"
     fi
+  fi
+  
+  # Check MCP config file if declared
+  mcp_out="$(bash "$FIELD" "$SPEC_DIR/spec.md" MCP 2>/dev/null || true)"
+  if [ -n "$mcp_out" ]; then
+    while IFS= read -r mcp || [ -n "$mcp" ]; do
+      mcp="$(echo "$mcp" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+      [ -z "$mcp" ] && continue
+      if [ "$mcp" != "none" ]; then
+        if [ -n "${RALPH_EXEC_CMD:-}" ]; then
+          cfg_name="$(basename "$RALPH_EXEC_CMD" .sh).json"
+          if [ ! -f "$cfg_name" ]; then
+            misses="$misses $cfg_name"
+          fi
+        else
+          misses="$misses exec-qwen.json"
+        fi
+      fi
+    done <<< "$mcp_out"
+  fi
+  
+  if [ -n "$misses" ]; then
+    echo "run-loop: missing tools/config$misses declared in $SPEC_DIR/spec.md — container needs attention, not another retry" >&2
+    exit 3
   fi
 fi
 
