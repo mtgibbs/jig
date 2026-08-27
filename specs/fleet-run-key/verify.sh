@@ -182,9 +182,14 @@ fi
 
 # ── T3 · the status file ───────────────────────────────────────────────────────────────────
 if grep -q 'run-key' "$STAT" 2>/dev/null; then
+  # A REAL task context, not a bare hb_write. With HB_TASK empty and the counters at 0,
+  # hb_write emits malformed JSON on unmodified main too — so an assertion made against that
+  # state fails whatever the executor wrote, which is a broken control rather than a strict one.
   ( RALPH_STATUS_DIR="$T/st" ROOT="$REPO" SPEC_DIR="$T/specs/fleet-run-key" \
     RALPH_AGENT=gate RALPH_HOST_ID=node-a \
-    bash -c '. "$0"; hb_init 2>/dev/null || true; hb_write running 2>/dev/null || true' "$STAT" ) >/dev/null 2>&1
+    bash -c '. "$0"; hb_init 2>/dev/null || true
+             HB_TASK="T1: demo"; HB_TIDX=1; HB_TOTAL=5; HB_ATTEMPT=1; HB_MAX=3
+             hb_write running 2>/dev/null || true' "$STAT" ) >/dev/null 2>&1
   sf="$(find "$T/st" -name '*.json' 2>/dev/null | head -1)"
   if [ -n "$sf" ]; then
     case "$(basename "$sf")" in
@@ -194,9 +199,13 @@ if grep -q 'run-key' "$STAT" 2>/dev/null; then
     [ "$(basename "$(dirname "$sf")")" = "node-a" ] \
       && ok "ac8: the status file sits under the host level too" \
       || no "ac8: status parent is '$(basename "$(dirname "$sf")")', not the host"
-    jq -e 'has("pid") and (.pid|type=="number")' "$sf" >/dev/null 2>&1 \
-      && ok "ac9: pid is still an unquoted JSON number — the corpus format did not shift" \
-      || no "ac9: pid is no longer a JSON number; this spec must not change that"
+    if ! jq -e . "$sf" >/dev/null 2>&1; then
+      no "ac9: the status file is not parseable JSON at all — that is a different fault from the pid's type"
+    elif jq -e '(.pid|type)=="number"' "$sf" >/dev/null 2>&1; then
+      ok "ac9: pid is still an unquoted JSON number — the corpus format did not shift"
+    else
+      no "ac9: pid is a $(jq -r '.pid|type' "$sf" 2>/dev/null), not a number; this spec must not change that"
+    fi
   else
     pend "ac8: the status file under the host level"
     pend "ac9: pid stays a JSON number"

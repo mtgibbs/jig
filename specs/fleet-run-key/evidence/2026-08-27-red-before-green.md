@@ -54,3 +54,23 @@ compiles in memory. After a full run, `git status` is clean apart from the spec 
 so that word is parsed as the *command*, not as an assignment: the probe never ran and the gate
 reported `log_init produced no run directory` — a harness failure that was really a gate bug. It
 uses `env` now.
+
+## A third defect, found only when a task ran against it
+
+`ac8`/`ac9` sit behind a `grep -q run-key "$STAT"` guard that neither stub opened — the stub pass
+covered T1's and T4's guards, not T3's. So the assertions inside it first executed against real
+work, and **failed correct work**: T3 burned all three attempts on a `FAIL ac9: pid is no longer a
+JSON number`, while the executor had not touched the pid field at all.
+
+The gate drove `hb_write` with **no task context** — `HB_TASK` empty and every counter at 0. In
+that state `hb_write` emits **malformed JSON on unmodified `main`**, measured by running the same
+probe against a stashed tree. `jq` then failed for a reason that had nothing to do with the pid's
+type, and `ac9` reported the one thing it knew how to say.
+
+The probe now sets a realistic task context, and `ac9` distinguishes "not parseable at all" from
+"the pid changed type" — two different faults that were collapsed into one message.
+
+**The lesson generalises past this gate.** "Validate against a stub" is not one action; it is one
+action *per presence guard*. A guard left unopened is an assertion that has never run, and this
+gate had four guards and two stubs. The next version of this discipline should enumerate the
+guards and require a stub for each.
