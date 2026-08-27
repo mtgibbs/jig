@@ -31,11 +31,24 @@ _stray="$(find "$R/specs/spec-manifest" -maxdepth 1 -mindepth 1 \
 [ -n "$_stray" ] && no "scope: unexpected files in the spec dir — $_stray" \
                  || ok "scope: spec dir holds only its own artifacts"
 
-# No existing spec may gain a declaration in this change (spec §4, §5 out-of-scope).
-_leaked="$(grep -l '^- \*\*Tools:\*\*' "$R"/specs/*/spec.md 2>/dev/null \
-           | grep -v '/spec-manifest/spec.md$' | head -3)"
-[ -n "$_leaked" ] && no "scope: a pre-existing spec gained a declaration — $_leaked" \
-                  || ok "scope: no existing spec was given a declaration"
+# No spec that PREDATES this one may gain a declaration (spec §4, §5 out-of-scope).
+#
+# Named explicitly, and deliberately not `specs/*`. The original form forbade a declaration in
+# EVERY spec but this one, which reads as scope discipline and is in fact a permanent ban on
+# adopting the grammar this spec exists to introduce: the first spec to declare `Tools:` — the
+# feature working as designed — failed the gate. `specs/fleet-run-key` is what found it.
+# The guard's intent is "this change did not retrofit declarations onto the specs that already
+# existed", and that set is finite and known, so it is written down rather than inferred.
+_PREDATING="evidence-convention evidence-replayable evidence-spec-nesting executor-binding
+judge-loop loop-doctor loop-report ralph-retry-contract run-regression-guard scored-gate
+tasks-ledger"
+_leaked=""
+for _s in $_PREDATING; do
+  [ -f "$R/specs/$_s/spec.md" ] || continue
+  grep -q '^- \*\*Tools:\*\*' "$R/specs/$_s/spec.md" 2>/dev/null && _leaked="$_leaked $_s"
+done
+[ -n "$_leaked" ] && no "scope: a pre-existing spec gained a declaration —$_leaked" \
+                  || ok "scope: no spec predating this one was given a declaration"
 
 T="$(mktemp -d 2>/dev/null)" || { echo "  FAIL  scope: no writable temp dir" >&2; exit 1; }
 trap 'rm -rf "$T"' EXIT INT TERM

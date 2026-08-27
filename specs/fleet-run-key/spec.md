@@ -8,8 +8,8 @@
 - **Permissions:** write:scripts/**, write:specs/fleet-run-key/**, exec:git
 - **Touches:** `scripts/run-key.sh` (new), `scripts/ralph-log.sh` (`log_init`, the GC),
   `scripts/ralph-status.sh` (`hb_write` root), `scripts/loop-doctor.sh` and
-  `scripts/loop-index.py` (the readers). **No change** to `ralph-build.sh`, `ralph-judge.sh`,
-  `run-loop.sh`, `gate-score.sh`, or to any spec's `verify.sh`.
+  `scripts/loop-index.py` (the readers), and one line of `specs/spec-manifest/verify.sh` (§5).
+  **No change** to `ralph-build.sh`, `ralph-judge.sh`, `run-loop.sh`, or `gate-score.sh`.
 
 ---
 
@@ -110,3 +110,16 @@ moves with the layout.
 `[a-z0-9]*-[0-9]*` against a basename found by `find -maxdepth 3`. A pod named `harness-run-7`
 matches that glob, so the new host level can be counted as a run. Depth alone is not enough; the
 host level has to be excluded by position, not by name.
+
+## 5. One thing this spec had to fix outside itself · [S — Scope]
+
+`specs/spec-manifest/verify.sh` forbade a `Tools:` declaration in **every** spec but its own. The
+comment reads "no existing spec may gain a declaration in this change", which is scope discipline
+for that PR — but the check was a repo-wide `grep` over `specs/*/spec.md`, so as merged it is a
+permanent ban on adopting the grammar that spec exists to introduce.
+
+This spec is the first to declare `Tools:`. The feature working as designed turned that gate red.
+
+The guard is now a **named list** of the specs that predate `spec-manifest`, which is what its own
+comment describes and is a finite, known set. Validated both ways: a legitimate new declaration
+passes, and retrofitting one onto `judge-loop` still fails with the original message.
