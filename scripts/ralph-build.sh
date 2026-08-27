@@ -68,6 +68,15 @@ export ROOT="$(git rev-parse --show-toplevel)"
 # loop state without attaching tmux. No-op stubs if the helper is absent, so the
 # loop never depends on it.
 RALPH_AGENT="${RALPH_AGENT:-qwen}"
+# The agent name is not decoration. It becomes an evidence path segment (ralph-log.sh:
+# "<agent>-$$") and the commit prefix "ralph(<agent>):" that loop-index.py parses back out
+# of git log. Its grammar there is [a-z0-9-]+ — give it a space or a capital and the index
+# silently stops matching the very commits this run just wrote, which reads exactly like
+# "the loop did nothing". Fail at the top instead, where the name is still fixable.
+case "$RALPH_AGENT" in
+  ''|*[!a-z0-9-]*)
+    echo "ralph: RALPH_AGENT must match [a-z0-9-]+ (got '$RALPH_AGENT')" >&2; exit 2 ;;
+esac
 if [ -f "$(dirname "$0")/ralph-status.sh" ]; then
   . "$(dirname "$0")/ralph-status.sh"
 else
@@ -180,7 +189,13 @@ paths RELATIVE to the repo root (specs/... not /specs/...). Do the work this tim
     if out="$(cd "$ROOT" && bash "$VERIFY" 2>&1)"; then
       echo "  ✓ $task passed verify (attempt $attempt)"
       git -C "$ROOT" add -A
-      git -C "$ROOT" commit -q -m "ralph(qwen): ${task%%:*} — ${task#*: }" || true
+      # NOT "ralph(qwen)". This line named one executor while the same run filed its
+      # evidence under another — a codex run committed as qwen. loop-index.py had already
+      # been generalised to read any "word(word):" prefix precisely because "a tool that
+      # names one executor is a tool that stops working when you change executors"
+      # (loop-index.py:160); the READER was fixed and the WRITER was not. git log is the
+      # record a human reads first, so it was the copy that lied.
+      git -C "$ROOT" commit -q -m "ralph($RALPH_AGENT): ${task%%:*} — ${task#*: }" || true
       passed=1; hb_write passed true
       bus_say "✓ ${task%%:*} passed verify (attempt $attempt/$((RETRIES + 1))) — ${HB_TIDX}/${HB_TOTAL:-?}"
       retry_record "$out"

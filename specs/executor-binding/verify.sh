@@ -48,6 +48,26 @@ else
     || no "AC-2:no-executor-name-in-loop" "$(printf '%s' "$leak" | tr '\n' ' ')" negative
 fi
 
+# ---------------------------------------------------------------- AC-8 the record names the binding
+echo "== AC-8  the task commit names the binding that ran (SG-1b)"
+if [ ! -f "$BUILD" ]; then
+  pend "AC-8:commit-prefix-names-binding" "$BUILD absent"
+else
+  # Code only. The fix's own comment quotes the old literal deliberately, and a gate that
+  # cannot tell a warning from a regression would fail the very commit that removes the defect.
+  code="$(sed 's/#.*//' "$BUILD")"
+  cmt="$(printf '%s\n' "$code" | grep -n 'commit -q -m' | head -3)"
+  hard="$(printf '%s\n' "$code" | grep -nE 'ralph\([a-z0-9-]+\)' | head -3)"
+  if [ -z "$cmt" ]; then
+    pend "AC-8:commit-prefix-names-binding" "no task commit in $BUILD"
+  elif printf '%s' "$cmt" | grep -q 'ralph($RALPH_AGENT)' && [ -z "$hard" ]; then
+    ok "AC-8:commit-prefix-names-binding" negative
+  else
+    no "AC-8:commit-prefix-names-binding" \
+       "${hard:-prefix does not interpolate RALPH_AGENT}" negative
+  fi
+fi
+
 for f in "$XQ" "$XC"; do
   [ -f "$f" ] && [ -x "$f" ] && ok "binding-present-$(basename "$f")" presence \
     || pend "binding-present-$(basename "$f")" "$f absent or not executable"
