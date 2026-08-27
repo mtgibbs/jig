@@ -190,6 +190,54 @@ log_gate() {
   { printf '%s\n' "$3"; printf '%s\n' "---GATE-RC---"; printf '%s\n' "$4"; } > "$f" 2>/dev/null || { echo "$f" >&2; return 0; }
 }
 
+# log_meta <task-label> <attempt> — write the per-attempt metadata JSON.
+# Uses jq -n with --arg/--argjson so a quote in a task label or binding path does not produce
+# invalid JSON. Every field is always emitted; null means unmeasurable, 0 means measured-zero.
+log_meta() {
+  [ "${LOG_OK:-0}" = 1 ] || return 0
+  [ -x "$(command -v jq 2>/dev/null)" ] || { echo "logs: jq unavailable" >&2; return 0; }
+  local f; f="$(log_path "$1" "$2" json)"
+  {
+    jq -n \
+      --arg run_id "${LOG_DIR##*/}" \
+      --argjson run_label "$([ -n "${RUN_LABEL:-}" ] && printf '%s' "$RUN_LABEL" | jq -R . || jq -n null)" \
+      --arg repo "$([ -n "${ROOT:-}" ] && basename "$ROOT" || echo null)" \
+      --arg spec "$([ -n "${SPEC_DIR:-}" ] && basename "$SPEC_DIR" || echo null)" \
+      --arg task "$1" \
+      --argjson attempt "$2" \
+      --arg binding "${RALPH_EXEC_CMD:-}" \
+      --arg agent "${RALPH_AGENT:-}" \
+      --argjson started "${LOG_STARTED:-0}" \
+      --argjson ended "${LOG_ENDED:-0}" \
+      --argjson duration_s "$([ "${LOG_ENDED:-}" ] && echo "$((LOG_ENDED - LOG_STARTED))" || echo null)" \
+      --argjson exec_rc "${LOG_EXEC_RC:-0}" \
+      --argjson verify_rc "$([ -n "${LOG_VERIFY_RC:-}" ] && echo "$LOG_VERIFY_RC" || jq -n null)" \
+      --arg outcome "${LOG_OUTCOME:-}" \
+      --argjson bytes_prompt "$([ -f "$(log_path "$1" "$2" prompt.md)" ] && wc -c < "$(log_path "$1" "$2" prompt.md)" || echo null)" \
+      --argjson bytes_transcript "$([ -f "$(log_path "$1" "$2" log)" ] && wc -c < "$(log_path "$1" "$2" log)" || echo null)" \
+      --argjson bytes_patch "$([ -f "$(log_path "$1" "$2" patch)" ] && wc -c < "$(log_path "$1" "$2" patch)" || echo null)" \
+      '{
+        run_id: $run_id,
+        run_label: $run_label,
+        repo: $repo,
+        spec: $spec,
+        task: $task,
+        attempt: $attempt,
+        binding: $binding,
+        agent: $agent,
+        started: $started,
+        ended: $ended,
+        duration_s: $duration_s,
+        exec_rc: $exec_rc,
+        verify_rc: $verify_rc,
+        outcome: $outcome,
+        bytes_prompt: $bytes_prompt,
+        bytes_transcript: $bytes_transcript,
+        bytes_patch: $bytes_patch
+      }'
+  } > "$f" 2>/dev/null || true
+}
+
 # log_where — one line telling a human where to look. Called on STOP.
 log_where() {
   [ "${LOG_OK:-0}" = 1 ] || return 0
