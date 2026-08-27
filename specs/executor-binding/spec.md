@@ -141,6 +141,10 @@ must stop being a copy.
 
 - **SG-1 — no executor name may appear in the build loop.** The moment `ralph-build.sh` says
   `oc` or `codex`, the seam has leaked and the next executor forks the file again. → AC-2.
+- **SG-1b — nor in the record it writes.** AC-2 banned the names of the executor being *added*
+  and never the incumbent's, so `ralph(qwen)` sat hardcoded in the commit message through the
+  whole change: a codex run filed evidence as `codex-197` and committed as `qwen`. A gate that
+  enumerates the newcomers cannot see the name that was already there. → AC-8.
 - **SG-2 — every attempt stays bounded.** A binding that hangs must be killed by the loop, not
   trusted to bound itself. → AC-4.
 - **SG-3 — the stillborn-executor abort survives.** A binding that dies in under a second with a
@@ -184,6 +188,17 @@ must stop being a copy.
   > and entirely legitimate addition. A ratchet against an absolute number is a guard that fires
   > at strangers. Scope the claim to what this spec owns, and it stays true regardless of what
   > the harness grows next.
+
+- **AC-8** The build loop's task commit shall name the binding that ran, interpolating
+  `RALPH_AGENT` rather than any literal executor name, so `git log` and `.evidence/` agree on
+  who did the work. *(SG-1b)*
+
+  > **The reader was generalised; the writer was not.** `loop-index.py:160` had already widened
+  > its prefix grammar to any `word(word):` on the stated grounds that "a tool that names one
+  > executor is a tool that stops working when you change executors" — and the line that *emits*
+  > that prefix still said `qwen`. Both halves of a round-trip have to move together, and only
+  > one of them had a gate. `git log` is the copy a human reads first and the one a cross-executor
+  > comparison would be drawn from, so it is the worse half to leave wrong.
 
 ## 11. Verification (the harness)
 
