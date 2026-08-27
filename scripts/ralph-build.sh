@@ -193,7 +193,8 @@ paths RELATIVE to the repo root (specs/... not /specs/...). Do the work this tim
     STRICT=0
     [ "${HB_TOTAL:-0}" -gt 0 ] && [ "$HB_TIDX" -eq "$HB_TOTAL" ] && STRICT=1
     if out="$(cd "$ROOT" && STRICT="$STRICT" bash "$VERIFY" 2>&1)"; then
-      echo "  ✓ $task passed verify (attempt $attempt)"
+      _mode="lenient"; [ "$STRICT" -eq 1 ] && _mode="strict"
+      echo "  ✓ $task passed verify (attempt $attempt, gate: $_mode)"
    log_gate "$HB_TASK" "$attempt" "$out" "0"
     log_patch "$HB_TASK" "$attempt"
     log_meta "$HB_TASK" "$attempt"
@@ -237,7 +238,8 @@ paths RELATIVE to the repo root (specs/... not /specs/...). Do the work this tim
       fi
       break
     fi
-      echo "  ✗ verify failed (attempt $attempt); retrying with feedback" >&2
+      _mode="lenient"; [ "$STRICT" -eq 1 ] && _mode="strict"
+      echo "  ✗ verify failed (attempt $attempt, gate: $_mode); retrying with feedback" >&2
        hb_write failed false
        log_gate "$HB_TASK" "$attempt" "$out" "1"
     log_failure "$HB_TASK" "$attempt" "$out"   # BEFORE the reset below erases the evidence
