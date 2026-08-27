@@ -119,6 +119,19 @@ log_path() {
   printf '%s/%s-attempt%s.%s' "$LOG_DIR" "$(log_task "${1:-T0}")" "${2:-0}" "${3:-log}"
 }
 
+# log_patch <task-label> <attempt> — write an applyable patch for a passing attempt.
+# Uses intent-to-add (`git add -A -N`) so new files appear in the diff; must precede the real
+# `git add -A` that follows in the pass branch. Excludes `.evidence/` so the harness's own
+# record never enters the patch.
+log_patch() {
+  [ "${LOG_OK:-0}" = 1 ] || return 0
+  local f; f="$(log_path "$1" "$2" patch)"
+  {
+    git -C "${ROOT:-.}" add -A -N -- . ':!.evidence' 2>/dev/null
+    git -C "${ROOT:-.}" diff -- . ':!.evidence' 2>/dev/null
+  } > "$f" 2>/dev/null || { echo "$f" >&2; return 0; }
+}
+
 # log_failure <task-label> <attempt> <verify-output>
 # MUST be called before `git checkout -- .` / `git clean -fd`, which is the whole point: after
 # the reset the evidence is gone.
