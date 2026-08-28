@@ -21,10 +21,26 @@
 #   scripts/ralph-build.sh specs/<feature>              # default binding: qwen
 #   scripts/run-loop.sh build-codex specs/<feature>    # or pick a strategy
 # spec dir must contain: spec.md, verify.sh, tasks.txt (one task per line, e.g. "T1: arr widgets")
+#
+# Resume control:
+#   RALPH_FORCE_FROM=<n>    skip tasks 1..n-1, run task n and onward
+#   RALPH_FORCE_ALL=1       disable skip-satisfied; every task runs regardless of gate state
+#
+# A task is "satisfied" if its own gate passed before the executor runs. Only specs with per-task
+# gates (e.g., `20260828i`) support this question; monolithic-gate specs cannot answer it (green
+# gate just means spec is done). The loop polls its own state — workers cannot receive external
+# signals, so run control decisions must be discovered by polling.
 set -uo pipefail
 
 SPEC_DIR="${1:?usage: ralph-build.sh <spec-dir>}"
 RETRIES="${RALPH_RETRIES:-2}"
+
+if [ "${RALPH_FORCE_FROM:-}" != "" ]; then
+  echo "RALPH_FORCE_FROM=$RALPH_FORCE_FROM: re-running from task $RALPH_FORCE_FROM onward"
+fi
+if [ "${RALPH_FORCE_ALL:-0}" = "1" ]; then
+  echo "RALPH_FORCE_ALL=1: skipping disabled; every task will run"
+fi
 
 # The executor is a binding, exactly as JUDGE_CMD/EXECUTOR_CMD are for ralph-judge.sh. A
 # strategy in scripts/loops/ sets it; unset, the loop drives qwen and behaves as it always has.
@@ -94,6 +110,30 @@ _validate_task_gates() {
              # construct, which for a loop is its terminating condition — reliably non-zero.
 }
 _validate_task_gates || exit 3   # 3, not 1: the spec needs attention, not another retry.
+
+# _task_satisfied <n> — return 0 if task n's gate already passes, 1 otherwise.
+# Answers false immediately when tasks/ does not exist (monolithic spec — question unanswerable).
+# Answers false when the task has no gate or the gate cannot run (fail-closed).
+# Runs ONLY that task's gate, never the cumulative group.
+# Times out after 60s and treats timeout as false (gate hangs -> task runs).
+_task_satisfied() {
+  local n="$1"
+  # Monolithic spec: unanswerable. Fail-closed.
+  [ -d "$SPEC_DIR/tasks" ] || { return 1; }
+  # Force-all: skip never. Fail-closed.
+  [ "${RALPH_FORCE_ALL:-0}" = "1" ] && { return 1; }
+  # Force-from: re-run task n and everything after. Fail-closed for this task.
+  [ -n "${RALPH_FORCE_FROM:-}" ] && [ "$n" -ge "${RALPH_FORCE_FROM:-0}" ] && { return 1; }
+  # Task has no gate. Fail-closed.
+  local g; g="$(_gate_for "$n")" || { return 1; }
+  # Bound the gate: a hanging gate must not wedge a resume.
+  local out; out="$(timeout 60 bash "$g" 2>&1)" || { _rc=$?; [ "$_rc" -eq 124 ] && return 1 || return 1; }
+  # Check if the gate passed (timeout returns 124, gate failure returns non-zero)
+  if echo "$out" | grep -qE 'PASS|PASS|passed|passed'; then
+    return 0
+  fi
+  return 1
+}
 
 # run_gates <task-index> <strict> — run every gate that applies after that task, print all of
 # their output, and return 0 only if all of them passed. Runs the whole set even after one
@@ -184,6 +224,16 @@ while IFS= read -r task || [ -n "$task" ]; do
   [ -z "${task// }" ] && continue
   echo "════════ TASK: $task ════════"
   HB_TASK="$task"; HB_TIDX=$((HB_TIDX + 1)); hb_write running
+  # Skip-satisfied: if the task's gate already passes and we're not forcing, skip without
+  # invoking the executor or consuming an attempt. Announce in the same format as other tasks.
+  if _task_satisfied "$HB_TIDX"; then
+    echo "  ✓ $task skipped (gate already passed)"
+    HB_ATTEMPT="skipped"; LOG_OUTCOME="skipped"; LOG_STARTED="$(date +%s)"; LOG_ENDED="$LOG_STARTED"; LOG_RECORDED=1
+    log_meta "$HB_TASK" "$HB_ATTEMPT"
+    hb_write passed true
+    feedback=""
+    continue
+  fi
   feedback=""; passed=0; retry_init
   for attempt in $(seq 1 $((RETRIES + 1))); do
     HB_ATTEMPT="$attempt"; LOG_STARTED="$(date +%s)"; LOG_RECORDED=""; hb_write running
