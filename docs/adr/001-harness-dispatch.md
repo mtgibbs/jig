@@ -230,7 +230,7 @@ its build; the cluster owns everything needed to run it.**
 | a numbered Kustomization entry in `flux-system/infrastructure.yaml` | that file is the deploy-order DAG; review-hub is #29 |
 | `image-automation.yaml` | the established auto-bump pattern |
 | Homepage tile + AutoKuma monitor | the `add-service` convention |
-| **node placement** | see below |
+| **node placement** — the `harness-fleet` label, and a taint if a dedicated node arrives | D11 |
 
 **Node placement is not optional here.** The cluster is three Pi 5s at 8 GB and one Pi 3 at 1 GB,
 and `ARCHITECTURE.md` already restricts the Pi 3 to lightweight services. A loop Job scheduled
@@ -242,6 +242,45 @@ is why item 2's multi-arch requirement is load-bearing rather than tidy.
 not a new per-service token — `feedback_credentials_scale_by_role`: a bot gets one identity usable
 across repos. The Matrix token is the existing agent-bus service-bot identity. Only genuinely new
 credentials get new 1Password items.
+
+### D11 — Fleet work targets a node **label**, so a dedicated node is a purchase, not a redesign
+
+Matt's constraint: worst case, buy an additional Pi 5 dedicated to this. That is the fallback, and
+designing for it costs nothing today provided one rule is followed from the start.
+
+**The rule: loop Jobs select a node by LABEL (`harness-fleet=true`), never by node name and never
+by "wherever it fits".** Everything else follows from that one indirection.
+
+| phase | what exists | what changes |
+|---|---|---|
+| **now** | label the existing Pi 5 workers; Jobs select the label; `ResourceQuota` + concurrency cap bound them | nothing to buy |
+| **if contention appears** | label the new Pi 5, remove the label from the shared workers | **a node label. No manifest restructuring.** |
+
+If the dedicated node arrives, it also gets a **taint** (`harness-fleet=true:NoSchedule`) with a
+matching toleration on the Jobs, so nothing *else* drifts onto it. Label alone says "fleet work may
+go here"; label plus taint says "and only fleet work". That is the cleanest available answer to
+cliff 5 — a runaway fleet cannot take Pi-hole down if it cannot be scheduled beside it.
+
+**What the measurement says about whether this is needed.** Measured 2026-08-28: an `opencode` run
+peaks at **~256 MB RSS** on a trivial repo with a one-word prompt. That is a floor — a real loop
+run indexes a working tree and carries a much larger prompt (19 KB in a sampled run), so budget
+400–600 MB and re-measure under a real run before setting `requests`/`limits`. A limit derived from
+the synthetic number is wrong in the direction that OOM-kills pods mid-run.
+
+Against 8 GB, one or two workers is a small fraction of a Pi 5. **The existing nodes can host this.**
+The dedicated node is insurance against contention, not a capacity requirement.
+
+**And it would not buy throughput anyway** — which is the part worth being clear about before
+spending money. The worker is a client; the model runs on the Beelink through LiteLLM. Concurrency
+is bounded by **one shared model's serving capacity**, not by worker RAM. A second Pi 5 removes
+*blast radius* (fleet work cannot starve DNS or media) and removes it completely. It does not make
+the fleet faster. If throughput ever becomes the constraint, the answer is on the Beelink, not on
+the Pis.
+
+**The Pi 3 is excluded by construction.** At 1 GB it cannot host a 256 MB-floor pod alongside
+anything else, and `ARCHITECTURE.md` already restricts it to lightweight services. Selecting on a
+label it does not carry is what keeps a loop Job off it — which makes the selector a correctness
+requirement rather than an optimisation.
 
 ### The gap this exposed: nothing builds either image
 
