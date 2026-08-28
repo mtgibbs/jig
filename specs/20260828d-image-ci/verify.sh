@@ -160,6 +160,17 @@ PY
     ok "ac7: every referenced Dockerfile exists on disk"
   fi
 
+  # ac10 — the tag must be DERIVED from the matrix, not hardcoded. ac3 above only checks the tag
+  # points at loop-executor, which is equally true of a hardcoded string; a second matrix row
+  # would then push to the FIRST image's name and silently defeat outcome 4. Measured: the first
+  # implementation did exactly this and ac3 passed it.
+  _tags="$(printf '%s\n' "$REPORT" | grep '^WITH tags' | head -1)"
+  case "$_tags" in
+    *'matrix.image'*) ok "ac10: the tag is derived from matrix.image — a second row publishes its own name" ;;
+    "")               pend "ac10: the tag is derived from the matrix" ;;
+    *)                no "ac10: the image name is hardcoded in tags — a second matrix row would push to the first image's name" ;;
+  esac
+
   for a in checkout setup-qemu-action setup-buildx-action login-action build-push-action; do
     printf '%s\n' "$REPORT" | grep -q "^USES .*$a" \
       || no "ac8: the workflow never uses $a — qemu in particular is what makes arm64 buildable on an amd64 runner"
