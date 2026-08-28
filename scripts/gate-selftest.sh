@@ -1,0 +1,146 @@
+#!/usr/bin/env bash
+# scripts/gate-selftest.sh — run a per-task gate in a hermetic temp copy.
+#
+# Usage: scripts/gate-selftest.sh <task-dir>
+#   task-dir: path to directory containing verify.sh and mutants/ subdir
+#
+# The tool:
+#   1. Validates arguments and required artifacts (4 distinct error messages)
+#   2. Creates a hermetic temp copy of the repo
+#   3. Runs the gate inside the temp copy
+#   4. Cleans up on exit (trap EXIT)
+set -uo pipefail
+
+# ARG GUARD — if $1 is missing, exit with distinct message
+if [ $# -ne 1 ]; then
+  echo "Usage: $0 <task-dir>" >&2
+  exit 1
+fi
+
+TASK_DIR="$1"
+
+# Normalize TASK_DIR: if not absolute, prepend cwd
+if [[ "$TASK_DIR" != /* ]]; then
+  TASK_DIR="$(pwd)/$TASK_DIR"
+fi
+
+# Check if directory exists
+if [ ! -d "$TASK_DIR" ]; then
+  echo "error: task directory does not exist: $TASK_DIR" >&2
+  exit 1
+fi
+
+# Check for verify.sh
+if [ ! -f "$TASK_DIR/verify.sh" ]; then
+  echo "error: verify.sh not found in: $TASK_DIR" >&2
+  exit 1
+fi
+
+# Check for mutants/ directory
+if [ ! -d "$TASK_DIR/mutants" ]; then
+  echo "error: mutants/ directory not found in: $TASK_DIR" >&2
+  exit 1
+fi
+
+# Parse mutants: extract MUTANT:, TARGET:, WHY: from comment lines
+# Validates that each file has MUTANT: and TARGET: (fatal if missing)
+MUTANT_DIR="$TASK_DIR/mutants"
+# Parallel arrays, because T3 has to install what T2 parsed. Sorted, not raw find order:
+# a corpus that measures interference between mutants depends on WHICH runs first, so the
+# order has to be the same on every machine and every filesystem.
+M_NAME=(); M_ID=(); M_TARGET=(); M_WHY=()
+while IFS= read -r mutant_file; do
+  [ -z "$mutant_file" ] && continue
+  
+  mutant_name="$(basename "$mutant_file")"
+  mutant_mutant=""
+  mutant_target=""
+  mutant_why=""
+  
+  while IFS= read -r line || [ -n "$line" ]; do
+    if echo "$line" | grep -q '^#[[:space:]]*MUTANT:[[:space:]]'; then
+      mutant_mutant="$(echo "$line" | sed 's/^#[[:space:]]*MUTANT:[[:space:]]*//')"
+    elif echo "$line" | grep -q '^#[[:space:]]*TARGET:[[:space:]]'; then
+      mutant_target="$(echo "$line" | sed 's/^#[[:space:]]*TARGET:[[:space:]]*//')"
+    elif echo "$line" | grep -q '^#[[:space:]]*WHY:[[:space:]]'; then
+      mutant_why="$(echo "$line" | sed 's/^#[[:space:]]*WHY:[[:space:]]*//')"
+    fi
+  done < "$mutant_file"
+  
+  if [ -z "$mutant_mutant" ]; then
+    echo "error: mutant file missing MUTANT: field: $mutant_name" >&2
+    exit 1
+  fi
+  
+  if [ -z "$mutant_target" ]; then
+    echo "error: mutant file missing TARGET: field: $mutant_name" >&2
+    exit 1
+  fi
+
+  M_NAME+=("$mutant_name"); M_ID+=("$mutant_mutant")
+  M_TARGET+=("$mutant_target"); M_WHY+=("$mutant_why")
+done <<< "$(find "$MUTANT_DIR" -type f 2>/dev/null | sort)"
+
+# Create temp directory for hermetic workspace
+T=$(mktemp -d)
+trap 'rm -rf "$T"' EXIT
+
+# Copy current directory (the repo we're inside) into temp dir
+CWD="$(pwd)"
+cp -R "$CWD" "$T/worktree"
+
+# Remove .git from copy and re-init a fresh repo
+rm -rf "$T/worktree/.git"
+cd "$T/worktree"
+git init -q .
+git config user.email t@t
+git config user.name t
+git add -A
+git commit -qm 'init'
+
+REPO_ROOT="$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null || echo "$CWD")"
+TASK_REL="${TASK_DIR#$REPO_ROOT}"
+TASK_PATH="$T/worktree$TASK_REL"
+if [ ! -f "$TASK_PATH/verify.sh" ]; then
+  echo "error: verify.sh not found at: $TASK_PATH" >&2
+  exit 1
+fi
+
+# ── Install each mutant, run the gate BOUNDED, restore ──────────────────────────────────────
+#
+# The timeout is not defensive tidiness. A mutant can make the gate hang — that is a finding in
+# its own right — and a tool that inherits the hang wedges the whole run while making the gate
+# look like it works. Two states, two different reports: a gate that FAILED and a gate that
+# never returned.
+#
+# Restore around every mutant, both before and after, so each is measured against a clean tree.
+# Without it the second mutant runs against the first one's damage and the two become
+# indistinguishable, which is the one thing this step exists to prevent.
+GATE_TIMEOUT="${GATE_SELFTEST_TIMEOUT:-30}"
+
+restore_target() {                      # restore_target <repo-relative-path>
+  if [ -e "$CWD/$1" ]; then cp -a "$CWD/$1" "$T/worktree/$1" 2>/dev/null || true
+  else rm -f "$T/worktree/$1" 2>/dev/null || true; fi
+}
+
+for i in "${!M_NAME[@]}"; do
+  name="${M_NAME[$i]}"; tgt="${M_TARGET[$i]}"
+  restore_target "$tgt"
+  mkdir -p "$(dirname "$T/worktree/$tgt")" 2>/dev/null || true
+  cp "$MUTANT_DIR/$name" "$T/worktree/$tgt"
+
+  gate_out="$( cd "$T/worktree" && timeout "$GATE_TIMEOUT" bash "$TASK_PATH/verify.sh" 2>&1 )"
+  gate_rc=$?
+  restore_target "$tgt"
+
+  # One line per mutant, naming the FILE — T4 replaces the raw detail with a verdict but keeps
+  # the name, so a reader can always tell which mutant a line is about.
+  if [ "$gate_rc" = 124 ]; then
+    echo "$name ($tgt): gate TIMED OUT after ${GATE_TIMEOUT}s — it never returned"
+  else
+    echo "$name ($tgt): gate exit $gate_rc"
+  fi
+  printf '%s' "$gate_out" > "$T/gate-$i.out"    # kept for T4 to read
+done
+
+exit 0
