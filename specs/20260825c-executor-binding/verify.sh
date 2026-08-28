@@ -99,7 +99,7 @@ echo "== AC-7  the executor layer is smaller than the loop pair it replaced"
 # smaller than the two duplicated loops they replaced (220 + 204 = 424 lines at 6d9dcb3^).
 BASE_PAIR=424
 now=$(cat scripts/ralph-build.sh scripts/exec-qwen.sh scripts/exec-codex.sh \
-          scripts/loops/build-codex.env 2>/dev/null | wc -l | tr -d ' ')
+          scripts/loops/build-codex.conf 2>/dev/null | wc -l | tr -d ' ')
 [ "$now" -gt 0 ] && [ "$now" -lt "$BASE_PAIR" ] \
   && ok "AC-7:executor-layer-shrank ($now < $BASE_PAIR)" negative \
   || no "AC-7:executor-layer-shrank" "$now lines for loop+bindings, was $BASE_PAIR for the loop pair" negative

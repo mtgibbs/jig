@@ -4,7 +4,7 @@
 #   scripts/run-loop.sh <strategy> specs/<feature>
 #   scripts/run-loop.sh --list
 #
-# A strategy is scripts/loops/<name>.env: STRATEGY_PHASES plus operator-layer
+# A strategy is scripts/loops/<name>.conf: STRATEGY_PHASES plus operator-layer
 # bindings (see scripts/loops/README.md for the contract). This script only
 # sequences existing loops — it adds no stopping logic and no cleverness.
 # Fail-closed: any phase's nonzero exit stops the run with that exit code.
@@ -14,9 +14,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOOPS_DIR="$SCRIPT_DIR/loops"
 
 if [ "${1:-}" = "--list" ]; then
-  for f in "$LOOPS_DIR"/*.env; do
+  for f in "$LOOPS_DIR"/*.conf; do
     [ -f "$f" ] || continue
-    name="$(basename "$f" .env)"
+    name="$(basename "$f" .conf)"
     desc="$(sed -n 's/^STRATEGY_DESC="\(.*\)"$/\1/p' "$f" | head -1)"
     printf '  %-20s %s\n' "$name" "$desc"
   done
@@ -25,7 +25,7 @@ fi
 
 STRATEGY="${1:?usage: run-loop.sh <strategy> <spec-dir>  (or --list)}"
 SPEC_DIR="${2:?usage: run-loop.sh <strategy> <spec-dir>}"
-ENV_FILE="$LOOPS_DIR/$STRATEGY.env"
+ENV_FILE="$LOOPS_DIR/$STRATEGY.conf"
 
 # Preflight, all fatal: known strategy, real spec, and never on main —
 # the constitution's worktree rule applies to strategies same as hand runs.

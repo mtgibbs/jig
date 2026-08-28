@@ -28,7 +28,7 @@ failed correct work for three attempts.
 |---|---|---|
 | `scripts/exec-container.sh` | the correct binding | all ACs PASS |
 | `docker/loop-executor.Dockerfile` | arch-neutral base, no USER | PASS |
-| `scripts/loops/build-container.env` | strategy pointing at the binding | PASS |
+| `scripts/loops/build-container.conf` | strategy pointing at the binding | PASS |
 | `docs/loop-container.md` | buildx + both platforms + acceptance | PASS |
 
 A deliberately **wrong** binding — no `--rm`, no `--user`, prompt passed through `$(echo $1)` —

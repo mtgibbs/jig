@@ -96,7 +96,7 @@ must stop being a copy.
 - `scripts/ralph-build.sh` — executor call becomes a binding (the file keeps its name; see below)
 - new `scripts/exec-qwen.sh`, `scripts/exec-codex.sh`
 - `scripts/run-loop.sh` — `BUILD_CMD` binding for the `build` phase
-- `scripts/loops/` — `build-codex.env`; existing strategies keep working untouched
+- `scripts/loops/` — `build-codex.conf`; existing strategies keep working untouched
 - **delete** `scripts/ralph-codex.sh`
 - strike AC11 (`run-regression-guard`), AC13 (`tasks-ledger`), §230 (`ralph-retry-contract`)
   and the "deliberate twins" prose in all three
@@ -166,7 +166,7 @@ must stop being a copy.
 - **T1** — add `run_bounded`; replace the `oc run` line with the bounded `$RALPH_EXEC_CMD` call;
   add `scripts/exec-qwen.sh` as the default binding. No behaviour change for an unset
   `RALPH_EXEC_CMD`.
-- **T2** — `scripts/exec-codex.sh` + `scripts/loops/build-codex.env`; `BUILD_CMD` in
+- **T2** — `scripts/exec-codex.sh` + `scripts/loops/build-codex.conf`; `BUILD_CMD` in
   `run-loop.sh`; update `scripts/harness`, `supervise.sh`, `scripts/README.md` and the skill.
 - **T3** — delete `scripts/ralph-codex.sh`; strike AC11, AC13, §230 and the twin prose from the
   three specs and their gates.
