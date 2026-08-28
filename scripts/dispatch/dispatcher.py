@@ -169,27 +169,80 @@ def launch(job: dict, *, runner=None) -> int:
         return 1
 
 
+def dispatch(
+    intent: dict,
+    event_id: str,
+    *,
+    ledger_path: str,
+    registry_path: str | None = None,
+    image: str,
+    namespace: str,
+) -> dict:
+    """Perform the core dispatch flow: dedupe, render, launch, record.
+
+    This is the idempotency mechanism. It takes an ALREADY-PARSED intent mapping
+    and never sees a chat string.
+
+    Order is load-bearing:
+    1. Check the ledger — if already seen, return without launching.
+    2. Render the Job.
+    3. Launch the Job.
+    4. Record the event id.
+    5. Record the run in the registry (if registry_path supplied).
+
+    Args:
+        intent: Dict with keys verb, repo, spec, strategy (already parsed).
+        event_id: Unique identifier for this event.
+        ledger_path: Path to the ledger file.
+        registry_path: Optional path to the registry file.
+        image: Container image for the Job.
+        namespace: Kubernetes namespace.
+
+    Returns:
+        Dict with keys:
+        - 'intent': parsed intent dict
+        - 'launched': bool indicating if a Job was launched
+        - 'exit_code': int exit code from launch (0 or non-zero) or None
+    """
+    if already_seen(ledger_path, event_id):
+        return {"intent": intent, "launched": False, "exit_code": None}
+
+    run_id = event_id
+    job = render_job(intent, image=image, namespace=namespace, run_id=run_id)
+    exit_code = launch(job)
+
+    record_seen(ledger_path, event_id)
+
+    if registry_path:
+        record = {
+            "event_id": event_id,
+            "repo": intent["repo"],
+            "spec": intent["spec"],
+            "strategy": intent["strategy"],
+            "job_name": job["metadata"]["name"],
+            "status": "launched" if exit_code == 0 else "failed",
+        }
+        record_run(registry_path, record)
+
+    return {"intent": intent, "launched": True, "exit_code": exit_code}
+
+
 def handle_event(
     text: str,
     event_id: str,
     *,
     ledger_path: str,
+    registry_path: str | None = None,
     image: str,
     namespace: str,
 ) -> dict:
-    """Perform the full flow: parse intent, dedupe, render, launch, record.
-
-    Order is load-bearing:
-    1. Parse the intent — if there is none, return without launching.
-    2. Check the ledger — if already seen, return without launching.
-    3. Render the Job.
-    4. Launch the Job.
-    5. Record the event id.
+    """Parse intent and dispatch through the transport-agnostic core.
 
     Args:
         text: Plain text intent string (e.g. '@harness fix repo spec').
         event_id: Unique identifier for this event.
         ledger_path: Path to the ledger file.
+        registry_path: Optional path to the registry file.
         image: Container image for the Job.
         namespace: Kubernetes namespace.
 
@@ -203,13 +256,131 @@ def handle_event(
     if intent is None:
         return {"intent": None, "launched": False, "exit_code": None}
 
-    if already_seen(ledger_path, event_id):
-        return {"intent": intent, "launched": False, "exit_code": None}
+    return dispatch(
+        intent,
+        event_id,
+        ledger_path=ledger_path,
+        registry_path=registry_path,
+        image=image,
+        namespace=namespace,
+    )
 
-    run_id = event_id
-    job = render_job(intent, image=image, namespace=namespace, run_id=run_id)
-    exit_code = launch(job)
 
-    record_seen(ledger_path, event_id)
+def record_run(registry_path: str, record: dict) -> None:
+    """Append one run record to the registry.
 
-    return {"intent": intent, "launched": True, "exit_code": exit_code}
+    Creates the file and any missing parent directories.
+    Tolerates unreadable or unwritable paths without raising.
+    """
+    if not registry_path or not record:
+        return
+    try:
+        parent_dir = os.path.dirname(registry_path)
+        if parent_dir:
+            os.makedirs(parent_dir, exist_ok=True)
+        with open(registry_path, "a") as f:
+            import json
+
+            f.write(json.dumps(record) + "\n")
+    except Exception:
+        pass
+
+
+def read_runs(registry_path: str) -> list:
+    """Return all run records from the registry as a list of dicts.
+
+    A missing registry file is not an error — returns an empty list.
+    Skips corrupt lines without failing the whole read.
+    Tolerates unreadable paths without raising.
+    """
+    if not registry_path:
+        return []
+    try:
+        if not os.path.exists(registry_path):
+            return []
+        records = []
+        with open(registry_path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    import json
+
+                    record = json.loads(line)
+                    records.append(record)
+                except Exception:
+                    continue
+        return records
+    except Exception:
+        return []
+
+
+def get_run(registry_path: str, event_id: str) -> dict | None:
+    """Return the single record with the given event_id, or None if not found.
+
+    Tolerates unreadable paths and missing files without raising.
+    """
+    if not registry_path or not event_id:
+        return None
+    try:
+        if not os.path.exists(registry_path):
+            return None
+        with open(registry_path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    import json
+
+                    record = json.loads(line)
+                    if record.get("event_id") == event_id:
+                        return record
+                except Exception:
+                    continue
+        return None
+    except Exception:
+        return None
+
+
+def launch_run(repo, spec, strategy, event_id, *, ledger_path, image, namespace, registry_path=None):
+    """Dispatch a run using separate values instead of a parsed intent.
+
+    Takes repo, spec and strategy as SEPARATE VALUES, builds the intent mapping
+    directly from them, and returns the result of calling dispatch.
+
+    Args:
+        repo: Repository name.
+        spec: Spec name.
+        strategy: Strategy name; falls back to 'build-converge' if empty or None.
+        event_id: Unique identifier for this event.
+        ledger_path: Path to the ledger file.
+        image: Container image for the Job.
+        namespace: Kubernetes namespace.
+        registry_path: Optional path to the registry file.
+
+    Returns:
+        Dict with keys:
+        - 'intent': parsed intent dict
+        - 'launched': bool indicating if a Job was launched
+        - 'exit_code': int exit code from launch (0 or non-zero) or None
+    """
+    if not strategy:
+        strategy = "build-converge"
+
+    intent = {
+        "verb": "fix",
+        "repo": repo,
+        "spec": spec,
+        "strategy": strategy,
+    }
+
+    return dispatch(
+        intent,
+        event_id,
+        ledger_path=ledger_path,
+        registry_path=registry_path,
+        image=image,
+        namespace=namespace,
+    )
