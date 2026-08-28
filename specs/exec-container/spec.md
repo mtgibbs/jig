@@ -7,7 +7,8 @@
 - **MCP:** none
 - **Permissions:** write:scripts/**, write:docker/**, write:docs/**, exec:git
 - **Touches:** `scripts/exec-container.sh` (new), `docker/loop-executor.Dockerfile` (new),
-  `scripts/loops/build-container.env` (new), `docs/loop-container.md` (new). **No change** to
+  `scripts/loops/build-container.env` (new), `docs/loop-container.md` (new), and a deferred-work
+  note in `docs/design/fleet-dispatch.md`. **No change** to
   `ralph-build.sh`, `run-loop.sh`, `exec-qwen.sh`, `exec-codex.sh`, or any existing `verify.sh`.
 
 > **`Tools:` declares what the TASKS need, not what the artifact needs at runtime.** Writing a
