@@ -4,6 +4,9 @@ import os
 
 VERBS = {"fix"}
 
+ACTIVE_DEADLINE_SECONDS = 1800
+TTL_SECONDS_AFTER_FINISHED = 3600
+
 
 def parse_intent(text: str) -> dict | None:
     """Parse a plain-text intent string into a structured intent dict.
@@ -77,3 +80,57 @@ def record_seen(ledger_path: str, event_id: str) -> None:
             f.write(event_id + "\n")
     except Exception:
         pass
+
+
+def render_job(intent: dict, *, image: str, namespace: str, run_id: str) -> dict:
+    """Render a Kubernetes Job object as a plain Python dict.
+
+    Args:
+        intent: Dict with keys verb, repo, spec, strategy.
+        image: Container image to run.
+        namespace: Kubernetes namespace.
+        run_id: Unique identifier for this run, used in the Job name.
+
+    Returns:
+        Dict representing a Kubernetes Job object.
+    """
+    return {
+        "apiVersion": "batch/v1",
+        "kind": "Job",
+        "metadata": {
+            "namespace": namespace,
+            "name": f"run-{run_id}",
+        },
+        "spec": {
+            "activeDeadlineSeconds": ACTIVE_DEADLINE_SECONDS,
+            "ttlSecondsAfterFinished": TTL_SECONDS_AFTER_FINISHED,
+            "backoffLimit": 0,
+            "template": {
+                "spec": {
+                    "nodeSelector": {
+                        "harness-fleet": "true",
+                    },
+                    "containers": [
+                        {
+                            "name": "run",
+                            "image": image,
+                            "env": [
+                                {
+                                    "name": "REPO",
+                                    "value": intent["repo"],
+                                },
+                                {
+                                    "name": "SPEC",
+                                    "value": intent["spec"],
+                                },
+                                {
+                                    "name": "STRATEGY",
+                                    "value": intent["strategy"],
+                                },
+                            ],
+                        }
+                    ],
+                }
+            },
+        },
+    }
