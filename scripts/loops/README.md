@@ -25,9 +25,9 @@ outside `scripts/loops/`, it is not a strategy PR.
 
 | File | Phases | Library pattern |
 |---|---|---|
-| `build-converge.env` | build | Generate-Verify-Refine (deterministic gate, bounded change, fresh context per task) |
-| `judge-refine.env` | judge | Evaluator/Judge (cross-family: Codex judges, qwen executes, gate arbitrates) |
-| `build-then-judge.env` | build judge | the full "basic → evaluator/judge → convergence" modern path |
+| `build-converge.conf` | build | Generate-Verify-Refine (deterministic gate, bounded change, fresh context per task) |
+| `judge-refine.conf` | judge | Evaluator/Judge (cross-family: Codex judges, qwen executes, gate arbitrates) |
+| `build-then-judge.conf` | build judge | the full "basic → evaluator/judge → convergence" modern path |
 
 Comparing strategies on one spec = one worktree per strategy, same spec dir,
 diff the branches. The judge phase's `ledger.jsonl` + `report.json` and the

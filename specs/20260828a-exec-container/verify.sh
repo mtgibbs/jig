@@ -21,7 +21,7 @@ pend(){ if [ "${STRICT:-0}" = 1 ]; then no "$1 — still unbuilt at the final ch
 
 BIND="$R/scripts/exec-container.sh"
 DOCKERFILE="$R/docker/loop-executor.Dockerfile"
-STRAT="$R/scripts/loops/build-container.env"
+STRAT="$R/scripts/loops/build-container.conf"
 DOC="$R/docs/loop-container.md"
 REF="$R/scripts/exec-qwen.sh"
 
@@ -197,7 +197,7 @@ else
     || no "ac9: STRATEGY_PHASES is '${STRATEGY_PHASES:-}', expected 'build'"
   [ -n "${STRATEGY_DESC:-}" ] && ok "ac9: the strategy describes itself (run-loop.sh --list)" \
                              || no "ac9: STRATEGY_DESC is empty"
-  # The parity acceptance (spec §5) is that .evidence differs ONLY in `binding`. build-codex.env
+  # The parity acceptance (spec §5) is that .evidence differs ONLY in `binding`. build-codex.conf
   # exports RALPH_AGENT because Codex is a different executor family; this binding runs the SAME
   # qwen through a container, so overriding it would make `agent` differ too and quietly destroy
   # the one comparison item 2 exists to enable.

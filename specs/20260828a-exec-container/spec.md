@@ -7,9 +7,9 @@
 - **MCP:** none
 - **Permissions:** write:scripts/**, write:docker/**, write:docs/**, exec:git
 - **Touches:** `scripts/exec-container.sh` (new), `docker/loop-executor.Dockerfile` (new),
-  `scripts/loops/build-container.env` (new), `docs/loop-container.md` (new), and a deferred-work
+  `scripts/loops/build-container.conf` (new), `docs/loop-container.md` (new), and a deferred-work
   note in `docs/design/fleet-dispatch.md`. **No change** to
-  `ralph-build.sh`, `run-loop.sh`, `exec-qwen.sh`, `exec-codex.sh`, or any existing `verify.sh`.
+  `ralph-build.sh`, `run-loop.sh`, `exec-qwen.sh`, `exec-codex.sh`, or any existing `.conf` strategy.
 
 > **`Tools:` declares what the TASKS need, not what the artifact needs at runtime.** Writing a
 > shell script and a Dockerfile needs `git` and `sed`. The *artifact* needs `docker`, and
