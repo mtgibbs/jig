@@ -62,13 +62,18 @@ printf '#!/usr/bin/env bash\necho "x $$" >> "$ROOT/work.txt"\n' > "$T/exec.sh"; 
 # so an assignment made inside it dies with that subshell and trace() would read an unbound
 # variable. The truncation below is a filesystem side effect and does survive.
 GATELOG="$T/gatelog.txt"; export GATELOG
+# Output goes to a file named for the FIXTURE, not a shared one. Every assertion is evaluated
+# after all fixtures have run, so a shared file meant each failure message quoted whichever
+# fixture ran last. ac1 reported `Loop said:` with nothing while the loop had plenty to say,
+# and the executor spent an attempt retrying against a message carrying no information.
 runfx() {
-  local d="$1"
+  local d="$1" tag; tag="$(basename "$d")"
   : > "$GATELOG"
   ( cd "$d" && RALPH_LOG=off RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate \
-      timeout 180 bash scripts/ralph-build.sh specs/fx ) > "$T/fx.out" 2>&1
+      timeout 180 bash scripts/ralph-build.sh specs/fx ) > "$T/$tag.out" 2>&1
   echo $?
 }
+fxout() { tr '\n' ' ' < "$T/$1.out" 2>/dev/null | tail -c 400; }
 trace() { tr '\n' '|' < "$GATELOG"; }
 
 # ── AC-4 · the vocabulary (T1) ─────────────────────────────────────────────────────────────
@@ -99,21 +104,36 @@ mkfixture "$T/fxB" yes yes; RC_B="$(runfx "$T/fxB")" ; TRACE_B="$(trace)"
 # AC-1 — the fallback. Pinned to the observed baseline, and asserted whether or not T2 is built,
 # because "existing specs still behave exactly as before" is the one property T2 can REGRESS.
 if [ "$RC_A" = 124 ]; then
-  no "ac1: the loop did not return within 180s on a spec with no tasks/ — bounded call timed out"
+  no "ac1: the loop did not return within 180s on a spec with no tasks/ — bounded call timed out. Loop said: $(fxout fxA)"
 elif [ "$RC_A" != 0 ]; then
-  no "ac1: a spec with no tasks/ exited $RC_A. Loop said: $(tail -c 300 "$T/fx.out" | tr '\n' ' ')"
+  no "ac1: a spec with no tasks/ exited $RC_A. Loop said: $(fxout fxA)"
 elif [ "$TRACE_A" = "SPEC STRICT=0|SPEC STRICT=1|SPEC STRICT=1|" ]; then
   ok "ac1: with no tasks/, the spec gate runs exactly as before (lenient, strict, convergence)"
 else
   no "ac1: with no tasks/ the gate trace changed — expected 'SPEC STRICT=0|SPEC STRICT=1|SPEC STRICT=1|', got '$TRACE_A'"
 fi
 
+# Three-way, not two. An EMPTY trace is not "unbuilt" — with no resolver at all the fallback
+# still runs the spec gate, so unbuilt looks like "SPEC ...". Empty means the loop ran and
+# produced no gate whatsoever, i.e. the resolver EXISTS AND IS BROKEN. Treating that as a pend
+# is the defect this spec is about: a broken implementation reading as an absent one, passing
+# leniently and telling the executor nothing. Observed for real on T2 attempt 1, where
+# `validate_task_gates` inherited its while-loop's terminating status and exited 1 in silence.
+if [ -z "$TRACE_B" ]; then
+  for a in "ac2: gates run cumulatively 1..N and no gate beyond N" \
+           "ac2b: a failing task gate fails the task" \
+           "ac2c: task 1's gates run lenient; strict is reserved for the last task" \
+           "ac3: a task with no gate directory is a hard error" \
+           "ac9: the spec-level gate runs at convergence under STRICT"; do
+    no "$a — with a tasks/ directory the loop ran NO gate at all (exit $RC_B). Not 'unbuilt': with no resolver the fallback still runs the spec gate. Loop said: $(fxout fxB)"
+  done
+else
 case "$TRACE_B" in
   *T01*)
     # AC-2 — cumulative, and nothing beyond N. Both halves matter: running 1..N is what keeps
     # regression detection, and running nothing after N is the defect this spec removes.
     if [ "$RC_B" = 124 ]; then
-      no "ac2: the loop did not return within 180s on a spec with tasks/"
+      no "ac2: the loop did not return within 180s on a spec with tasks/. Loop said: $(fxout fxB)"
     else
       # Which task a gate invocation BELONGS to is read from STRICT, not from position: task 1
       # runs lenient (STRICT=0) and the last task runs strict (20260828d last-task-strict). So
@@ -133,6 +153,35 @@ case "$TRACE_B" in
         ok "ac2: gates run cumulatively 1..N and no gate beyond N ($TRACE_B)"
       fi
     fi
+    # ac2c — last-task-strict (20260828d) is merged behaviour this change can silently break,
+    # and nothing else here would notice. If task 1 runs STRICT=1, every `pend` becomes fatal on
+    # the first task and no early task can pass. Found by asking what could break that no
+    # assertion covers — the executor's `[ -n "$strict" ]` (true for the STRING "0") did exactly
+    # this, and every other assertion passed it.
+    case "$TRACE_B" in
+      "T01 STRICT=0"*) ok "ac2c: task 1's gates run lenient; strict is reserved for the last task" ;;
+      "T01 STRICT=1"*) no "ac2c: task 1 ran STRICT=1 — every pend is fatal on the first task, so no early task can pass. Trace '$TRACE_B'" ;;
+      *)               no "ac2c: task 1's first gate invocation was not T01. Trace '$TRACE_B'" ;;
+    esac
+
+    # ac2b — the direction nothing else covers: a task gate that FAILS must fail the task.
+    # Every gate in the fixtures above exits 0, so an implementation that inverts its own
+    # return code passes all of them while reporting a red gate as green. That is the only
+    # failure here that is worse than a broken loop, because it ships unbuilt work.
+    mkfixture "$T/fxD" yes yes
+    printf '#!/usr/bin/env bash\necho "T01 STRICT=${STRICT:-0}" >> "$GATELOG"\nexit 1\n' \
+      > "$T/fxD/specs/fx/tasks/T01-first/verify.sh"
+    chmod +x "$T/fxD/specs/fx/tasks/T01-first/verify.sh"
+    ( cd "$T/fxD" && git add -A && git commit -qm gatefail ) >/dev/null 2>&1
+    RC_D="$(runfx "$T/fxD")"
+    if [ "$RC_D" = 0 ]; then
+      no "ac2b: a task gate that FAILED was reported as green — the loop exited 0. Loop said: $(fxout fxD)"
+    elif [ "$RC_D" = 124 ]; then
+      no "ac2b: the loop hung on a failing task gate rather than failing"
+    else
+      ok "ac2b: a failing task gate fails the task (exit $RC_D)"
+    fi
+
     # AC-9 — the spec gate still runs at convergence, under STRICT, in the new shape.
     case "$TRACE_B" in
       *"SPEC STRICT=1"*) ok "ac9: the spec-level gate runs at convergence under STRICT" ;;
@@ -142,7 +191,7 @@ case "$TRACE_B" in
     # AC-3 — a task with no gate is a hard error, never a skip.
     # Search the WHOLE output: a tail is flooded by unrelated stderr (ralph-status.sh noise
     # did exactly that here), which turned a correct implementation into "did not name it".
-    mkfixture "$T/fxC" yes no; RC_C="$(runfx "$T/fxC")"; OUT_C="$(tr '\n' ' ' < "$T/fx.out")"
+    mkfixture "$T/fxC" yes no; RC_C="$(runfx "$T/fxC")"; OUT_C="$(tr '\n' ' ' < "$T/fxC.out")"
     if [ "$RC_C" = 0 ]; then
       no "ac3: a task listed in tasks.txt with no gate directory was SKIPPED — the loop exited 0"
     elif [ "$RC_C" = 124 ]; then
@@ -154,9 +203,12 @@ case "$TRACE_B" in
     fi ;;
   *)
     pend "ac2: gates run cumulatively 1..N and no gate beyond N"
+    pend "ac2b: a failing task gate fails the task"
+    pend "ac2c: task 1's gates run lenient; strict is reserved for the last task"
     pend "ac3: a task with no gate directory is a hard error"
     pend "ac9: the spec-level gate runs at convergence under STRICT" ;;
 esac
+fi
 
 # ── AC-5/6/7/8 · mutation self-test (T3) ───────────────────────────────────────────────────
 if [ ! -x "$SELFTEST" ]; then
