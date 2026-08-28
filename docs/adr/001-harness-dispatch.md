@@ -203,6 +203,61 @@ What follows from that boundary, rather than motivating it:
   `local-llm-mcp`, `kiwix-mcp`. A fourth for the fleet follows the established shape rather than
   overloading the first.
 
+### D10 — Who owns what, concretely
+
+The seam only works if both sides know their half. **The rule: the repo that owns the code owns
+its build; the cluster owns everything needed to run it.**
+
+**`mtgibbs/harness` owns (framework):**
+
+| thing | status |
+|---|---|
+| dispatcher source + its Dockerfile | to write |
+| `docker/loop-executor.Dockerfile` | **exists** (`20260828a-exec-container`) |
+| `scripts/run-loop.sh` and the loop machinery the worker invokes | exists |
+| this contract | this document |
+| **CI that builds and pushes both images, multi-arch** | **does not exist — see the gap below** |
+
+**`mtgibbs/pi-cluster` owns (instance):** everything required to run it, following the shape
+`clusters/pi-k3s/review-hub/` already uses.
+
+| thing | why |
+|---|---|
+| `clusters/pi-k3s/harness-dispatch/` — `namespace`, `deployment`, `service` (ClusterIP, no ingress), `kustomization` | the always-on fixture |
+| `serviceaccount` + **namespaced `Role`** + `rolebinding` for `batch/v1` Jobs | D4; deliberately narrower than `mcp-homelab`'s cluster-wide grant |
+| a **second namespace for loop Jobs**, with `ResourceQuota` and `LimitRange` | cliff 5 — loop Jobs share the Pis with Pi-hole and media |
+| `external-secret.yaml` — Matrix token, the PR-opening bot identity, the LiteLLM key | secrets stay in 1Password; only `op://` paths in git |
+| a numbered Kustomization entry in `flux-system/infrastructure.yaml` | that file is the deploy-order DAG; review-hub is #29 |
+| `image-automation.yaml` | the established auto-bump pattern |
+| Homepage tile + AutoKuma monitor | the `add-service` convention |
+| **node placement** | see below |
+
+**Node placement is not optional here.** The cluster is three Pi 5s at 8 GB and one Pi 3 at 1 GB,
+and `ARCHITECTURE.md` already restricts the Pi 3 to lightweight services. A loop Job scheduled
+there will fail or evict something that matters. Both the dispatcher and the Jobs need a
+nodeSelector or affinity keeping them on the Pi 5s — and the images must be `linux/arm64`, which
+is why item 2's multi-arch requirement is load-bearing rather than tidy.
+
+**Credential reuse before minting.** The PR-opening identity should be an existing role-scoped bot,
+not a new per-service token — `feedback_credentials_scale_by_role`: a bot gets one identity usable
+across repos. The Matrix token is the existing agent-bus service-bot identity. Only genuinely new
+credentials get new 1Password items.
+
+### The gap this exposed: nothing builds either image
+
+`mtgibbs/harness` has **no `.github/` directory at all**. `docs/loop-container.md` documents a
+manual `docker buildx … --push` for the loop-executor image, which is right for a one-off
+verification and wrong for a fleet that pulls the image on every Job.
+
+The precedent is `pi-cluster/.github/workflows/build-review-hub.yml` — multi-arch build on push to
+main, with Flux ImageUpdateAutomation bumping the manifest. But it lives in `pi-cluster` because
+review-hub's *code* lives there. The dispatcher's code lives here, so **the workflow belongs here**,
+and this repo has never had one.
+
+That is a prerequisite for item 3's implementation and a small piece of work in its own right:
+one workflow, two images (`harness-dispatch`, `loop-executor`), `linux/amd64,linux/arm64`, pushed
+to GHCR, packages flipped public after first push.
+
 ## Consequences
 
 **Accepted:**
@@ -222,6 +277,8 @@ ingress.
 
 **Preconditions before the implementing spec can be gated end to end:**
 
+0. **Image CI in this repo** (D10). Nothing builds either image today; the fleet cannot pull what
+   nobody publishes.
 1. Item 2's runbook executed on a host with docker — the loop-executor image must build for
    `linux/arm64` and a containerised run must differ from a local one only in `binding`.
 2. `harness#15` — attempt records currently ship with `outcome` and `duration_s` never populated.
