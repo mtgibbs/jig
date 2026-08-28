@@ -135,7 +135,7 @@ by the human — they are **not** fleet members and don't get retrofitted.
 | 0 | Implement `evidence-replayable`, then `spec-manifest` (loop-run) | their own verify.sh, STRICT |
 | 1 | Fleet-safe run key (host discriminator + `RUN_LABEL`) | before ANY fan-out |
 | 2 | `exec-container.sh` + loop-container Dockerfile (arm64+amd64) | binding contract unchanged: `docker run --rm -v ROOT -e ROOT` |
-| 3 | `harness-dispatch` ADR → spec (Matrix listener, Job launcher, outcome taxonomy, registry, HTTP API) | dispatcher stays thin |
+| 3 | `harness-dispatch` — **ADR written** ([`docs/adr/001-harness-dispatch.md`](../adr/001-harness-dispatch.md)); spec next | dispatcher stays thin |
 | 4 | `mcp-harness` thin client | read tools first; `launch_run` the only mutation |
 | 5 | Judge rubric: anchors/floors/declared set, vector not composite, `review.md` | below-floor fixture must FAIL |
 | 6 | Gate-gap ↔ red-before-green join (judge-of-the-judge) | no new model in the path |
