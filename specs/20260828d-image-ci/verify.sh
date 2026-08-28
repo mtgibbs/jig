@@ -116,9 +116,14 @@ PY
 
   printf '%s\n' "$REPORT" | grep -q '^WITH push True' \
     && ok "ac3: push is enabled" || no "ac3: the build step does not push"
-  printf '%s\n' "$REPORT" | grep -q '^WITH tags.*ghcr\.io/mtgibbs/loop-executor' \
-    && ok "ac3: tags target ghcr.io/mtgibbs/loop-executor" \
-    || no "ac3: tags do not target ghcr.io/mtgibbs/loop-executor — $(get 'WITH tags')"
+  # The REGISTRY AND OWNER, not the image name. ac10 owns the image name and requires it to come
+  # from the matrix — so asserting the literal `loop-executor` here made the two assertions
+  # mutually unsatisfiable, and the executor burned three attempts producing the correct change
+  # only to have ac3 reject it. A gate whose assertions contradict each other cannot be passed by
+  # anything, which is a harsher version of a gate that cannot fail.
+  printf '%s\n' "$REPORT" | grep -q '^WITH tags.*ghcr\.io/mtgibbs/' \
+    && ok "ac3: tags publish under ghcr.io/mtgibbs/" \
+    || no "ac3: tags do not publish under ghcr.io/mtgibbs/ — $(get 'WITH tags')"
   if printf '%s\n' "$REPORT" | grep -qE '^WITH tags.*:latest'; then
     no "ac3: tags include :latest — a mutable tag gives Flux nothing to compare (spec §4)"
   else
