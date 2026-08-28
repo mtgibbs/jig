@@ -139,7 +139,7 @@ today of a rename breaking a path-keyed guard: the date-prefix rename
 (`20260827a-spec-manifest`'s `_PREDATING` list) silently turned a guard into a no-op that always
 passes, which was worse — nothing errored, the gate simply got easier.
 
-This is the **third** instance today of a path change silently weakening a guard, after
+This is the **second** measured instance of a path change silently weakening a guard, after
 `20260827a-spec-manifest`'s `_PREDATING` list became a no-op during the date-prefix rename, and
 it is the same shape each time: a check addresses something by path, the path moves, and the
 check degrades into a tautology rather than a failure.

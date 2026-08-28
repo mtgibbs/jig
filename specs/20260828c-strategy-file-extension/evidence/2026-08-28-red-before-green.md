@@ -69,10 +69,33 @@ threshold < 424 — BOTH pass
 `cat` fails into `2>/dev/null`, the count drops, and the assertion gets **easier**. The gate keeps
 printing `AC-7:executor-layer-shrank` while silently measuring three files instead of four.
 
-This is the **third** path-change-disarms-a-guard instance today, after
+This is the **second** measured path-change-disarms-a-guard instance, after
 `20260827a-spec-manifest`'s `_PREDATING` list became a no-op during the date-prefix rename. The
 smell is specific and greppable: **`2>/dev/null` on a path that feeds a measurement** turns a
 missing input into a smaller number rather than an error.
 
 After a rename the question is not "does everything still pass" but "does everything that passed
 before still have teeth".
+
+
+## A gate defect the run exposed: a truncated work list
+
+`ac4` originally piped its file list through `head -4`, for readable output. That list is not
+output — it reaches the executor through the retry feedback, and **the working tree is reset
+between attempts**, so every attempt starts from all nine broken files and is then told about at
+most four of whatever it happened to miss.
+
+Measured, from the two failing attempts:
+
+```
+attempt 1 named: executor-binding/spec.md, executor-binding/tasks.txt, exec-container/evidence…
+attempt 2 named: scripts/exec-codex.sh, exec-container/evidence…, exec-container/…
+```
+
+Different subsets, out of nine. The executor was never once shown the whole job, and no amount of
+extra attempts would fix that: nothing accumulates between them except the previous attempt's
+`FAIL` lines and `ralph-retry.sh`'s regression list. More attempts are independent re-rolls, not a
+ratchet.
+
+T2 passed on attempt 3 anyway, by covering more ground in one pass. The `head` is removed so the
+next task of this shape gets the full list.

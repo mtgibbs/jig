@@ -93,7 +93,12 @@ fi
 # really did source a file called build-converge.env. Rewriting them would falsify history to
 # satisfy a rename, and the next regeneration would put the old string back anyway.
 _refs="$(cd "$R" && git grep -lE "(build-codex|build-container|build-converge|build-then-judge|judge-refine)\.env" \
-         -- . ':!specs/20260828c-strategy-file-extension' ':!.evidence' 2>/dev/null | head -4)"
+         -- . ':!specs/20260828c-strategy-file-extension' ':!.evidence' 2>/dev/null)"
+# NO `head`. This list IS the work order: it reaches the executor through ralph-build.sh's
+# retry feedback, and the tree is reset between attempts, so a truncated list hands the next
+# attempt a different partial TODO every time and it never sees the whole job. Measured on this
+# spec: attempt 1 was told about 3 files, attempt 2 about a different 3, out of 9 that needed
+# changing. That is not the executor failing to learn — it is the gate never showing it the job.
 if [ -n "$_refs" ]; then
   pend "ac4: strategy still referenced as <name>.env in — $(printf '%s' "$_refs" | tr '\n' ' ')"
 else
