@@ -164,8 +164,17 @@ migration, the documentation.
   behave bit-for-bit as before.
 - **AC-2** When `$SPEC_DIR/tasks/` is present and task N has just run, the system shall invoke the
   task gates for 1..N and no gate for any task after N.
+- **AC-2b** When a task gate **fails**, the system shall fail that task. Added after the fact:
+  every gate in the fixtures passes, so an implementation that inverts its own return code
+  satisfied every other assertion while reporting a red gate as green — the one failure here
+  worse than a broken loop, because it ships unbuilt work.
+- **AC-2c** When task 1's gates run, they shall run lenient; strict is reserved for the last task.
+  `20260828d` last-task-strict is merged behaviour this change can silently break, and if task 1
+  runs `STRICT=1` every `pend` is fatal on the first task and no early task can pass.
 - **AC-3** When a task listed in `tasks.txt` has no corresponding `tasks/T<NN>-*/verify.sh`, the
-  system shall exit non-zero naming the missing gate.
+  system shall exit non-zero naming the missing gate, **detected up front** before any task runs —
+  a missing gate found mid-loop is folded into that attempt's verify feedback and retried, so the
+  message never reaches the loop's own output.
 - **AC-4** The shared vocabulary shall define `ok` and `no` and shall **not** define `pend`.
 - **AC-5** When any task gate contains the token `pend`, the self-test shall fail naming that gate.
 - **AC-6** When a mutant is installed, the gate shall exit non-zero **and** report a failure for
