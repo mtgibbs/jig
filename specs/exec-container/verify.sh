@@ -188,6 +188,13 @@ else
     || no "ac9: STRATEGY_PHASES is '${STRATEGY_PHASES:-}', expected 'build'"
   [ -n "${STRATEGY_DESC:-}" ] && ok "ac9: the strategy describes itself (run-loop.sh --list)" \
                              || no "ac9: STRATEGY_DESC is empty"
+  # The parity acceptance (spec §5) is that .evidence differs ONLY in `binding`. build-codex.env
+  # exports RALPH_AGENT because Codex is a different executor family; this binding runs the SAME
+  # qwen through a container, so overriding it would make `agent` differ too and quietly destroy
+  # the one comparison item 2 exists to enable.
+  grep -qE '^[[:space:]]*(export[[:space:]]+)?RALPH_AGENT=' "$STRAT" \
+    && no "ac9: the strategy sets RALPH_AGENT — .evidence would differ in agent as well as binding" \
+    || ok "ac9: RALPH_AGENT is left alone, so only binding differs from a bare qwen run"
 fi
 
 # ── T4 · the runbook for what no gate here can check ───────────────────────────────────────
