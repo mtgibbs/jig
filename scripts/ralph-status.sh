@@ -120,6 +120,17 @@ hb_init() {
 # hb_write <phase> [verify_pass]  — emit the current status. Never fails.
 hb_write() {
   [ -n "${HB_FILE:-}" ] || return 0
+  # The directory can vanish mid-run: .evidence/status/ is untracked, so the loop's
+  # between-attempt `git clean` takes it, and hb_reap only recreates it on its own schedule.
+  # Recreate rather than skip — a status file that stops updating is exactly the signal a
+  # supervisor reads as "hung", and every write after the sweep was failing.
+  #
+  # It also has to be fixed HERE and not by silencing: the write below is
+  # `} > "$HB_FILE.tmp" 2>/dev/null`, and bash applies redirections left to right, so it
+  # reports the failed TARGET before `2>/dev/null` is in effect. That is why this function
+  # printed an error per write for the rest of the run while its own header promised
+  # "Never fails". Verified: `{ echo hi; } > /nonexistent/x 2>/dev/null` still prints.
+  [ -d "${HB_FILE%/*}" ] || mkdir -p "${HB_FILE%/*}" 2>/dev/null || return 0
   local phase="${1:-running}" verify="${2:-null}" now branch commit
   now="$(date +%s 2>/dev/null || echo 0)"
   branch="$(git -C "$HB_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')"
