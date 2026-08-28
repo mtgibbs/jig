@@ -57,6 +57,60 @@ run_bounded() { # <seconds> <cmd...> -> 124 on timeout, else the command's exit 
 
 SPEC="$SPEC_DIR/spec.md"; VERIFY="$SPEC_DIR/verify.sh"; TASKS="$SPEC_DIR/tasks.txt"
 for f in "$SPEC" "$VERIFY" "$TASKS"; do [ -f "$f" ] || { echo "missing $f" >&2; exit 1; }; done
+
+# ── Per-task gate resolution (20260828i) ──────────────────────────────────────────────────────
+#
+# A spec MAY carry tasks/T<NN>-<slug>/verify.sh, one per task in tasks.txt order. When it does,
+# the gate for task N is the gates for tasks 1..N — cumulative, so a later task that breaks an
+# earlier one still fails, while nothing beyond N is ever consulted. When it does not, the gate
+# is $SPEC_DIR/verify.sh exactly as before. Every existing spec relies on that fallback; it is a
+# superset, not a migration.
+
+_task_count() { grep -c '^T[0-9]' "$TASKS"; }
+
+# _gate_for <n> — print the gate path for the nth task, or return 1. Two-digit zero-padded
+# prefix so a numeric sort and a lexical one agree, which they stop doing at ten tasks.
+_gate_for() {
+  local d
+  d="$(ls -d "$SPEC_DIR"/tasks/T"$(printf '%02d' "$1")"-* 2>/dev/null | head -1)"
+  [ -n "$d" ] && [ -f "$d/verify.sh" ] || return 1
+  printf '%s' "$d/verify.sh"
+}
+
+# Validate UP FRONT, before any task runs. A missing gate discovered mid-loop is folded into that
+# attempt's verify feedback and retried three times, so the message never reaches the loop's own
+# output and a human reading the run sees a model that could not satisfy a gate rather than a
+# spec that is missing one.
+_validate_task_gates() {
+  [ -d "$SPEC_DIR/tasks" ] || return 0
+  local i n; n="$(_task_count)"
+  for i in $(seq 1 "$n"); do
+    _gate_for "$i" >/dev/null && continue
+    echo "ralph: task $i has no gate ($SPEC_DIR/tasks/T$(printf '%02d' "$i")-*/verify.sh)" >&2
+    echo "ralph: a task running with no criteria at all is worse than the monolithic gate this replaces" >&2
+    return 1
+  done
+  return 0   # EXPLICIT. Without it this function inherits the exit status of its last
+             # construct, which for a loop is its terminating condition — reliably non-zero.
+}
+_validate_task_gates || exit 3   # 3, not 1: the spec needs attention, not another retry.
+
+# run_gates <task-index> <strict> — run every gate that applies after that task, print all of
+# their output, and return 0 only if all of them passed. Runs the whole set even after one
+# fails, so the executor sees every failure at once rather than the first.
+run_gates() {
+  local n="$1" strict="$2" rc=0 i g
+  if [ ! -d "$SPEC_DIR/tasks" ]; then
+    ( cd "$ROOT" && STRICT="$strict" bash "$VERIFY" 2>&1 )
+    return $?
+  fi
+  for i in $(seq 1 "$n"); do
+    g="$(_gate_for "$i")" || { echo "ralph: task $i has no gate" >&2; return 3; }
+    ( cd "$ROOT" && STRICT="$strict" bash "$g" 2>&1 ) || rc=1
+  done
+  return $rc   # 0 = every gate passed. Getting this backwards reports a red gate as green,
+               # which is the only failure here worse than a broken loop.
+}
 # EXPORTED, because the executor binding is a separate process and the contract
 # (README, "binding") says it reads ROOT from the environment. It never actually did: bindings
 # only worked because exec-qwen.sh falls back to ${ROOT:-$PWD} and the loop happens to run with
@@ -193,7 +247,7 @@ paths RELATIVE to the repo root (specs/... not /specs/...). Do the work this tim
     # Last task is HB_TIDX equals HB_TOTAL. If HB_TOTAL is empty/0, lenient (safe default).
     STRICT=0
     [ "${HB_TOTAL:-0}" -gt 0 ] && [ "$HB_TIDX" -eq "$HB_TOTAL" ] && STRICT=1
-    if out="$(cd "$ROOT" && STRICT="$STRICT" bash "$VERIFY" 2>&1)"; then
+    if out="$(run_gates "$HB_TIDX" "$STRICT" 2>&1)"; then
       _mode="lenient"; [ "$STRICT" -eq 1 ] && _mode="strict"
       echo "  ✓ $task passed verify (attempt $attempt, gate: $_mode)"
       log_gate "$HB_TASK" "$attempt" "$out" "0"
@@ -284,7 +338,11 @@ done < "$TASKS"
 # Presence-gated checks pend until their target exists, so passing every task individually does
 # NOT prove the work was done — see the STRICT note in verify.sh. Run the gate once more with
 # pending treated as failure before declaring victory.
-if ! _strict_out="$(cd "$ROOT" && STRICT=1 bash "$VERIFY" 2>&1)"; then
+# At convergence, run every task gate under STRICT and then the spec-level gate, which in the
+# per-task shape holds only integration and end-state assertions and runs nowhere else.
+if ! _strict_out="$( { run_gates "${HB_TOTAL:-0}" 1; _r=$?
+     [ -d "$SPEC_DIR/tasks" ] && { cd "$ROOT" && STRICT=1 bash "$VERIFY" 2>&1 || _r=1; }
+     exit $_r; } 2>&1)"; then
    echo "✋ STOP: every task passed, but the final STRICT gate found unbuilt work:" >&2
        printf '%s\n' "$_strict_out" | grep -E 'FAIL' | head -10 >&2
        LOG_OUTCOME="failed"; LOG_ENDED="$(date +%s)" && log_meta "$HB_TASK" "$attempt"
