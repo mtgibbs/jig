@@ -230,6 +230,24 @@ if has log_meta; then
         done
         [ -z "$miss" ] && ok "ac7: .json carries every §3.2 field" \
                        || no "ac7: .json is missing fields —$miss"
+        # T4 · value assertions — outcome must be one of four literals; duration_s a non-negative int
+        _o="$(jq -r '.outcome' "$f" 2>/dev/null)"
+        case "$_o" in
+          passed|failed|noop|stillborn) ok "t4: outcome is one of passed/failed/noop/stillborn ($_o)" ;;
+          "")                           no "t4: outcome is the empty string — must be passed/failed/noop/stillborn" ;;
+          null)                         no "t4: outcome is null — must be passed/failed/noop/stillborn" ;;
+          *)                            no "t4: outcome is '$_o' — must be passed/failed/noop/stillborn" ;;
+        esac
+        _d="$(jq -r '.duration_s' "$f" 2>/dev/null)"
+        case "$_d" in
+          null)   no "t4: duration_s is null — must be a non-negative integer" ;;
+          ""|0)   ok "t4: duration_s is a non-negative integer ($_d)" ;;
+          *)      if [ "$_d" -ge 0 ] 2>/dev/null; then
+                    ok "t4: duration_s is a non-negative integer ($_d)"
+                  else
+                    no "t4: duration_s is '$_d' — must be a non-negative integer"
+                  fi ;;
+        esac
         # AC-8: unset RUN_LABEL is JSON null, never "" and never absent.
         case "$(jq -c '.run_label' "$f" 2>/dev/null)" in
           null) ok "ac8: run_label is null when RUN_LABEL is unset" ;;
