@@ -141,6 +141,28 @@ by the human — they are **not** fleet members and don't get retrofitted.
 | 6 | Gate-gap ↔ red-before-green join (judge-of-the-judge) | no new model in the path |
 | 7 | Later: GitHub-webhook edge; revise/cifix feedback modes on bot PRs | caps + loop-guards ported |
 | 8 | Later: fine-grained per-container executor permissions | replaces the blanket `--auto`, below |
+| 9 | Run board reads a live feed instead of committed indexes | board renders a run still in flight |
+| 10 | Diff visualiser in the board's task pane | per-task diff readable without leaving the page |
+
+### The run board, and what it is still missing
+
+`scripts/runboard.py` renders every spec the loop has built from the `.evidence/index-*.jsonl`
+records that are already committed to git. That choice is the point: the "which stage is
+everything at" half of the picture leaves a worker on every push, needing no coordinator and no
+connection into the container — which is fortunate, because nothing can connect into one.
+
+Two known limits, items 9 and 10 above:
+
+**It is a snapshot, not a feed.** Each index is written by the run that produced it, so a task
+merged through a later PR still reads as unmerged until that spec next runs, and a run in flight
+right now is invisible. The fix is the coordinator that `20260828m-worker-channel` reports to:
+the board becomes a client of it, and the committed indexes stay as the offline fallback.
+
+**It shows diff SIZE, not the diff.** Each task card carries files/insertions/deletions, which
+answers "how big was this" and not "what did it do" — and the diff is what a reader actually wants
+when a task took four attempts. The per-attempt `.diff` files exist in the evidence tree; they are
+in `.evidence/runs/`, which is gitignored, so surfacing them is bound up with the same evidence
+egress question (ADR-001 D5) rather than being a UI change alone.
 
 ### Deferred: the executor runs with `--auto`
 
