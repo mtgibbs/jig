@@ -164,15 +164,20 @@ touch -t 202001010000 "$RP/old-spec/qwen-777/T1-attempt1.log" "$RP/old-spec/qwen
 # ── AC-7 · the detector itself ─────────────────────────────────────────────────────────────
 # This regression was caught by another spec's gate, two merges after it shipped. That gate is
 # the detector, and it is only a detector while it is green for the right reason.
+# Keyed on BOTH remaining tasks' artefacts, not just T2's. This check runs the WHOLE
+# evidence-spec-nesting gate, which cannot be green until T3's reap and prune land too — so
+# keying it on T2 alone made a CORRECT T2 unpassable, which is the exact defect the pend
+# contract exists to prevent: a pend must key on the artefact of the task that satisfies it.
+_t3_built(){ [ "$(sed 's/#.*//' "$R/scripts/ralph-log.sh" | grep -c 'empty -delete')" -ge 2 ]; }
 if [ -r "$NEST" ]; then
-  if grep -q 'maxdepth 3' "$NEST" 2>/dev/null; then
+  if grep -q 'maxdepth 3' "$NEST" 2>/dev/null && _t3_built; then
     if STRICT=1 timeout 180 bash "$NEST" >/dev/null 2>&1; then
       ok "ac7: specs/20260825b-evidence-spec-nesting is green again"
     else
       no "ac7: evidence-spec-nesting is still red — the regression it detects is not fixed"
     fi
   else
-    pend "ac7: evidence-spec-nesting still assumes maxdepth 2"
+    pend "ac7: evidence-spec-nesting green (needs T2's depth fix and T3's reap/prune)"
   fi
 else
   no "ac7: specs/20260825b-evidence-spec-nesting/verify.sh is missing"
