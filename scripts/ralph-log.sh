@@ -100,6 +100,10 @@ log_init() {
   # disagree about which feature a run belongs to; derive our own when it is absent.
   LOG_SLUG="${HB_SLUG:-$(_ralph_slug "${SPEC_DIR:-}")}"
   LOG_DIR="$LOG_ROOT/$LOG_SLUG/$(_ralph_host)/${HB_AGENT:-${RALPH_AGENT:-agent}}-$$"
+  # Floor the run clock here so `started` is a measurement from the moment logging exists, not
+  # from whenever a caller remembers to stamp it. `:-` so the per-attempt stamp in
+  # ralph-build.sh (which is more precise) still wins; this only covers the caller that forgets.
+  LOG_STARTED="${LOG_STARTED:-$(date +%s)}"
   mkdir -p "$LOG_DIR" 2>/dev/null || { echo "logs: unavailable ($LOG_DIR not writable)" >&2; return 0; }
   local _log_basename; _log_basename="${LOG_DIR##*/}"
   local _log_parent="${LOG_DIR%/*}"
@@ -244,6 +248,25 @@ log_meta() {
   [ "${LOG_OK:-0}" = 1 ] || return 0
   [ -x "$(command -v jq 2>/dev/null)" ] || { echo "logs: jq unavailable" >&2; return 0; }
   local f; f="$(log_path "$1" "$2" json)"
+  # ── Floors ──────────────────────────────────────────────────────────────────────────────
+  # 20260828e R1 ("every attempt record carries one of four outcomes, never the empty string")
+  # and R3/R4 (the timing pair is coherent, duration_s non-negative) are properties of the
+  # RECORD. That makes them the writer's job, not a rule five call sites must each remember —
+  # and a sixth caller, the fleet dispatcher, is on the way. #19 fixed the call sites; a record
+  # emitted by a caller that forgets still violated R1, which is what the gate caught.
+  local _out _st _en _dur
+  # No stamp reached means the attempt ended before any of the five ending points — which is
+  # precisely "died before producing an outcome". Never "": ADR-001 D6 reads an unknown outcome
+  # as a failure, and it cannot do that with a field no branch matches.
+  _out="${LOG_OUTCOME:-stillborn}"
+  _st="${LOG_STARTED:-0}"; _en="${LOG_ENDED:-0}"
+  # Writing the record IS the end of the attempt, so `now` is a measurement and not a guess.
+  # The same test catches a LOG_ENDED left stale by a previous attempt, which would otherwise
+  # produce a NEGATIVE duration — the one value R4 can never accept.
+  { [ "$_en" -gt 0 ] && [ "$_en" -ge "$_st" ]; } 2>/dev/null || _en="$(date +%s)"
+  # null still means "not measurable" (§3.2): reachable only with no start, i.e. log_meta called
+  # without log_init — in which case LOG_OK is 0 and we already returned. Kept for the contract.
+  if [ "$_st" -gt 0 ] 2>/dev/null; then _dur="$((_en - _st))"; else _dur=null; fi
   {
     jq -n \
       --arg host "$(_ralph_host)" \
@@ -256,12 +279,12 @@ log_meta() {
       --argjson attempt "$2" \
       --arg binding "${RALPH_EXEC_CMD:-}" \
       --arg agent "${RALPH_AGENT:-}" \
-      --argjson started "${LOG_STARTED:-0}" \
-      --argjson ended "${LOG_ENDED:-0}" \
-      --argjson duration_s "$([ "${LOG_ENDED:-}" ] && echo "$((LOG_ENDED - LOG_STARTED))" || echo null)" \
+      --argjson started "$_st" \
+      --argjson ended "$_en" \
+      --argjson duration_s "$_dur" \
       --argjson exec_rc "${LOG_EXEC_RC:-0}" \
       --argjson verify_rc "$([ -n "${LOG_VERIFY_RC:-}" ] && echo "$LOG_VERIFY_RC" || jq -n null)" \
-      --arg outcome "${LOG_OUTCOME:-}" \
+      --arg outcome "$_out" \
       --argjson bytes_prompt "$([ -f "$(log_path "$1" "$2" prompt.md)" ] && wc -c < "$(log_path "$1" "$2" prompt.md)" || echo null)" \
       --argjson bytes_transcript "$([ -f "$(log_path "$1" "$2" log)" ] && wc -c < "$(log_path "$1" "$2" log)" || echo null)" \
       --argjson bytes_patch "$([ -f "$(log_path "$1" "$2" patch)" ] && wc -c < "$(log_path "$1" "$2" patch)" || echo null)" \
