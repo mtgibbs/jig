@@ -178,7 +178,16 @@ fi
 if [ ! -f "$STRAT" ]; then
   pend "ac9: the build-container strategy selects this binding"
 else
-  . "$STRAT" 2>/dev/null
+  # Sourced in a SCRUBBED environment, and never into this shell. Every setting in the file is a
+  # `${VAR:-default}`, so a variable already exported by the operator wins and the gate would
+  # read the operator's value instead of the file's. Measured: a run whose RALPH_EXEC_CMD was
+  # overridden on the command line made this AC fail a correct file. It would do the same for
+  # anyone who exports it, which is the normal way to override a binding.
+  _strat(){ env -u RALPH_EXEC_CMD -u RALPH_AGENT -u STRATEGY_DESC -u STRATEGY_PHASES -u SCRIPT_DIR \
+              bash -c '. "$1" >/dev/null 2>&1; eval printf "%s" "\"\${$2:-}\""' _ "$STRAT" "$1"; }
+  RALPH_EXEC_CMD="$(_strat RALPH_EXEC_CMD)"
+  STRATEGY_PHASES="$(_strat STRATEGY_PHASES)"
+  STRATEGY_DESC="$(_strat STRATEGY_DESC)"
   case "${RALPH_EXEC_CMD:-}" in
     *exec-container.sh) ok "ac9: the strategy points RALPH_EXEC_CMD at exec-container.sh" ;;
     *) no "ac9: RALPH_EXEC_CMD is '${RALPH_EXEC_CMD:-}', not exec-container.sh" ;;
