@@ -252,7 +252,10 @@ if [ -z "$LIVE" ] || [ -n "$(g error)" ]; then
            "ac5: runs can be listed and read" \
            "ac6: a run can be cancelled" \
            "ac7: the evidence gap is declared, not faked"; do
-    no "$a — the server never served: $(g error)$(head -c 200 "$T/live.err" 2>/dev/null)"
+    # Surface the server's OWN output, not just "it did not start". A NameError at import and
+    # a port collision are the same sentence to the executor unless the traceback is in the
+    # feedback it retries against — and a retry with no clue is three attempts spent guessing.
+    no "$a — the server never served: $(g error). Server said: $(g out | tr '\n' ' ' | tail -c 400)$(head -c 200 "$T/live.err" 2>/dev/null)"
   done
 else
   # ac3 first: it is the positive control that makes ac2's zero mean anything.
