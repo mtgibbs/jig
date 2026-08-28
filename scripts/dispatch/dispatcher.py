@@ -169,6 +169,50 @@ def launch(job: dict, *, runner=None) -> int:
         return 1
 
 
+def dispatch(
+    intent: dict,
+    event_id: str,
+    *,
+    ledger_path: str,
+    image: str,
+    namespace: str,
+) -> dict:
+    """Perform the core dispatch flow: dedupe, render, launch, record.
+
+    This is the idempotency mechanism. It takes an ALREADY-PARSED intent mapping
+    and never sees a chat string.
+
+    Order is load-bearing:
+    1. Check the ledger — if already seen, return without launching.
+    2. Render the Job.
+    3. Launch the Job.
+    4. Record the event id.
+
+    Args:
+        intent: Dict with keys verb, repo, spec, strategy (already parsed).
+        event_id: Unique identifier for this event.
+        ledger_path: Path to the ledger file.
+        image: Container image for the Job.
+        namespace: Kubernetes namespace.
+
+    Returns:
+        Dict with keys:
+        - 'intent': parsed intent dict
+        - 'launched': bool indicating if a Job was launched
+        - 'exit_code': int exit code from launch (0 or non-zero) or None
+    """
+    if already_seen(ledger_path, event_id):
+        return {"intent": intent, "launched": False, "exit_code": None}
+
+    run_id = event_id
+    job = render_job(intent, image=image, namespace=namespace, run_id=run_id)
+    exit_code = launch(job)
+
+    record_seen(ledger_path, event_id)
+
+    return {"intent": intent, "launched": True, "exit_code": exit_code}
+
+
 def handle_event(
     text: str,
     event_id: str,
@@ -177,14 +221,7 @@ def handle_event(
     image: str,
     namespace: str,
 ) -> dict:
-    """Perform the full flow: parse intent, dedupe, render, launch, record.
-
-    Order is load-bearing:
-    1. Parse the intent — if there is none, return without launching.
-    2. Check the ledger — if already seen, return without launching.
-    3. Render the Job.
-    4. Launch the Job.
-    5. Record the event id.
+    """Parse intent and dispatch through the transport-agnostic core.
 
     Args:
         text: Plain text intent string (e.g. '@harness fix repo spec').
@@ -203,13 +240,10 @@ def handle_event(
     if intent is None:
         return {"intent": None, "launched": False, "exit_code": None}
 
-    if already_seen(ledger_path, event_id):
-        return {"intent": intent, "launched": False, "exit_code": None}
-
-    run_id = event_id
-    job = render_job(intent, image=image, namespace=namespace, run_id=run_id)
-    exit_code = launch(job)
-
-    record_seen(ledger_path, event_id)
-
-    return {"intent": intent, "launched": True, "exit_code": exit_code}
+    return dispatch(
+        intent,
+        event_id,
+        ledger_path=ledger_path,
+        image=image,
+        namespace=namespace,
+    )
