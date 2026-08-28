@@ -21,6 +21,15 @@
 #   scripts/ralph-build.sh specs/<feature>              # default binding: qwen
 #   scripts/run-loop.sh build-codex specs/<feature>    # or pick a strategy
 # spec dir must contain: spec.md, verify.sh, tasks.txt (one task per line, e.g. "T1: arr widgets")
+#
+# Resume control:
+#   RALPH_FORCE_FROM=<n>    skip tasks 1..n-1, run task n and onward
+#   RALPH_FORCE_ALL=1       disable skip-satisfied; every task runs regardless of gate state
+#
+# A task is "satisfied" if its own gate passed before the executor runs. Only specs with per-task
+# gates (e.g., `20260828i`) support this question; monolithic-gate specs cannot answer it (green
+# gate just means spec is done). The loop polls its own state — workers cannot receive external
+# signals, so run control decisions must be discovered by polling.
 set -uo pipefail
 
 SPEC_DIR="${1:?usage: ralph-build.sh <spec-dir>}"
