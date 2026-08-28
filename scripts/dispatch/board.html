@@ -1,0 +1,191 @@
+<title>Harness Fleet</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#f6f7f9;--panel:#fff;--sunk:#eceff4;--line:#d8dee7;--line-soft:#e6eaf0;
+  --ink:#161b22;--ink-2:#4a5568;--ink-3:#79839a;--accent:#2f4b8f;--accent-soft:#e5eaf6;
+  --ok:#1f7a4d;--ok-bg:#e2f2e9;--bad:#b3261e;--bad-bg:#fbe6e4;--wait:#8a6100;--wait-bg:#faeed2;
+  --live:#1f7a4d;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ground:#0f1319;--panel:#161b23;--sunk:#1b212b;--line:#2b3440;--line-soft:#232b36;
+  --ink:#e8edf4;--ink-2:#a8b3c4;--ink-3:#75819a;--accent:#8fa9e8;--accent-soft:#1e2942;
+  --ok:#5cc98d;--ok-bg:#14301f;--bad:#f08a80;--bad-bg:#361a18;--wait:#e0b357;--wait-bg:#32270f;
+  --live:#5cc98d;
+}}
+:root[data-theme="dark"]{
+  --ground:#0f1319;--panel:#161b23;--sunk:#1b212b;--line:#2b3440;--line-soft:#232b36;
+  --ink:#e8edf4;--ink-2:#a8b3c4;--ink-3:#75819a;--accent:#8fa9e8;--accent-soft:#1e2942;
+  --ok:#5cc98d;--ok-bg:#14301f;--bad:#f08a80;--bad-bg:#361a18;--wait:#e0b357;--wait-bg:#32270f;
+  --live:#5cc98d;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;font-size:15px;line-height:1.5}
+.mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+.tnum{font-variant-numeric:tabular-nums}
+header{border-bottom:1px solid var(--line);background:var(--panel);padding:16px 24px}
+.bar{max-width:1300px;margin:0 auto;display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+h1{margin:0;font-size:17px;font-weight:600;letter-spacing:-.01em}
+.pulse{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-3)}
+.pulse i{width:8px;height:8px;border-radius:50%;background:var(--live);
+  animation:b 2s ease-in-out infinite}
+@keyframes b{0%,100%{opacity:1}50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.pulse i{animation:none}}
+main{max-width:1300px;margin:0 auto;padding:20px 24px 60px;
+  display:grid;grid-template-columns:320px minmax(0,1fr);gap:20px;align-items:start}
+@media(max-width:900px){main{grid-template-columns:1fr}}
+h2{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-3);
+  margin:0 0 8px;font-weight:600}
+.rail{display:flex;flex-direction:column;gap:6px}
+.run{display:block;width:100%;text-align:left;border:1px solid var(--line);background:var(--panel);
+  border-radius:9px;padding:10px 12px;cursor:pointer;color:inherit;font:inherit}
+.run:hover{border-color:var(--accent)}
+.run[aria-current="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.run .sp{font-family:"IBM Plex Mono",monospace;font-size:12.5px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.run .ln{display:flex;justify-content:space-between;margin-top:5px;font-size:11px;color:var(--ink-3)}
+.pane{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+.pill{display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:1px 9px;
+  font-size:11px;font-weight:500;border:1px solid transparent}
+.pill.ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
+.pill.no{background:var(--bad-bg);color:var(--bad);border-color:var(--bad)}
+.pill.run{background:var(--wait-bg);color:var(--wait);border-color:var(--wait)}
+.pipe{display:flex;overflow-x:auto;padding-bottom:10px;gap:0}
+.node{flex:0 0 auto;display:flex;align-items:center}
+.link{width:18px;height:2px;background:var(--line)}
+.tcard{border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:8px 11px;
+  min-width:118px;cursor:pointer;color:inherit;font:inherit;text-align:left}
+.tcard:hover{border-color:var(--accent)}
+.tcard[aria-current="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.tcard .id{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:13px}
+.tcard .st{font-size:11px;margin-top:3px;display:flex;align-items:center;gap:5px}
+.dot{width:7px;height:7px;border-radius:50%}
+.dot.ok{background:var(--ok)}.dot.no{background:var(--bad)}.dot.run{background:var(--wait)}
+.dot.idle{background:var(--line)}
+.task{background:var(--sunk);border-radius:8px;padding:10px 12px;font-size:12.5px;
+  color:var(--ink-2);margin:12px 0;max-height:120px;overflow:auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:14px;margin:14px 0}
+.grid div b{display:block;font-family:"IBM Plex Mono",monospace;font-size:16px;font-weight:600;
+  font-variant-numeric:tabular-nums}
+.grid div span{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3)}
+.ctl{display:flex;gap:8px;margin:14px 0 0}
+button.act{border:1px solid var(--line);background:var(--panel);color:inherit;font:inherit;
+  font-size:12.5px;border-radius:7px;padding:5px 12px;cursor:pointer}
+button.act:hover{border-color:var(--accent);color:var(--accent)}
+button.act[disabled]{opacity:.45;cursor:default}
+.arts{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.art{font-family:"IBM Plex Mono",monospace;font-size:11px;border:1px solid var(--line);
+  border-radius:6px;padding:2px 8px;color:var(--ink-2)}
+.empty{color:var(--ink-3);font-size:13px;margin:8px 0}
+footer{max-width:1300px;margin:0 auto;padding:0 24px 40px;color:var(--ink-3);font-size:12px}
+</style>
+<header><div class="bar">
+  <h1>Harness Fleet</h1>
+  <span class="pulse"><i></i><span id="pulse">connecting…</span></span>
+</div></header>
+<main>
+  <div><h2>Runs</h2><div class="rail" id="rail"></div></div>
+  <div class="pane" id="pane"><p class="empty">Waiting for a worker to report…</p></div>
+</main>
+<footer>Workers push; nothing connects in. Controls are parked here and collected by the worker on
+its next poll — the same way a CI runner discovers cancellation.</footer>
+<script>
+let DATA=[], cur=null, curTask=null;
+const $=s=>document.querySelector(s);
+const ago=t=>{if(!t)return'—';const d=Math.max(0,Math.floor(Date.now()/1000)-t);
+  return d<60?d+'s':d<3600?Math.floor(d/60)+'m':Math.floor(d/3600)+'h';};
+const live=r=>(Math.floor(Date.now()/1000)-(r.updated||0))<90 &&
+  !['passed','failed','stopped','done'].includes(r.phase);
+
+async function poll(){
+  try{
+    const res=await fetch('/api/runs',{cache:'no-store'});
+    if(!res.ok) throw new Error(res.status);
+    DATA=(await res.json()).runs||[];
+    $('#pulse').textContent=DATA.length+' run'+(DATA.length===1?'':'s')+' · updated '+
+      new Date().toLocaleTimeString();
+    if(!cur&&DATA.length) cur=DATA[0].key;
+    render();
+  }catch(e){ $('#pulse').textContent='coordinator unreachable'; }
+}
+function render(){
+  $('#rail').innerHTML=DATA.map(r=>`<button class="run" data-k="${r.key}" aria-current="${r.key===cur}">
+    <div class="sp">${r.spec||r.key}</div>
+    <div class="ln"><span>${live(r)?'●&nbsp;':''}${r.phase} · T${r.task_index}/${r.total_tasks}</span>
+      <span class="tnum">${ago(r.updated)} ago</span></div></button>`).join('')
+    || '<p class="empty">No runs yet.</p>';
+  document.querySelectorAll('.run').forEach(b=>b.onclick=()=>{cur=b.dataset.k;curTask=null;render();});
+  const r=DATA.find(x=>x.key===cur);
+  if(!r){ $('#pane').innerHTML='<p class="empty">Waiting for a worker to report…</p>'; return; }
+
+  // One node per task. Everything before the current index has been passed; the current one is
+  // in flight; the rest have not started. Attempt records fill in what each cost.
+  const byTask={}; (r.attempts||[]).forEach(a=>{
+    const k=(a.task||'').split(':')[0]||'T?'; (byTask[k]=byTask[k]||[]).push(a); });
+  let pipe='';
+  for(let i=1;i<=(r.total_tasks||0);i++){
+    const id='T'+i, at=byTask[id]||[];
+    const cls = i<r.task_index?'ok' : i===r.task_index?(live(r)?'run':'no') : 'idle';
+    const lbl = i<r.task_index? (at.length? at.length+' attempt'+(at.length===1?'':'s') : 'passed')
+              : i===r.task_index? 'attempt '+r.attempt+'/'+r.max_attempts : 'queued';
+    pipe+=`${i>1?'<div class="link"></div>':''}<div class="node">
+      <button class="tcard" data-t="${id}" aria-current="${id===curTask}">
+        <div class="id">${id}</div><div class="st"><span class="dot ${cls}"></span>${lbl}</div>
+      </button></div>`;
+  }
+  const ph=r.phase==='passed'?'ok':r.phase==='failed'?'no':'run';
+  $('#pane').innerHTML=`
+    <h2>Run</h2>
+    <p style="margin:0 0 4px"><span class="mono" style="font-size:15px;font-weight:600">${r.spec||r.key}</span>
+      &nbsp;<span class="pill ${ph}">${r.phase}</span></p>
+    <p style="margin:0;color:var(--ink-2);font-size:13px" class="mono">${r.key} · ${r.branch||''} ·
+      agent ${r.agent||'?'} · started ${ago(r.started)} ago</p>
+    <div class="task">${r.task||'—'}</div>
+    <div class="pipe">${pipe||'<p class="empty">No tasks reported yet.</p>'}</div>
+    <div class="ctl">
+      <button class="act" data-a="cancel">Stop</button>
+      <button class="act" data-a="pause">Pause</button>
+      <button class="act" data-a="none">Resume</button>
+      <span style="align-self:center;font-size:12px;color:var(--ink-3)">
+        ${r.control&&r.control!=='none'?'intent parked: <b>'+r.control+'</b> — the worker collects it on its next poll':''}
+      </span>
+    </div>
+    <div id="det"></div>`;
+  document.querySelectorAll('.tcard').forEach(b=>b.onclick=()=>{
+    curTask=curTask===b.dataset.t?null:b.dataset.t; render();});
+  document.querySelectorAll('.act').forEach(b=>b.onclick=async()=>{
+    b.disabled=true;
+    try{ await fetch('/runs/'+r.key+'/control',{method:'POST',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({action:b.dataset.a})});
+    }catch(e){}
+    b.disabled=false; poll();});
+  detail(r,byTask);
+}
+function detail(r,byTask){
+  const d=$('#det'); if(!d) return;
+  if(!curTask){ d.innerHTML=`<p class="empty">Select a task for its attempts — what each one cost,
+    how it ended, and which artifacts it shipped.</p>`; return; }
+  const at=byTask[curTask]||[];
+  if(!at.length){ d.innerHTML=`<p class="empty">${curTask} has reported no attempt records yet.</p>`;
+    return; }
+  d.innerHTML=at.map(a=>{
+    const cls=a.outcome==='passed'?'ok':a.outcome==='failed'?'no':'run';
+    const arts=(r.artifacts||[]).filter(k=>k.startsWith(curTask+'/'+a.attempt+'/'))
+      .map(k=>`<span class="art">${k.split('/').pop()}</span>`).join('');
+    return `<div style="border-top:1px solid var(--line-soft);margin-top:14px;padding-top:14px">
+      <p style="margin:0"><b class="mono">attempt ${a.attempt}</b>
+        &nbsp;<span class="pill ${cls}">${a.outcome||'?'}</span></p>
+      <div class="grid">
+        <div><b class="tnum">${a.duration_s??'—'}s</b><span>duration</span></div>
+        <div><b class="tnum">${a.exec_rc??'—'}</b><span>exec rc</span></div>
+        <div><b class="tnum">${a.verify_rc??'—'}</b><span>verify rc</span></div>
+        <div><b class="tnum">${a.bytes_transcript??'—'}</b><span>transcript</span></div>
+        <div><b class="tnum">${a.bytes_patch??a.bytes_diff??'—'}</b><span>changes</span></div>
+      </div>
+      <div class="arts">${arts||'<span class="empty">no artifacts shipped — evidence egress not built yet</span>'}</div>
+    </div>`;
+  }).join('');
+}
+poll(); setInterval(poll,4000);
+</script>
