@@ -266,7 +266,7 @@ Fix exactly those failures.${_regression_block}"
 
   if [ "$passed" != 1 ]; then
     echo "✋ STOP: '$task' failed verify after $((RETRIES + 1)) attempts — needs a human." >&2
-    LOG_ENDED="$(date +%s)"; log_meta "$HB_TASK" "$attempt"
+    [ -z "${LOG_ENDED:-}" ] && LOG_ENDED="$(date +%s)" && log_meta "$HB_TASK" "$attempt"
     hb_write stopped false
     log_where
     bus_say "✋ STOP — '${task%%:*}' failed verify after $((RETRIES + 1)) attempts. Needs a human."
@@ -280,7 +280,7 @@ done < "$TASKS"
 if ! _strict_out="$(cd "$ROOT" && STRICT=1 bash "$VERIFY" 2>&1)"; then
    echo "✋ STOP: every task passed, but the final STRICT gate found unbuilt work:" >&2
        printf '%s\n' "$_strict_out" | grep -E 'FAIL' | head -10 >&2
-       LOG_ENDED="$(date +%s)"; log_meta "$HB_TASK" "$attempt"
+       [ -z "${LOG_ENDED:-}" ] && LOG_ENDED="$(date +%s)" && log_meta "$HB_TASK" "$attempt"
        hb_write stopped false; log_where
    bus_say "✋ STOP — '${task%%:*}' failed verify after $((RETRIES + 1)) attempts. Needs a human."
    exit 2

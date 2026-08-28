@@ -241,7 +241,8 @@ if has log_meta; then
         _d="$(jq -r '.duration_s' "$f" 2>/dev/null)"
         case "$_d" in
           null)   no "t4: duration_s is null — must be a non-negative integer" ;;
-          ""|0)   ok "t4: duration_s is a non-negative integer ($_d)" ;;
+          "")     no "t4: duration_s is empty — must be a non-negative integer" ;;
+          0)      ok "t4: duration_s is a non-negative integer ($_d)" ;;
           *)      if [ "$_d" -ge 0 ] 2>/dev/null; then
                     ok "t4: duration_s is a non-negative integer ($_d)"
                   else
