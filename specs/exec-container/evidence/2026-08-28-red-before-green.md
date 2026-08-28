@@ -55,3 +55,32 @@ rather than a strict one — the lesson from
 They are handed to a host with `docker` as a runbook with an owner, in `docs/loop-container.md`:
 the `buildx` build for both platforms, and fleet-dispatch's own item-2 sketch — one spec run via
 `exec-qwen.sh` and one via `exec-container.sh`, with `.evidence/` differing only in `binding`.
+
+## A fourth defect, and a new failure mode for the stub discipline
+
+`ac7` failed T2 three times on a **correct** Dockerfile. Its architecture check was triggered by
+the mere string `curl` — but the Dockerfile *installs curl as an apt package*, which is
+architecture-neutral because apt resolves the architecture itself. Nothing was being downloaded.
+
+The stub pass did not catch it, and the reason is worth naming: **the stub was not
+representative.** It opened the guard — a Dockerfile existed, so the block ran — but it omitted
+`curl`, which this spec's own task text explicitly requires. So the assertion executed against a
+sample that could not trigger it.
+
+"One stub per presence guard" (`specs/fleet-run-key`) is necessary and not sufficient. The stub
+also has to look like what the task actually asks for. A guard opened with an unrepresentative
+stub is an assertion that ran without being exercised, which reads as green and proves nothing.
+
+Fixed to trigger on a **URL in a RUN line**, which is what an architecture literal actually hides
+in, and validated three ways rather than two:
+
+| Dockerfile | `ac7` |
+|---|---|
+| installs `curl` as a package, downloads nothing | **PASS** |
+| `curl … gh_2.63.2_linux_amd64.deb` | **FAIL** |
+| same, with `linux_$(dpkg --print-architecture).deb` | **PASS** |
+
+A second spec defect found in the same run: T2 told the executor to "mirror
+`beelink-ansible/files/coding-harness-qwen/Dockerfile`" — a path in **another repository**, which
+the executor cannot read from its worktree. Everything needed from it was already reproduced in
+the task text, so the reference was decorative and misleading. It now says so.

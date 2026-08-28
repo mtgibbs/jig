@@ -155,12 +155,16 @@ else
   printf '%s' "$_df" | grep -qiE '^FROM .*(amd64|arm64|aarch64|x86_64)' \
     && no "ac7: the base image tag is architecture-qualified" \
     || ok "ac7: the base image tag is architecture-neutral"
-  if printf '%s' "$_df" | grep -qiE 'curl|wget|\.deb|releases/download'; then
+  # A DOWNLOAD, not the word "curl". Installing curl as an apt package is architecture-neutral —
+  # apt resolves the arch itself — and the first draft of this check failed a correct Dockerfile
+  # for containing the string. What needs the guard is a fetch of a specific artifact, so the
+  # trigger is a URL in a RUN line.
+  if printf '%s' "$_df" | grep -qiE '^[[:space:]]*RUN .*https?://|\.deb|releases/download'; then
     printf '%s' "$_df" | grep -q 'dpkg --print-architecture' \
       && ok "ac7: an architecture-specific download resolves the arch at build time" \
-      || no "ac7: it downloads an artifact without resolving the architecture — that is a literal that breaks on one of the two targets"
+      || no "ac7: it fetches an artifact by URL without resolving the architecture — a literal that breaks on one of the two targets"
   else
-    ok "ac7: no architecture-specific download to get wrong"
+    ok "ac7: nothing is fetched by URL, so there is no architecture literal to get wrong"
   fi
   printf '%s' "$_df" | grep -qE '^USER ' \
     && no "ac8: a baked-in USER fights the --user the binding passes at run time" \
