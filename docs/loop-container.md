@@ -15,7 +15,21 @@ The `docker/loop-executor.Dockerfile` is written once and must build for both `l
 (Beelink) and `linux/arm64` (Pi cluster). Architecture-specific decisions (like the `dpkg`
 command in the Dockerfile) are resolved at **build time**, not runtime.
 
-### Build command
+### Normal path: CI on push to main
+
+The image is built and pushed automatically by `.github/workflows/build-images.yml` on every push
+to `main` that touches the Dockerfile or `docker/loop-executor.VERSION`.
+
+- The tag comes from `docker/loop-executor.VERSION`, so Flux `ImagePolicy` has a stable pattern to
+  match and a bump is a deliberate act rather than a mutable `:latest`.
+- The workflow builds for both `linux/amd64` and `linux/arm64` and pushes to `ghcr.io/mtgibbs/loop-executor`.
+
+**To cut a release**, bump the semver in `docker/loop-executor.VERSION` and push.
+
+### Fallback: manual local build
+
+Use this to verify the image builds correctly before merging a change to the Dockerfile or the
+version file. It is the only way to validate the image on a host with Docker before merging.
 
 ```bash
 docker buildx build \
