@@ -110,6 +110,7 @@ def render_job(intent: dict, *, image: str, namespace: str, run_id: str) -> dict
                     "nodeSelector": {
                         "harness-fleet": "true",
                     },
+                    "restartPolicy": "Never",
                     "containers": [
                         {
                             "name": "run",
