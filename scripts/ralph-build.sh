@@ -83,11 +83,27 @@ SPEC="$SPEC_DIR/spec.md"; VERIFY="$SPEC_DIR/verify.sh"; TASKS="$SPEC_DIR/tasks.t
 # there.
 _check_cancel() {
   command -v _hb_control >/dev/null 2>&1 || return 0
-  [ "$(_hb_control)" = cancel ] || return 0
-  echo "✋ CANCELLED: a stop intent was collected from the coordinator." >&2
-  echo "   The run ended here on purpose — this is not a gate failure and not a broken executor." >&2
-  command -v hb_write >/dev/null 2>&1 && hb_write cancelled
-  exit 4
+  local ctl; ctl="$(_hb_control)"
+  case "$ctl" in
+    cancel)
+      echo "✋ CANCELLED: a stop intent was collected from the coordinator." >&2
+      echo "   The run ended here on purpose — this is not a gate failure and not a broken executor." >&2
+      command -v hb_write >/dev/null 2>&1 && hb_write cancelled
+      exit 4
+      ;;
+    pause)
+      echo "⏸ PAUSED: a pause intent was collected from the coordinator." >&2
+      command -v hb_write >/dev/null 2>&1 && hb_write paused
+      while [ "$(_hb_control)" = pause ]; do
+        sleep 10
+        command -v hb_write >/dev/null 2>&1 && hb_write paused
+        command -v _hb_control >/dev/null 2>&1 || true
+      done
+      ;;
+    *)
+      return 0
+      ;;
+  esac
 }
 
 for f in "$SPEC" "$VERIFY" "$TASKS"; do [ -f "$f" ] || { echo "missing $f" >&2; exit 1; }; done
