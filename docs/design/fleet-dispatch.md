@@ -140,6 +140,27 @@ by the human — they are **not** fleet members and don't get retrofitted.
 | 5 | Judge rubric: anchors/floors/declared set, vector not composite, `review.md` | below-floor fixture must FAIL |
 | 6 | Gate-gap ↔ red-before-green join (judge-of-the-judge) | no new model in the path |
 | 7 | Later: GitHub-webhook edge; revise/cifix feedback modes on bot PRs | caps + loop-guards ported |
+| 8 | Later: fine-grained per-container executor permissions | replaces the blanket `--auto`, below |
+
+### Deferred: the executor runs with `--auto`
+
+Item 2's build needed `opencode run --auto` — "auto-approve permissions that are not explicitly
+denied". Without it the executor **aborts**: it explores the directory it is writing into, hits a
+`read` guard on `*.env` (which every agent tool treats as secret-bearing, and which is the
+extension this repo uses for loop strategy files that hold no secrets), and the session ends. The
+loop scores that as `changed nothing` three times, so a permission surprise is indistinguishable
+from a lazy model — see `specs/exec-container/evidence/`.
+
+`--auto` is acceptable today: the container already grants `edit` and `bash` and explicitly denies
+`webfetch`, and every run is PR-gated, so it grants strictly less than what is already granted.
+It is a blunt instrument all the same, and an ephemeral fleet worker is exactly where a blunt one
+is least wanted.
+
+**Revisit when per-container permission sets exist** (item 8): a loop container should declare the
+narrow set it needs — and `specs/spec-manifest`'s `Permissions:` field is the seam that was built
+for it, currently recorded-but-unenforced. Two smaller fixes stand on their own: grant `read` for
+`*.env` rather than everything, or stop naming secret-free strategy files `.env` at all
+(`run-loop.sh` resolves `scripts/loops/<name>.env`, so it is a contained change).
 
 Item 3 starts as an ADR because it crosses the framework/instance seam: the dispatcher
 *service* deploys in pi-cluster (GitOps), while its *contract* lives here.
