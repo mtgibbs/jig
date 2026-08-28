@@ -1,1 +1,3 @@
 .evidence/runs/
+__pycache__/
+*.pyc
