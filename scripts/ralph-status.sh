@@ -117,6 +117,35 @@ hb_init() {
   mkdir -p "$HB_DIR" 2>/dev/null || true
 }
 
+# hb_post <json> — fire-and-forget POST to HARNESS_REPORT_URL/runs/{run_key}/status.
+# Does nothing if the URL is unset or empty. Never fails. Token never appears in any output.
+hb_post() {
+  [ -n "${HARNESS_REPORT_URL:-}" ] || return 0
+  local run_key="$HB_HOST/${HB_AGENT}-$$"
+  local url="$HARNESS_REPORT_URL/runs/$run_key/status"
+  local hdrs=()
+  [ -n "${HARNESS_REPORT_TOKEN:-}" ] && hdrs=(-H "Authorization: Bearer $HARNESS_REPORT_TOKEN")
+
+  if command -v curl >/dev/null 2>&1; then
+    curl -s -f -m 5 "${hdrs[@]}" -X POST "$url" -H 'Content-Type: application/json' -d "$1" >/dev/null 2>&1 || true
+  elif command -v python3 >/dev/null 2>&1; then
+    python3 - "$url" "$1" "${hdrs[@]}" <<'PY' >/dev/null 2>&1 || true
+import sys,urllib.request,urllib.error
+url=sys.argv[1]
+data=sys.argv[2].encode('utf-8')
+hdrs=[('Content-Type','application/json')]
+for i in range(3,len(sys.argv)):
+    if sys.argv[i].startswith('Bearer '):
+        hdrs.append(('Authorization',sys.argv[i]))
+        break
+req=urllib.request.Request(url,data=data,headers=dict(hdrs),method='POST')
+try:
+    urllib.request.urlopen(req,timeout=5)
+except Exception: pass
+PY
+  fi
+}
+
 # hb_write <phase> [verify_pass]  — emit the current status. Never fails.
 hb_write() {
   [ -n "${HB_FILE:-}" ] || return 0
@@ -144,6 +173,9 @@ hb_write() {
     printf '"phase":"%s","verify_pass":%s,"last_commit":"%s","started":%s,"updated":%s}\n' \
       "$phase" "$verify" "$(_hb_esc "$commit")" "${HB_STARTED:-0}" "$now"
   } > "$HB_FILE.tmp" 2>/dev/null && mv -f "$HB_FILE.tmp" "$HB_FILE" 2>/dev/null || true
+  local body
+  body="$(cat "$HB_FILE" 2>/dev/null)" || return 0
+  hb_post "$body"
 }
 
 # hb_mark <status-file> <phase> — stamp a TERMINAL phase on a file this process does NOT own.
