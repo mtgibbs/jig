@@ -168,14 +168,33 @@ history is the `run_summary` in the PR and the `loop-doctor` corpus.
 Rationale: a registry that owns history is a registry that must be backed up, migrated and
 reconciled, and cliff 2 says the always-on component is exactly where that weight must not land.
 
-### D9 — The HTTP API is cluster-internal; MCP is a thin client over it
+### D9 — The HTTP API is cluster-internal, and its MCP client is a SEPARATE server
 
 `launch_run(repo, spec, strategy)`, `run_status`, `list_runs`, `cancel_run`, `fetch_evidence`.
 
-No ingress. The laptop reaches it through the existing private-network path, and an MCP server is
+No ingress. The laptop reaches it through the existing private-network path, and the MCP server is
 a **client** of this API rather than a second copy of the machinery. That answers the standing
 "orchestrator from the laptop or a permanent fixture" question with *both, split correctly*: the
 dispatcher is the fixture, the laptop gets a handle.
+
+**These tools do not go into `mcp-homelab`.** They belong to a separate `mcp-harness` server, as
+`fleet-dispatch.md` item 4 already names it. Four reasons, and the first two are the ones that
+matter:
+
+1. **Capability scoping.** `mcp-homelab` is handed to agents so they can *diagnose* the cluster —
+   `cluster-diagnostics` fans out with it read-only. Adding `launch_run` there means every agent
+   given diagnostic access silently also gains the ability to spin up compute and open PRs. The
+   two toolsets have different audiences and should have different grants.
+2. **Blast radius.** `mcp-homelab` is read-mostly with a few bounded mutations (restart, reconcile,
+   refresh, trigger backup). `launch_run` and `cancel_run` are a different class: they create
+   workloads and produce outward-facing artefacts. Mixing them makes the safe toolset unsafe to
+   hand out.
+3. **RBAC.** `mcp-homelab` runs under a cluster-wide `ClusterRole` with 21 resource rules.
+   `mcp-harness` talks HTTP to the dispatcher and needs **no cluster RBAC at all** — folding it in
+   would attach it to that grant for no reason.
+4. **Precedent.** This cluster already runs one MCP server per domain — `mcp-homelab`,
+   `local-llm-mcp`, `kiwix-mcp`. A fourth for the fleet follows the established shape rather than
+   overloading the first.
 
 ## Consequences
 
