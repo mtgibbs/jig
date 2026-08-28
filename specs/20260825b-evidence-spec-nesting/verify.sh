@@ -88,10 +88,10 @@ fi
 # ================================================================ AC-1 / AC-2  the layout
 echo "== AC-1/AC-2  artefacts are filed under the spec slug"
 R1="$TMPROOT/ac12"; mkrepo "$R1"; runloop "$R1" qwen
-rundir="$(find "$R1/.evidence/runs" -mindepth 2 -maxdepth 2 -type d -name 'qwen-*' 2>/dev/null | head -1)"
-statf="$(find "$R1/.evidence/status" -mindepth 2 -maxdepth 2 -name 'qwen-*.json' 2>/dev/null | head -1)"
+rundir="$(find "$R1/.evidence/runs" -mindepth 3 -maxdepth 3 -type d -name 'qwen-*' 2>/dev/null | head -1)"
+statf="$(find "$R1/.evidence/status" -mindepth 3 -maxdepth 3 -name 'qwen-*.json' 2>/dev/null | head -1)"
 
-if [ -n "$rundir" ] && [ "$(basename "$(dirname "$rundir")")" = "$SLUG" ]; then
+if [ -n "$rundir" ] && [ "$(basename "$rundir")" != "$SLUG" ] && [ "$(basename "$(dirname "$rundir")")" != "$SLUG" ] && [ "$(basename "$(dirname "$(dirname "$rundir")")")" = "$SLUG" ]; then
   ok "AC-1:runs-nested-under-slug" exec
 elif find "$R1/.evidence/runs" -mindepth 1 -maxdepth 1 -type d -name 'qwen-*' 2>/dev/null | grep -q .; then
   no "AC-1:runs-nested-under-slug" "run dir is still flat in the root — no spec level" exec
@@ -99,7 +99,7 @@ else
   no "AC-1:runs-nested-under-slug" "no run directory was created at all" exec
 fi
 
-if [ -n "$statf" ] && [ "$(basename "$(dirname "$statf")")" = "$SLUG" ]; then
+if [ -n "$statf" ] && [ "$(basename "$statf")" != "$SLUG.json" ] && [ "$(basename "$(dirname "$statf")")" != "$SLUG" ] && [ "$(basename "$(dirname "$(dirname "$statf")")")" = "$SLUG" ]; then
   ok "AC-2:status-nested-under-slug" exec
 elif find "$R1/.evidence/status" -mindepth 1 -maxdepth 1 -name 'qwen-*.json' 2>/dev/null | grep -q .; then
   no "AC-2:status-nested-under-slug" "status file is still flat in the root — no spec level" exec

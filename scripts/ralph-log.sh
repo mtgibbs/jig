@@ -116,9 +116,30 @@ log_init() {
 # would rm -rf the entire store. That has never fired (the mkdir -p above refreshes the root's
 # mtime first), but the guard costs nothing and the failure mode is total.
 find "$LOG_ROOT" -mindepth 3 -maxdepth 3 -type d -mmin "+${RALPH_LOG_KEEP_MIN:-4320}" -exec rm -rf {} + 2>/dev/null || true
-  # …then sweep up the host directories the reap just emptied, so a finished host leaves no
-  # husk behind. Ours always holds the run dir created above, so it is never a candidate.
-  find "$LOG_ROOT/$LOG_SLUG" -mindepth 1 -maxdepth 1 -type d -empty -delete 2>/dev/null || true
+# The OLDER <slug>/<agent>-<pid> layout still exists on disk and sits at depth 2, where the reap
+# above cannot see it — so moving the reap from 2 to 3 stopped collecting those corpora entirely
+# rather than widening what it collects. Depth 2 cannot simply be reaped as well: it holds BOTH
+# a legacy run AND a host directory, and a host's mtime tracks its newest child, so an aged host
+# would be deleted with its live runs inside it.
+#
+# The discriminator is STRUCTURE, not name. A run directory holds files and no subdirectories; a
+# host directory holds run directories. A name test cannot do this — <agent>-<pid> is
+# indistinguishable from a Kubernetes pod name like `harness-run-7`, which is exactly why the
+# host level is excluded by position everywhere else in the harness.
+for _d in "$LOG_ROOT"/*/*; do
+  [ -d "$_d" ] || continue
+  find "$_d" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | grep -q . && continue   # a host, not a run
+  if find "$_d" -maxdepth 0 -type d -mmin "+${RALPH_LOG_KEEP_MIN:-4320}" 2>/dev/null | grep -q .; then
+    rm -rf "$_d" 2>/dev/null || true
+  fi
+done
+  # …then sweep up whatever the reap emptied, so nothing is left as a husk. TWO passes, rooted at
+  # the STORE ROOT rather than at our own slug: a wholly-expired OTHER spec keeps an empty host
+  # directory, which keeps its slug directory non-empty, so the slug survives unless the host is
+  # removed first. Inner level, then outer — that order is what lets the second pass see an empty
+  # slug at all. Ours always holds the run dir created above, so it is never a candidate.
+  find "$LOG_ROOT" -mindepth 2 -maxdepth 2 -type d -empty -delete 2>/dev/null || true
+  find "$LOG_ROOT" -mindepth 1 -maxdepth 1 -type d -empty -delete 2>/dev/null || true
   LOG_OK=1
   echo "logs: $LOG_DIR" >&2
 }

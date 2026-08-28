@@ -150,6 +150,16 @@ def harness_roots(base, leaf_globs=RUN_GLOBS):
             continue                        # that's a run dir, not a scope
         if has_run(d):
             roots.append((d, entry))        # scoped layout (repo, or spec slug)
+        else:
+            # deeper nested layout: base/scope/host/<agent>-<pid>
+            for subdir in sorted(os.listdir(d)):
+                sd = os.path.join(d, subdir)
+                if not os.path.isdir(sd) or not REPO_DIR_RE.match(subdir):
+                    continue
+                if any(subdir.startswith(g[:-1]) for g in RUN_GLOBS):
+                    continue                # that's a run dir, not a host
+                if has_run(sd):
+                    roots.append((sd, entry))
     return roots
 
 # TASK LABEL GRAMMAR — one definition, because there is more than one dialect in the wild

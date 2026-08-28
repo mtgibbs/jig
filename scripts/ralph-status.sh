@@ -109,7 +109,10 @@ hb_init() {
   # feature that finished would keep its files forever — an accumulation cap that stops
   # capping the moment you move on is worse than none, because it still looks like one.
   find "$HB_STATUS_ROOT" -name "${HB_AGENT}-*.json" -mmin "+${RALPH_STATUS_KEEP_MIN:-1440}" -delete 2>/dev/null || true
-  # Slug directories emptied by that sweep, same as ralph-log.sh. Ours gets its file below.
+  # Directories emptied by that sweep, same as ralph-log.sh, and for the same reason in two
+  # passes: with <slug>/<host>/ an expired spec's slug directory is not empty until the host
+  # directory inside it is gone, so the inner level has to go first. Ours gets its file below.
+  find "$HB_STATUS_ROOT" -mindepth 2 -maxdepth 2 -type d -empty -delete 2>/dev/null || true
   find "$HB_STATUS_ROOT" -mindepth 1 -maxdepth 1 -type d -empty -delete 2>/dev/null || true
   mkdir -p "$HB_DIR" 2>/dev/null || true
 }
