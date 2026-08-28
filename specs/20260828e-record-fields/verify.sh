@@ -101,12 +101,23 @@ f="$(recs | head -1)"
 if [ -z "$f" ]; then
   pend "ac2: a no-op attempt leaves no record — the noop outcome is unreachable"
 else
+  # Keyed on T3's artefact, not T2's. Until the no-op branch has its OWN log_meta call, a no-op
+  # falls through to the exhausted-attempts site and is recorded there as `failed` — which is
+  # correct for the code that exists. Asserting `noop` before that call site exists makes T2
+  # unpassable, which is the same defect as ac7 in specs/20260828b-index-nested-runs: a pend must
+  # key on the artefact of the task that SATISFIES it, not one that merely precedes it. Second
+  # occurrence in one night; the rule is easier to write down than to apply.
+  _sites="$(sed 's/#.*//' "$BUILD" | grep -c 'log_meta ')"
   o="$(field "$f" .outcome)"
-  case "$o" in
-    noop) ok "ac2: a no-op attempt records outcome=noop" ;;
-    "")   pend "ac2: a no-op attempt records no outcome" ;;
-    *)    no "ac2: a no-op attempt recorded outcome='$o', expected 'noop'" ;;
-  esac
+  if [ "${_sites:-0}" -lt 5 ]; then
+    pend "ac2: the no-op branch has no log_meta call yet ($_sites sites, need 5)"
+  else
+    case "$o" in
+      noop) ok "ac2: a no-op attempt records outcome=noop" ;;
+      "")   pend "ac2: a no-op attempt records no outcome" ;;
+      *)    no "ac2: a no-op attempt recorded outcome='$o', expected 'noop'" ;;
+    esac
+  fi
 fi
 
 # ── AC-5 · the stillborn path ──────────────────────────────────────────────────────────────
