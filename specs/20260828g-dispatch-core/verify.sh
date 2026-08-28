@@ -37,6 +37,7 @@ python3 -c "import sys; f=sys.argv[1]; compile(open(f).read(), f, 'exec')" "$MOD
   || { no "scope: dispatcher.py does not compile"; echo "---"; exit 1; }
 
 export PYTHONDONTWRITEBYTECODE=1
+export PYTHONPYCACHEPREFIX="$T/pyc"
 
 # --- HAVE probe: which functions exist. Guards below key on the task that SATISFIES them. ------
 HAVE="$(python3 - "$MOD" <<'PY' 2>/dev/null
@@ -272,6 +273,10 @@ else
 fi
 
 # --- ac9: the seam is written down -------------------------------------------------------------
+# NOTE: README.md already exists from the previous spec, so its PRESENCE cannot gate this —
+# the guard would never open and a T5 assertion would fail every task before T5. The signal is
+# the content, and a missing update is a `pend`: lenient while earlier tasks run, promoted to a
+# failure by STRICT on the final task, which is exactly where "T5 never happened" must bite.
 if [ ! -r "$DOC" ]; then pend "ac9: the seam is documented"; else
   miss=""
   grep -qiE 'adapter' "$DOC" || miss="$miss adapters"
@@ -279,7 +284,7 @@ if [ ! -r "$DOC" ]; then pend "ac9: the seam is documented"; else
   grep -qiE 'ledger' "$DOC" || miss="$miss ledger"
   grep -qiE 'launch_run' "$DOC" || miss="$miss launch_run"
   grep -qiE 'evidence' "$DOC" || miss="$miss evidence-caveat"
-  [ -n "$miss" ] && no "ac9: README does not describe the seam —$miss" \
+  [ -n "$miss" ] && pend "ac9: README does not yet describe the seam —$miss" \
                  || ok "ac9: README describes adapters, both stores, and the evidence caveat"
 fi
 
