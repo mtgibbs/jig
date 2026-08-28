@@ -182,6 +182,10 @@ if not isinstance(sp.get('activeDeadlineSeconds'),int) or sp['activeDeadlineSeco
 if not isinstance(sp.get('ttlSecondsAfterFinished'),int): miss.append('ttlSecondsAfterFinished')
 if sp.get('backoffLimit')!=0: miss.append('backoffLimit=0')
 if (tpl.get('nodeSelector') or {}).get('harness-fleet')!='true': miss.append('nodeSelector harness-fleet=true')
+# A Job pod template REQUIRES restartPolicy Never or OnFailure — the API server rejects it
+# otherwise, so a Job without one never runs at all. With backoffLimit 0 the loop owns
+# retries, which makes Never the only coherent choice.
+if tpl.get('restartPolicy')!='Never': miss.append('restartPolicy=Never')
 if (j.get('metadata') or {}).get('namespace')!='fleet': miss.append('namespace')
 envs={e.get('name') for c in (tpl.get('containers') or []) for e in (c.get('env') or [])}
 for k in ('REPO','SPEC','STRATEGY'):
