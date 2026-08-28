@@ -261,14 +261,24 @@ matching toleration on the Jobs, so nothing *else* drifts onto it. Label alone s
 go here"; label plus taint says "and only fleet work". That is the cleanest available answer to
 cliff 5 — a runaway fleet cannot take Pi-hole down if it cannot be scheduled beside it.
 
-**What the measurement says about whether this is needed.** Measured 2026-08-28: an `opencode` run
-peaks at **~256 MB RSS** on a trivial repo with a one-word prompt. That is a floor — a real loop
-run indexes a working tree and carries a much larger prompt (19 KB in a sampled run), so budget
-400–600 MB and re-measure under a real run before setting `requests`/`limits`. A limit derived from
-the synthetic number is wrong in the direction that OOM-kills pods mid-run.
+**What the measurement says about whether this is needed.** Measured 2026-08-28, two ways:
 
-Against 8 GB, one or two workers is a small fraction of a Pi 5. **The existing nodes can host this.**
-The dedicated node is insurance against contention, not a capacity requirement.
+| run | peak `opencode` RSS |
+|---|---|
+| trivial repo, one-word prompt (a floor) | **256 MB** |
+| **real worktree, ~5 KB task prompt, executor reading files** | **300 MB** |
+
+The realistic figure is only ~44 MB above the floor, which is the useful finding: the executor's
+footprint is dominated by the runtime itself, not by the repo or the prompt. An earlier draft of
+this ADR guessed "budget 400–600 MB"; that was pessimistic by a third and is corrected here.
+
+Neither run includes the gate (`verify.sh` is shell and cheap) or git operations, so a full attempt
+sits a little above 300 MB. **Proposed starting point: `requests: 384Mi`, `limits: 768Mi`** — a
+limit at ~2.5× measured peak, to be confirmed against a real `run-loop.sh` run before it ships.
+
+Against 8 GB, two concurrent workers at a 768Mi limit is **under 20% of one Pi 5**. The existing
+nodes can host this comfortably. The dedicated node is insurance against contention, not a capacity
+requirement.
 
 **And it would not buy throughput anyway** — which is the part worth being clear about before
 spending money. The worker is a client; the model runs on the Beelink through LiteLLM. Concurrency
