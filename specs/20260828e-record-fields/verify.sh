@@ -43,6 +43,7 @@ echo "  FAIL  ac1: no a.txt" >&2; exit 1
 FIX
 chmod +x "$P/specs/demo/verify.sh"
 git -C "$P" add -A 2>/dev/null; git -C "$P" commit -qm base 2>/dev/null
+BASE="$(git -C "$P" rev-parse HEAD 2>/dev/null)"
 
 # MODE is read per invocation so one fixture yields three different endings.
 cat > "$T/mock.sh" <<'MOCK'
@@ -52,13 +53,19 @@ case "${MOCK_MODE:-pass}" in
   pass)      printf 'a\n' > a.txt ;;                      # gate goes green
   noop)      : ;;                                         # changes nothing
   stillborn) exit 7 ;;                                    # nonzero, no output
+  reject)    printf 'x\n' > junk.txt ;;                    # changes something the gate rejects
 esac
 exit 0
 MOCK
 chmod +x "$T/mock.sh"
 
 runloop(){ # runloop <mode> ; leaves records under $T/ev
-  rm -rf "$T/ev"; git -C "$P" checkout -q -- . 2>/dev/null; rm -f "$P/a.txt"
+  # HARD reset to the base commit, not checkout+rm. The `pass` mode COMMITS a.txt, so deleting
+  # the file afterwards leaves a staged deletion — a dirty tree — and the no-op branch never
+  # fires because the attempt did change something. The first draft of this gate did exactly
+  # that and reported a no-op attempt as `failed`, which looked like a defect in ralph-build.
+  rm -rf "$T/ev"
+  git -C "$P" reset -q --hard "$BASE" 2>/dev/null; git -C "$P" clean -qfd 2>/dev/null
   ( cd "$P" && ROOT="$P" RALPH_EXEC_CMD="$T/mock.sh" MOCK_MODE="$1" RALPH_RETRIES=0 \
       RALPH_AGENT=gate RALPH_LOG_DIR="$T/ev" RALPH_STATUS_DIR="$T/st" RALPH_BUS_DISABLE=1 \
       bash "$BUILD" "$P/specs/demo" ) >/dev/null 2>&1
@@ -134,6 +141,23 @@ else
   esac
 fi
 
+# ── AC-7 · a gate-rejected attempt is recorded at all ──────────────────────────────────────
+# The gap that let a dead call site through: pass, no-op and stillborn each have their own
+# ending, so a gate whose ACs cover only those three stays green while `failed` is unrecordable.
+# Mock passes nothing the fixture gate accepts, so every attempt runs and is rejected.
+runloop reject
+f="$(recs | head -1)"
+if [ -z "$f" ]; then
+  pend "ac7: a gate-rejected attempt leaves no record at all"
+else
+  o="$(field "$f" .outcome)"
+  case "$o" in
+    failed) ok "ac7: a gate-rejected attempt records outcome=failed" ;;
+    "")     pend "ac7: a gate-rejected attempt records no outcome" ;;
+    *)      no "ac7: a gate-rejected attempt recorded outcome='$o', expected 'failed'" ;;
+  esac
+fi
+
 # ── CONTROL · the declared set is closed ───────────────────────────────────────────────────
 # An invented value is worse than an empty one: the consumer (ADR-001 D6) maps anything outside
 # the set to `failed`, so a typo silently marks good runs bad.
@@ -148,8 +172,7 @@ done
 # ── AC-6 · the detector that let this ship now asserts values ──────────────────────────────
 if [ ! -r "$NEST" ]; then
   no "ac6: specs/20260826a-evidence-replayable/verify.sh is missing"
-elif grep -qE 'outcome[^)]*\)[^)]*(passed|noop)' "$NEST" 2>/dev/null \
-     || grep -qE '\.outcome.*==.*"(passed|noop)"|IN\("passed"' "$NEST" 2>/dev/null; then
+elif grep -q "passed|failed|noop|stillborn" "$NEST" 2>/dev/null; then
   # NOT a bare grep for "stillborn": that word already appears once in that file (in prose),
   # so the first draft of this AC passed before the work existed. The marker has to be a
   # construct only a value assertion would contain.

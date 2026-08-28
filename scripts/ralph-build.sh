@@ -132,7 +132,7 @@ while IFS= read -r task || [ -n "$task" ]; do
   HB_TASK="$task"; HB_TIDX=$((HB_TIDX + 1)); hb_write running
   feedback=""; passed=0; retry_init
   for attempt in $(seq 1 $((RETRIES + 1))); do
-    HB_ATTEMPT="$attempt"; LOG_STARTED="$(date +%s)"; hb_write running
+    HB_ATTEMPT="$attempt"; LOG_STARTED="$(date +%s)"; LOG_RECORDED=""; hb_write running
     prompt="${SHEET:+$SHEET
 
 }Read $SPEC. Implement ONLY this one task, nothing else: ${task}
@@ -163,7 +163,7 @@ URLs/UIDs. When done, stop.${feedback}"
     if [ "$_rc" != 0 ] && [ "$_sz" -lt 512 ]; then
       echo "✋ ABORT: the executor did not start (exit $_rc, ${_sz}B of output) — the container needs attention, not another retry." >&2
       sed 's/^/    | /' "$_log" 2>/dev/null | head -4 >&2
-      LOG_OUTCOME="stillborn"; LOG_ENDED="$(date +%s)"; log_meta "$HB_TASK" "$attempt"
+      LOG_OUTCOME="stillborn"; LOG_ENDED="$(date +%s)"; LOG_RECORDED=1; log_meta "$HB_TASK" "$attempt"
       hb_write stopped false; log_where
       bus_say "✋ ABORT — executor did not start (exit $_rc). Container needs attention."
       exit 3
@@ -180,7 +180,7 @@ URLs/UIDs. When done, stop.${feedback}"
     # produced no file, and the staged gate passed T1 with "nothing to commit".
     if [ -z "$(git -C "$ROOT" status --porcelain -- . ':!.evidence' 2>/dev/null)" ]; then
       echo "  ✗ attempt $attempt changed nothing — a no-op is a failure, not a pass" >&2
-      LOG_OUTCOME="noop"; LOG_ENDED="$(date +%s)"; log_meta "$HB_TASK" "$attempt"
+      LOG_OUTCOME="noop"; LOG_ENDED="$(date +%s)"; LOG_RECORDED=1; log_meta "$HB_TASK" "$attempt"
       hb_write failed false
       feedback="
 A previous attempt produced NO file changes at all. If a tool call was rejected, use
@@ -196,9 +196,9 @@ paths RELATIVE to the repo root (specs/... not /specs/...). Do the work this tim
     if out="$(cd "$ROOT" && STRICT="$STRICT" bash "$VERIFY" 2>&1)"; then
       _mode="lenient"; [ "$STRICT" -eq 1 ] && _mode="strict"
       echo "  ✓ $task passed verify (attempt $attempt, gate: $_mode)"
-     LOG_OUTCOME="passed"; LOG_ENDED="$(date +%s)"; log_gate "$HB_TASK" "$attempt" "$out" "0"
-       LOG_OUTCOME="passed"; LOG_ENDED="$(date +%s)"; log_patch "$HB_TASK" "$attempt"
-       LOG_OUTCOME="passed"; LOG_ENDED="$(date +%s)"; log_meta "$HB_TASK" "$attempt"
+      log_gate "$HB_TASK" "$attempt" "$out" "0"
+      log_patch "$HB_TASK" "$attempt"
+      LOG_OUTCOME="passed"; LOG_ENDED="$(date +%s)"; LOG_RECORDED=1; log_meta "$HB_TASK" "$attempt"
       git -C "$ROOT" add -A
       # NOT "ralph(qwen)". This line named one executor while the same run filed its
       # evidence under another — a codex run committed as qwen. loop-index.py had already
@@ -267,7 +267,13 @@ Fix exactly those failures.${_regression_block}"
 
   if [ "$passed" != 1 ]; then
     echo "✋ STOP: '$task' failed verify after $((RETRIES + 1)) attempts — needs a human." >&2
-    [ -z "${LOG_ENDED:-}" ] && LOG_ENDED="$(date +%s)" && log_meta "$HB_TASK" "$attempt"
+    # Guarded on LOG_RECORDED, not LOG_ENDED: LOG_ENDED is stamped on every attempt, so an
+    # ENDED-based guard is always false and this site silently never fires — losing the only
+    # record a gate-rejected attempt would ever get. This is a TASK-level stop reusing the last
+    # attempt's number, so it must not overwrite a record that attempt already wrote.
+    if [ -z "${LOG_RECORDED:-}" ]; then
+      LOG_OUTCOME="failed"; LOG_ENDED="$(date +%s)"; LOG_RECORDED=1; log_meta "$HB_TASK" "$attempt"
+    fi
     hb_write stopped false
     log_where
     bus_say "✋ STOP — '${task%%:*}' failed verify after $((RETRIES + 1)) attempts. Needs a human."
