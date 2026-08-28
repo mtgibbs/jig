@@ -62,6 +62,20 @@ chmod +x "$T/bin/kubectl"
 py(){ MOCK_DIR="$T/calls" PATH="$T/bin:$PATH" HARNESS_KUBECTL=kubectl \
       env $PYDONT python3 - "$MOD" "$T" 2>/dev/null; }
 calls(){ cat "$T/calls/count" 2>/dev/null || echo 0; }
+HAVE="$(env $PYDONT python3 -c '
+import importlib.util,sys
+try:
+    spec=importlib.util.spec_from_file_location("d",sys.argv[1]); m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+except Exception:
+    print(""); raise SystemExit
+names=("parse_intent","already_seen","record_seen","render_job","launch","handle_event")
+print(" ".join(n for n in names if callable(getattr(m,n,None))))' "$MOD" 2>/dev/null)"
+# Every AC is gated on the functions IT needs, not on the file existing. The first draft ran the
+# control — which calls render_job and launch, T3 and T4 work — during T1, so it failed and made
+# every negative assertion refuse to judge. Third occurrence tonight of keying an assertion on a
+# task that does not own it; as a helper rather than a habit, the gate cannot repeat it.
+have(){ for f in "$@"; do case " $HAVE " in *" $f "*) ;; *) return 1;; esac; done; return 0; }
+
 reset_calls(){ rm -rf "$T/calls"; }
 
 # ── ac1 · the parser ───────────────────────────────────────────────────────────────────────
@@ -82,6 +96,10 @@ case "$OUT" in
 esac
 
 # ── CONTROL first · the mock records a call when one is made ───────────────────────────────
+if ! have render_job launch; then
+  pend "control: render_job/launch not built yet, so the negative assertions cannot be judged"
+  _CONTROL_OK=0
+else
 reset_calls
 py <<'PY' >/dev/null
 import importlib.util,sys
@@ -96,6 +114,7 @@ else
   no "control: the mock recorded no call even on a valid launch; every negative assertion below is vacuous"
   _CONTROL_OK=0
 fi
+fi
 
 # ── ac2 · an unrecognised message launches NOTHING ─────────────────────────────────────────
 reset_calls
@@ -107,7 +126,9 @@ for bad in ["@harness deploy myrepo specs/thing", "hello", "", "@harness fix", "
     try: m.handle_event(bad, "evt-"+str(abs(hash(bad))), ledger_path=led, image="img:1", namespace="fleet")
     except Exception as e: print("RAISED", e)
 PY
-if [ "${_CONTROL_OK:-0}" != 1 ]; then
+if ! have handle_event; then
+  pend "ac2: handle_event is not built yet"
+elif [ "${_CONTROL_OK:-0}" != 1 ]; then
   pend "ac2: cannot be judged while the control is failing"
 elif [ "$(calls)" = 0 ]; then
   ok "ac2: five unrecognised or malformed messages launched nothing, and none raised"
@@ -125,7 +146,9 @@ for _ in range(3):
     m.handle_event("@harness fix myrepo specs/thing", "evt-same", ledger_path=led, image="img:1", namespace="fleet")
 PY
 c="$(calls)"
-if [ "${_CONTROL_OK:-0}" != 1 ]; then
+if ! have handle_event; then
+  pend "ac3: handle_event is not built yet"
+elif [ "${_CONTROL_OK:-0}" != 1 ]; then
   pend "ac3: cannot be judged while the control is failing"
 elif [ "$c" = 1 ]; then
   ok "ac3: the same event id three times launched exactly once"
@@ -136,6 +159,7 @@ else
 fi
 
 # ── ac4 · the rendered Job is bounded, every time ──────────────────────────────────────────
+if ! have render_job; then J=""; else
 J="$(py <<'PY'
 import importlib.util,sys,json
 s=importlib.util.spec_from_file_location("d",sys.argv[1]); m=importlib.util.module_from_spec(s); s.loader.exec_module(m)
@@ -143,8 +167,9 @@ i=m.parse_intent("@harness fix myrepo specs/thing")
 print(json.dumps(m.render_job(i, image="img:1", namespace="fleet", run_id="r1")))
 PY
 )"
+fi
 if [ -z "$J" ]; then
-  pend "ac4: render_job produced nothing"
+  pend "ac4: render_job is not built yet"
 else
   _miss="$(printf '%s' "$J" | python3 -c "
 import json,sys
