@@ -3,10 +3,10 @@
 # Wraps any spec's verify.sh: reruns it, classifies its check lines, and prints a machine-readable
 # score block after a ---GATE-SCORE--- sentinel. READ-ONLY — writes nothing into the tree.
 # (The old header here described fixture-synthesis this script never did — copied from the wrong
-# file, shipped at score 1.000, and became specs/judge-loop §1's founding example. Fixed.)
+# file, shipped at score 1.000, and became specs/20260802a-judge-loop §1's founding example. Fixed.)
 #
 # THE PEND CONTRACT for the verify.sh gates this script scores (clarified 2026-08-03 after the
-# specs/export incident — evidence in specs/judge-loop/evidence/): a PEND may key ONLY on a
+# specs/export incident — evidence in specs/20260802a-judge-loop/evidence/): a PEND may key ONLY on a
 # DEPENDENCY's observable (another task's deliverable, or an external precondition), NEVER on the
 # task-under-test's own deliverable.
 #   - MULTI-task spec: checks for not-yet-built tasks pend, each keyed on ITS OWN task's

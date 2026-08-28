@@ -59,7 +59,7 @@
 # contract is that either may be absent without breaking the loop, so neither may depend on the
 # other. Keep the two copies identical.
 #
-# Derived at runtime from SPEC_DIR — never a literal. specs/evidence-convention AC-5 forbids any
+# Derived at runtime from SPEC_DIR — never a literal. specs/20260825a-evidence-convention AC-5 forbids any
 # project's name appearing in a harness file, and that is the whole point: the harness learns the
 # feature from the target repo it was pointed at.
 _ralph_slug() {

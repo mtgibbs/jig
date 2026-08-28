@@ -2,9 +2,9 @@
 
 **Status:** runbook, 2026-08-28. Owner: Matt.
 
-This document is a runbook, not acceptance criteria in `specs/exec-container/verify.sh`, because
+This document is a runbook, not acceptance criteria in `specs/20260828a-exec-container/verify.sh`, because
 the harness container this spec is built in has **no `docker` available**. A gate that cannot run
-here would fail forever, which violates `specs/last-task-strict`. Instead, these are real
+here would fail forever, which violates `specs/20260827c-last-task-strict`. Instead, these are real
 acceptance criteria that must be proven on a host with `docker`, documented here.
 
 ---
@@ -58,7 +58,7 @@ one spec run via `exec-qwen.sh` and one via `exec-container.sh`, with `.evidence
 
 ### 2.1 Environment the container needs
 
-Per `specs/exec-container/spec.md` §3.2, the container requires these environment variables
+Per `specs/20260828a-exec-container/spec.md` §3.2, the container requires these environment variables
 to be set on the host before invoking `exec-container.sh`:
 
 - `HARNESS_LITELLM_KEY` — LiteLLM API key (required; without it the container cannot reach the
@@ -115,7 +115,7 @@ Fix by exporting `HARNESS_LITELLM_KEY` before running.
 
 ## 3. References
 
-- `specs/exec-container/spec.md` — contract and acceptance criteria.
+- `specs/20260828a-exec-container/spec.md` — contract and acceptance criteria.
 - `docs/design/fleet-dispatch.md` — fleet design, item 2.
 - `docker/loop-executor.Dockerfile` — image definition.
 - `scripts/exec-container.sh` — binding script.

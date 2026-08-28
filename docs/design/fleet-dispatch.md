@@ -1,7 +1,7 @@
 # Fleet dispatch — events spin up ephemeral loop containers
 
-**Status:** design, 2026-08-27. Nothing here is built. Precondition: `specs/evidence-replayable`
-and `specs/spec-manifest` implemented (both merged as specs, both gated, both unbuilt).
+**Status:** design, 2026-08-27. Nothing here is built. Precondition: `specs/20260826a-evidence-replayable`
+and `specs/20260827a-spec-manifest` implemented (both merged as specs, both gated, both unbuilt).
 
 This document is self-contained on purpose: it is written to be read cold — by Matt, or by
 a worker container that has this repo and nothing else. It records what we are building,
@@ -71,7 +71,7 @@ What it proves, and what we port:
   they change. No router, no confidence machinery — the biggest simplification available.
 - **Seven intents.** We start with exactly one: `fix` (spec → PR). Read-only `explain`
   maybe second. Each added intent doubles the dispatcher surface; add only when pulled.
-- **A/B runtime lanes.** The executor-binding seam (`specs/executor-binding`) gives this
+- **A/B runtime lanes.** The executor-binding seam (`specs/20260825c-executor-binding`) gives this
   back for free any time via a strategy `.env`; building it into the dispatcher doubles
   everything for no current need.
 
@@ -149,7 +149,7 @@ denied". Without it the executor **aborts**: it explores the directory it is wri
 `read` guard on `*.env` (which every agent tool treats as secret-bearing, and which is the
 extension this repo uses for loop strategy files that hold no secrets), and the session ends. The
 loop scores that as `changed nothing` three times, so a permission surprise is indistinguishable
-from a lazy model — see `specs/exec-container/evidence/`.
+from a lazy model — see `specs/20260828a-exec-container/evidence/`.
 
 `--auto` is acceptable today: the container already grants `edit` and `bash` and explicitly denies
 `webfetch`, and every run is PR-gated, so it grants strictly less than what is already granted.
@@ -157,7 +157,7 @@ It is a blunt instrument all the same, and an ephemeral fleet worker is exactly 
 is least wanted.
 
 **Revisit when per-container permission sets exist** (item 8): a loop container should declare the
-narrow set it needs — and `specs/spec-manifest`'s `Permissions:` field is the seam that was built
+narrow set it needs — and `specs/20260827a-spec-manifest`'s `Permissions:` field is the seam that was built
 for it, currently recorded-but-unenforced. Two smaller fixes stand on their own: grant `read` for
 `*.env` rather than everything, or stop naming secret-free strategy files `.env` at all
 (`run-loop.sh` resolves `scripts/loops/<name>.env`, so it is a contained change).
