@@ -178,23 +178,30 @@ a **client** of this API rather than a second copy of the machinery. That answer
 dispatcher is the fixture, the laptop gets a handle.
 
 **These tools do not go into `mcp-homelab`.** They belong to a separate `mcp-harness` server, as
-`fleet-dispatch.md` item 4 already names it. Four reasons, and the first two are the ones that
-matter:
+`fleet-dispatch.md` item 4 already names it.
 
-1. **Capability scoping.** `mcp-homelab` is handed to agents so they can *diagnose* the cluster —
-   `cluster-diagnostics` fans out with it read-only. Adding `launch_run` there means every agent
-   given diagnostic access silently also gains the ability to spin up compute and open PRs. The
-   two toolsets have different audiences and should have different grants.
-2. **Blast radius.** `mcp-homelab` is read-mostly with a few bounded mutations (restart, reconcile,
-   refresh, trigger backup). `launch_run` and `cancel_run` are a different class: they create
-   workloads and produce outward-facing artefacts. Mixing them makes the safe toolset unsafe to
-   hand out.
-3. **RBAC.** `mcp-homelab` runs under a cluster-wide `ClusterRole` with 21 resource rules.
-   `mcp-harness` talks HTTP to the dispatcher and needs **no cluster RBAC at all** — folding it in
-   would attach it to that grant for no reason.
-4. **Precedent.** This cluster already runs one MCP server per domain — `mcp-homelab`,
-   `local-llm-mcp`, `kiwix-mcp`. A fourth for the fleet follows the established shape rather than
-   overloading the first.
+**The reason is the concern boundary, not the risk.** `mcp-homelab` is *cluster administration* —
+DNS, media, backups, certificates, Flux reconciliation. `mcp-harness` is *loop infrastructure* —
+launching runs, reading their status, fetching their evidence. Two domains, two audiences, two
+toolsets. An agent administering the cluster has no business dispatching fleet runs, and a fleet
+orchestrator has no business restarting Jellyfin or rebuilding Pi-hole's gravity.
+
+**And the split runs both ways**, which is the half easily missed. It is not only that a
+diagnostic agent should not gain `launch_run`; it is equally that a fleet orchestrator should not
+inherit `restart_deployment`, `update_pihole_gravity` or `trigger_backup`. Folding either into the
+other hands each audience a toolset containing a domain it never asked for.
+
+What follows from that boundary, rather than motivating it:
+
+- **Capability scoping.** `cluster-diagnostics` fans out with `mcp-homelab` read-only. If
+  `launch_run` lived there, every agent given diagnostic access would silently also be able to
+  spin up compute and open PRs.
+- **RBAC.** `mcp-homelab` runs under a cluster-wide `ClusterRole` with 21 resource rules.
+  `mcp-harness` only speaks HTTP to the dispatcher and needs **no cluster RBAC at all** — folding
+  it in would attach it to that grant for nothing.
+- **Precedent.** The cluster already runs one MCP server per domain — `mcp-homelab`,
+  `local-llm-mcp`, `kiwix-mcp`. A fourth for the fleet follows the established shape rather than
+  overloading the first.
 
 ## Consequences
 
