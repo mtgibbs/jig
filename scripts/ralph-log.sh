@@ -181,6 +181,7 @@ log_patch() {
     git -C "${ROOT:-.}" add -A -N -- . ':!.evidence' 2>/dev/null
     git -C "${ROOT:-.}" diff -- . ':!.evidence' 2>/dev/null
   } > "$f" 2>/dev/null || { echo "$f" >&2; return 0; }
+  ralph_log_artifact_push patch "$f" "$1" "$2"
 }
 
 # log_failure <task-label> <attempt> <verify-output>
@@ -222,6 +223,7 @@ log_failure() {
         fi
       done
   } > "$f" 2>/dev/null || true
+  ralph_log_artifact_push diff "$f" "$1" "$2"
 }
 
 # log_prompt <task-label> <attempt> <text>
@@ -230,6 +232,7 @@ log_prompt() {
   [ "${LOG_OK:-0}" = 1 ] || return 0
   local f; f="$(log_path "$1" "$2" prompt.md)"
   { printf '%s' "$3"; } > "$f" 2>/dev/null || true
+  ralph_log_artifact_push prompt "$f" "$1" "$2"
 }
 
 # log_gate <task-label> <attempt> <output> <rc>
@@ -239,6 +242,44 @@ log_gate() {
   [ "${LOG_OK:-0}" = 1 ] || return 0
   local f; f="$(log_path "$1" "$2" gate.txt)"
   { printf '%s\n' "$3"; printf '%s\n' "---GATE-RC---"; printf '%s\n' "$4"; } > "$f" 2>/dev/null || { echo "$f" >&2; return 0; }
+  ralph_log_artifact_push gate "$f" "$1" "$2"
+}
+
+# ralph_log_artifact_push <kind> <file> <task-label> <attempt> — POST an artifact to the coordinator.
+# Uses same transport and safety as hb_report: silent, timeout-bounded, no output on failure.
+# Does not fail if HARNESS_REPORT_URL is unset.
+ralph_log_artifact_push() {
+  local kind="$1" file="$2" task="$3" attempt="$4"
+  local url="${HARNESS_REPORT_URL:-}"
+  [ -n "$url" ] || return 0
+  [ -s "${file:-}" ] || return 0
+  local host; host="$(_ralph_host)"
+  local agent="${HB_AGENT:-${RALPH_AGENT:-agent}}"
+  local run_key="${host}/${agent}-$$"
+  local task_slug; task_slug="$(log_task "$task")"
+  local target="${url%/}/runs/${run_key}/attempts/${task_slug}/${attempt}/artifacts/${kind}"
+  if command -v curl >/dev/null 2>&1; then
+    local -a hdr=(-H 'Content-Type: application/octet-stream')
+    local tok="${HARNESS_REPORT_TOKEN:-}"
+    [ -n "$tok" ] && hdr+=(-H "Authorization: Bearer $tok")
+    curl -s -o /dev/null -X POST --connect-timeout 2 --max-time 3 \
+      "${hdr[@]}" --data-binary "@$file" "$target" >/dev/null 2>&1 || true
+  elif command -v python3 >/dev/null 2>&1; then
+    RLA_F="$file" RLA_T="$target" RLA_K="$tok" python3 -c '
+import os, urllib.request
+try:
+    h = {"Content-Type": "application/octet-stream"}
+    if os.environ.get("RLA_K"):
+        h["Authorization"] = "Bearer " + os.environ["RLA_K"]
+    with open(os.environ["RLA_F"], "rb") as fh:
+        body = fh.read()
+    urllib.request.urlopen(
+        urllib.request.Request(os.environ["RLA_T"], body, h, method="POST"), timeout=3)
+except Exception:
+    pass
+' >/dev/null 2>&1 || true
+  fi
+  return 0
 }
 
 # log_meta <task-label> <attempt> — write the per-attempt metadata JSON.
@@ -272,7 +313,7 @@ log_meta() {
       --arg host "$(_ralph_host)" \
       --arg run_key "$(_ralph_host)/${HB_AGENT:-${RALPH_AGENT:-agent}}-$$" \
       --arg run_id "${LOG_DIR##*/}" \
-      --argjson run_label "$([ -n "${RUN_LABEL:-}" ] && printf '%s' "$RUN_LABEL" | jq -R . || jq -n null)" \
+      --arg run_label "$([ -n "${RUN_LABEL:-}" ] && printf '%s' "$RUN_LABEL" | jq -R . || jq -n null)" \
       --arg repo "$([ -n "${ROOT:-}" ] && basename "$ROOT" || echo null)" \
       --arg spec "$([ -n "${SPEC_DIR:-}" ] && basename "$SPEC_DIR" || echo null)" \
       --arg task "$1" \
@@ -310,6 +351,7 @@ log_meta() {
         run_key: $run_key
       }'
   } > "$f" 2>/dev/null || true
+  ralph_log_artifact_push meta "$f" "$1" "$2"
 }
 
 # log_where — one line telling a human where to look. Called on STOP.
