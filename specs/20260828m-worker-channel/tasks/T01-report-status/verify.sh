@@ -41,7 +41,7 @@ elif [ "$n" -lt 2 ]; then
 elif ! grep -q '"p": *"/runs/[^"]*/status"' "$T/coord.log"; then
   no "ac2: status posts did not go to /runs/{run_key}/status — paths were $(grep -o '"p": *"[^"]*"' "$T/coord.log" | sort -u | head -3 | tr '\n' ' ')"
 elif ! grep -q '"auth": *"Bearer ' "$T/coord.log"; then
-  no "ac2: the status post carried no Authorization: Bearer header"
+  no "ac2: the status post carried no Authorization: Bearer header. The coordinator received auth=[$(grep -o '\"auth\": *\"[^\"]*\"' "$T/coord.log" | sort -u | head -3 | tr '\n' ' ')] — a malformed value here means the flag was built as a STRING and word-split, not that the token is missing"
 elif ! python3 -c "
 import json,sys
 # The body is JSON-ENCODED INSIDE the log line, so a grep for '\"phase\"' never matches it —
