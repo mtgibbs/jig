@@ -98,6 +98,19 @@ git config user.name t
 git add -A
 git commit -qm 'init'
 
+# Carry the upstream baseline across into the fresh repo.
+#
+# The .git above is discarded on purpose, so mutants cannot reach real history — but a gate is
+# entitled to compare behaviour against `origin/main`, and several do: it is how the "an
+# unconfigured run is exactly the run it is today" assertions pin their control. Without this the
+# workspace has no such ref, those assertions fail for an environmental reason, and every mutant
+# aimed at any OTHER assertion comes back WRONG-REASON. A harness that cannot mutation-test the
+# strongest assertion pattern in the repo pushes authors toward weaker ones.
+#
+# Best-effort: a repo with no origin/main simply does not get the ref, and the gate says so
+# itself rather than being told a lie here.
+git fetch -q "$CWD" 'refs/remotes/origin/main:refs/remotes/origin/main' 2>/dev/null || true
+
 REPO_ROOT="$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null || echo "$CWD")"
 TASK_REL="${TASK_DIR#$REPO_ROOT}"
 TASK_PATH="$T/worktree$TASK_REL"
@@ -156,7 +169,13 @@ for i in "${!M_NAME[@]}"; do
       echo "$name: KILLED"
       KILLED=$((KILLED + 1))
     else
+      # Name the assertions that DID fail. "not for ac7" tells the reader the mutant missed and
+      # nothing about where it landed instead, which is the one fact needed to fix it — the same
+      # gap that makes a gate say "it did not start" and burn three attempts. A mutant that trips
+      # a neighbouring assertion is usually a mutant aimed at the wrong code path, and the
+      # neighbour's name is what says so.
       echo "$name: WRONG-REASON — gate failed but not for $id (target=$tgt)"
+      echo "$gate_out" | grep -E '^\s*FAIL' | sed 's/^/    instead: /' | head -4
       WRONG_REASON=$((WRONG_REASON + 1))
     fi
   fi
