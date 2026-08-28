@@ -114,7 +114,7 @@ _task_satisfied() {
   # Force-all: skip never. Fail-closed.
   [ "${RALPH_FORCE_ALL:-0}" = "1" ] && { return 1; }
   # Force-from: re-run task n and everything after. Fail-closed for this task.
-  [ -n "${RALPH_FORCE_FROM:-}" ] && [ "$n" -ge "$RALPH_FORCE_FROM" ] && { return 1; }
+  [ -n "${RALPH_FORCE_FROM:-}" ] && [ "$n" -ge "${RALPH_FORCE_FROM:-0}" ] && { return 1; }
   # Task has no gate. Fail-closed.
   local g; g="$(_gate_for "$n")" || { return 1; }
   # Bound the gate: a hanging gate must not wedge a resume.
