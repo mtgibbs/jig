@@ -42,6 +42,38 @@ if [ ! -d "$TASK_DIR/mutants" ]; then
   exit 1
 fi
 
+# Parse mutants: extract MUTANT:, TARGET:, WHY: from comment lines
+# Validates that each file has MUTANT: and TARGET: (fatal if missing)
+MUTANT_DIR="$TASK_DIR/mutants"
+while IFS= read -r mutant_file; do
+  [ -z "$mutant_file" ] && continue
+  
+  mutant_name="$(basename "$mutant_file")"
+  mutant_mutant=""
+  mutant_target=""
+  mutant_why=""
+  
+  while IFS= read -r line || [ -n "$line" ]; do
+    if echo "$line" | grep -q '^#[[:space:]]*MUTANT:[[:space:]]'; then
+      mutant_mutant="$(echo "$line" | sed 's/^#[[:space:]]*MUTANT:[[:space:]]*//')"
+    elif echo "$line" | grep -q '^#[[:space:]]*TARGET:[[:space:]]'; then
+      mutant_target="$(echo "$line" | sed 's/^#[[:space:]]*TARGET:[[:space:]]*//')"
+    elif echo "$line" | grep -q '^#[[:space:]]*WHY:[[:space:]]'; then
+      mutant_why="$(echo "$line" | sed 's/^#[[:space:]]*WHY:[[:space:]]*//')"
+    fi
+  done < "$mutant_file"
+  
+  if [ -z "$mutant_mutant" ]; then
+    echo "error: mutant file missing MUTANT: field: $mutant_name" >&2
+    exit 1
+  fi
+  
+  if [ -z "$mutant_target" ]; then
+    echo "error: mutant file missing TARGET: field: $mutant_name" >&2
+    exit 1
+  fi
+done <<< "$(find "$MUTANT_DIR" -type f 2>/dev/null)"
+
 # Create temp directory for hermetic workspace
 T=$(mktemp -d)
 trap 'rm -rf "$T"' EXIT
