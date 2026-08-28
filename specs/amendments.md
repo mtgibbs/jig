@@ -57,3 +57,47 @@ publish — the checkpoint is the point.
 was ratified, the drift gate blocked an atlas publish because a generated doc
 was stale — and printed the exact fix. A direct push would have skipped it.
 Branch protection is the decision, not an obstacle.
+
+## Name the states a check must tell apart
+
+Status: Accepted · 2026-08-28 · Source: 20260828i-per-task-gates / the gate-defect run
+
+Every check — a gate assertion, a presence guard, a liveness poll, a monitor —
+maps observations onto verdicts. Its characteristic defect is not being *wrong*
+but being *blind*: two materially different states produce the same reading, and
+the benign one wins silently.
+
+Before writing the check, name the states it must distinguish. Then run it
+against one input per state and confirm each produces a different reading. A
+check exercised against only one state has not been validated; it has been
+demonstrated.
+
+The dangerous direction is always the one that reads as fine — `pend`, `skip`,
+`clear`, `PASS` — because nothing announces it. A check that can only ever
+report the benign verdict is not a weak check, it is not a check at all.
+
+**Rationale:** six instances in one day, all the same shape, none caught by
+reading:
+
+| check | states it conflated | it always said |
+|---|---|---|
+| `grep -q '501'` guarding a 501 assertion | not built · built wrong | pend |
+| `grep 'x y' /proc/*/cmdline` (NUL-separated) | running · stopped | stopped |
+| one `fx.out` shared by every fixture | fixture A's output · fixture B's | whichever ran last |
+| `case $TRACE in *T01*)` | unbuilt · built and broken | pend |
+| fixtures whose gates all exit 0 | gate passed · gate failed | never asked |
+| `grep -c` on single-line JSON | 1 occurrence · N occurrences | 1 |
+
+The `/proc` poll is the clearest case: it reported "the loop ended" every time
+it ran, including while the loop was mid-attempt. Its first report happened to
+be true, which is precisely what made the second one credible — and acting on
+it overwrote work that had already passed its gate.
+
+This extends "Gates must prove they can fail" in two directions. It applies to
+**every** check, not only to gates: the poll and the monitor above were not
+gates and cost the most. And it names what to do when a check *can* fail but
+still misleads — enumerate the states, then prove one reading per state.
+
+Corollary for mutation testing: a mutant must be confirmed to exercise the code
+path its assertion covers. A mutant that misses reads exactly like an assertion
+that cannot detect it, and sends you rewriting a correct check.
