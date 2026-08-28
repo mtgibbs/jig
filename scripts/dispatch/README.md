@@ -86,3 +86,9 @@ This function is what HTTP handlers and MCP tools will call. Its existence prove
 ## Future transports
 
 The HTTP API and its MCP client are separate surfaces that will call `launch_run` (or `dispatch`) rather than reimplement dedupe, rendering, or launching. Serving evidence is not yet possible because a run's evidence currently dies with its pod.
+
+## The HTTP surface
+
+This module is reached over HTTP by `api.py`, the cluster-internal **dispatch-api**. Its client
+contract — routes, status codes, auth and idempotency — is in [`docs/dispatch-api.md`](../../docs/dispatch-api.md).
+`mcp-harness` and every other orchestrator are clients of that API, not callers of this module.
