@@ -133,14 +133,39 @@ for i in "${!M_NAME[@]}"; do
   gate_rc=$?
   restore_target "$tgt"
 
-  # One line per mutant, naming the FILE — T4 replaces the raw detail with a verdict but keeps
-  # the name, so a reader can always tell which mutant a line is about.
-  if [ "$gate_rc" = 124 ]; then
-    echo "$name ($tgt): gate TIMED OUT after ${GATE_TIMEOUT}s — it never returned"
-  else
-    echo "$name ($tgt): gate exit $gate_rc"
-  fi
-  printf '%s' "$gate_out" > "$T/gate-$i.out"    # kept for T4 to read
+  printf '%s' "$gate_out" > "$T/gate-$i.out"
 done
 
+# ── T4: Analyze verdicts from gate outputs ───────────────────────────────────────────────────
+KILLED=0; SURVIVOR=0; WRONG_REASON=0; HUNG=0
+
+for i in "${!M_NAME[@]}"; do
+  name="${M_NAME[$i]}"; id="${M_ID[$i]}"; tgt="${M_TARGET[$i]}"; why="${M_WHY[$i]}"
+  
+  gate_out="$(cat "$T/gate-$i.out")"
+  
+  if [ "$gate_rc" = 124 ]; then
+    echo "$name: HUNG"
+    HUNG=$((HUNG + 1))
+  elif [ "$gate_rc" = 0 ]; then
+    echo "$name: SURVIVOR — gate accepted the mutant (target=$tgt, why=$why)"
+    SURVIVOR=$((SURVIVOR + 1))
+  else
+    # Gate exited non-zero — check if FAIL line contains the mutant's declared id
+    if echo "$gate_out" | grep -q "FAIL.*$id"; then
+      echo "$name: KILLED"
+      KILLED=$((KILLED + 1))
+    else
+      echo "$name: WRONG-REASON — gate failed but not for $id (target=$tgt)"
+      WRONG_REASON=$((WRONG_REASON + 1))
+    fi
+  fi
+done
+
+echo ""
+echo "summary: killed=$KILLED survivor=$SURVIVOR wrong-reason=$WRONG_REASON hung=$HUNG"
+
+if [ $SURVIVOR -gt 0 ] || [ $WRONG_REASON -gt 0 ] || [ $HUNG -gt 0 ]; then
+  exit 1
+fi
 exit 0
