@@ -74,3 +74,35 @@ detector's fixtures rather than against one I invented. With all three tasks stu
 One defect the stub pass found in this gate first: importing `loop-index.py` to exercise
 `harness_roots` directly wrote `scripts/__pycache__/` into the worktree. A gate that litters the
 tree it measures trips the next run's scope check. `PYTHONDONTWRITEBYTECODE=1` now.
+
+## T3 was written by hand, and why that is recorded here
+
+Nine attempts across three runs, with three different instruction shapes, all failed the same
+control:
+
+```
+FAIL  control: a live run was deleted with its aged host directory
+```
+
+Every attempt produced the right *structure* — two invocations, correct depths, correct `-mmin` —
+and dropped the one predicate that separates a run directory from a host directory. The last
+round ignored an explicit shell-loop instruction and reached for the unconditional depth-2 delete
+again.
+
+The convention in this repo is that when a loop cannot converge you fix the **spec** or the
+**gate**, never hand-finish the artefact. Matt suspended that here: *"we ran into this same
+problem when trying to dogfood looping, there's always that bump, best to fix it ourselves to
+prevent problems."*
+
+So T3's code is **not loop-authored**, and this note exists so nobody later reads a green gate as
+evidence the executor produced it. T1 and T2 were.
+
+What the nine attempts are actually evidence of: the task coupled three changes across two files,
+one of which is a **negative structural test** with no natural `find` idiom. Every attempt
+satisfied the parts with obvious idioms and silently dropped the part without one. That is a
+task-shaping failure, not an executor-quality one — it wanted splitting into "reap the legacy
+layout" and "prune the husks", one property each.
+
+The gate never moved, and it is what made the wall visible: the control failed on nine separate
+implementations, including the hand-written one's earlier drafts. A destructive bug reached the
+gate nine times and never reached `main`.
