@@ -133,14 +133,129 @@ for i in "${!M_NAME[@]}"; do
   gate_rc=$?
   restore_target "$tgt"
 
-  # One line per mutant, naming the FILE — T4 replaces the raw detail with a verdict but keeps
-  # the name, so a reader can always tell which mutant a line is about.
-  if [ "$gate_rc" = 124 ]; then
-    echo "$name ($tgt): gate TIMED OUT after ${GATE_TIMEOUT}s — it never returned"
-  else
-    echo "$name ($tgt): gate exit $gate_rc"
-  fi
-  printf '%s' "$gate_out" > "$T/gate-$i.out"    # kept for T4 to read
+  printf '%s' "$gate_out" > "$T/gate-$i.out"
 done
+
+# ── T4: Analyze verdicts from gate outputs ───────────────────────────────────────────────────
+KILLED=0; SURVIVOR=0; WRONG_REASON=0; HUNG=0
+
+for i in "${!M_NAME[@]}"; do
+  name="${M_NAME[$i]}"; id="${M_ID[$i]}"; tgt="${M_TARGET[$i]}"; why="${M_WHY[$i]}"
+  
+  gate_out="$(cat "$T/gate-$i.out")"
+  
+  if [ "$gate_rc" = 124 ]; then
+    echo "$name: HUNG"
+    HUNG=$((HUNG + 1))
+  elif [ "$gate_rc" = 0 ]; then
+    echo "$name: SURVIVOR — gate accepted the mutant (target=$tgt, why=$why)"
+    SURVIVOR=$((SURVIVOR + 1))
+  else
+    # Gate exited non-zero — check if FAIL line contains the mutant's declared id
+    if echo "$gate_out" | grep -q "FAIL.*$id"; then
+      echo "$name: KILLED"
+      KILLED=$((KILLED + 1))
+    else
+      echo "$name: WRONG-REASON — gate failed but not for $id (target=$tgt)"
+      WRONG_REASON=$((WRONG_REASON + 1))
+    fi
+  fi
+done
+
+echo ""
+echo "summary: killed=$KILLED survivor=$SURVIVOR wrong-reason=$WRONG_REASON hung=$HUNG"
+
+if [ $SURVIVOR -gt 0 ] || [ $WRONG_REASON -gt 0 ] || [ $HUNG -gt 0 ]; then
+  exit 1
+fi
+
+# ── T5: Static checks on the gate file itself ────────────────────────────────────────────────
+
+# Extract all assertion IDs from ok/no calls in verify.sh
+extract_assertion_ids() {
+  python3 - "$1" << 'PY'
+import sys
+import re
+
+with open(sys.argv[1], 'r') as f:
+    content = f.read()
+
+# Match ok("...id...") or no("...id...") patterns
+# Look for patterns like ok "ac1: ..." or no "ac2: ..."
+ids = set()
+for match in re.finditer(r'\b(ok|no)\s+["\']([^"\']+)["\']', content):
+    msg = match.group(2)
+    # Extract assertion ID (e.g., "ac1" from "ac1: subject carries marker one")
+    id_match = re.search(r'\b(ac\d+)\b', msg)
+    if id_match:
+        ids.add(id_match.group(1))
+for id in ids:
+    print(id)
+PY
+}
+
+# Check for pend as a command (not in comments or strings)
+check_pend_command() {
+  python3 - "$1" << 'PY'
+import sys
+import re
+
+with open(sys.argv[1], 'r') as f:
+    lines = f.readlines()
+
+for i, line in enumerate(lines, 1):
+    # Remove comments (everything after # that's not inside a string)
+    # Simple approach: find # not inside quotes
+    code_part = line
+    in_single = False
+    in_double = False
+    result = []
+    for j, ch in enumerate(line):
+        if ch == "'" and not in_double:
+            in_single = not in_single
+        elif ch == '"' and not in_single:
+            in_double = not in_double
+        elif ch == '#' and not in_single and not in_double:
+            break
+        result.append(ch)
+    code_part = ''.join(result)
+    
+    # Check if 'pend' appears as a command (word boundary, not in string)
+    # Match: pend(, pend ;, then pend, ; pend, || pend, && pend, etc.
+    if re.search(r'\bpend\b', code_part):
+        print(i)
+        break
+PY
+}
+
+# T5-1: Coverage check — every assertion id in the gate must be declared by at least one mutant
+GATE_VERIFY_SH="$TASK_PATH/verify.sh"
+GATE_IDS=$(extract_assertion_ids "$GATE_VERIFY_SH")
+
+UNCOVERED=""
+for id in $GATE_IDS; do
+  found=0
+  for mid in "${M_ID[@]}"; do
+    if [ "$id" = "$mid" ]; then
+      found=1
+      break
+    fi
+  done
+  if [ $found -eq 0 ]; then
+    UNCOVERED="$UNCOVERED $id"
+  fi
+done
+
+if [ -n "$UNCOVERED" ]; then
+  echo "error: uncovered assertion IDs:$UNCOVERED" >&2
+  exit 1
+fi
+
+# T5-2: pend ban check — fail if verify.sh contains 'pend' as a command
+PEND_LINE=$(check_pend_command "$GATE_VERIFY_SH")
+if [ -n "$PEND_LINE" ]; then
+  echo "error: task gate contains 'pend' as a command at line $PEND_LINE" >&2
+  exit 1
+fi
 
 exit 0
