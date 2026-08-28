@@ -111,7 +111,21 @@ class H(BaseHTTPRequestHandler):
 
     # --- POST: everything the worker pushes ---------------------------------------------------
     def do_POST(self):
-        if not _authed(self):
+        # Where the boundary sits, and why it is not in the obvious place.
+        #
+        # WRITES OF RUN DATA need the token: status, attempts and artifacts are the record, and
+        # anyone who can forge them can make the board lie about what happened. That is the
+        # integrity boundary worth defending.
+        #
+        # CONTROL is deliberately outside it. The board is a page a browser opens, and a browser
+        # cannot send an Authorization header from a plain link — requiring one here would mean
+        # the Stop button could never work from the thing built to house it. The worst a control
+        # write can do is stop or pause a build that can be started again, on a host reachable
+        # only through Pi-hole's split-horizon DNS. That trade is worth stating rather than
+        # discovering: it is a real relaxation, taken knowingly, on a LAN-only surface.
+        parts_pre = [p for p in self.path.split("?")[0].split("/") if p]
+        is_control = len(parts_pre) == 4 and parts_pre[0] == "runs" and parts_pre[3] == "control"
+        if not is_control and not _authed(self):
             return self._json(401, {"error": "unauthorized"})
         n = int(self.headers.get("Content-Length", 0) or 0)
         if n > MAX_ARTIFACT:
@@ -161,9 +175,9 @@ class H(BaseHTTPRequestHandler):
                 r = RUNS.get(parts[1] + "/" + parts[2])
                 return self._json(200, {"action": (r or {}).get("control", "none")})
 
-        if not _authed(self):
-            return self._json(401, {"error": "unauthorized"})
-
+        # Reads are open on the LAN. The board is served to a browser, which cannot present a
+        # bearer token, and this host answers only to names Pi-hole resolves. What it exposes is
+        # run metadata and evidence — not credentials, which never enter this service at all.
         if path == "/api/runs":
             with _lock:
                 return self._json(200, {"runs": _summary()})

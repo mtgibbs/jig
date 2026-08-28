@@ -24,6 +24,9 @@ jobs:
           - image: loop-executor
             dockerfile: docker/loop-executor.Dockerfile
             version-file: docker/loop-executor.VERSION
+          - image: harness-coordinator
+            dockerfile: docker/coordinator.Dockerfile
+            version-file: docker/coordinator.VERSION
     steps:
       - name: Checkout
         uses: actions/checkout@v4
