@@ -72,6 +72,24 @@ run_bounded() { # <seconds> <cmd...> -> 124 on timeout, else the command's exit 
 }
 
 SPEC="$SPEC_DIR/spec.md"; VERIFY="$SPEC_DIR/verify.sh"; TASKS="$SPEC_DIR/tasks.txt"
+# _check_cancel — collect an intent and act on it. Called where stopping is CHEAP and CLEAN:
+# between tasks and between attempts, never mid-executor. A cancel that interrupted a running
+# executor would leave a half-written tree the next attempt inherits, and the loop's whole
+# recovery model rests on each attempt starting from a known state.
+#
+# Exit 4 is its own code. 0 would report success for work that never happened, and 1/2/3 already
+# mean "gate failed", "stop, needs a human" and "the spec needs attention" — a cancelled run is
+# none of those, and a reader who cannot tell them apart will go looking for a bug that is not
+# there.
+_check_cancel() {
+  command -v _hb_control >/dev/null 2>&1 || return 0
+  [ "$(_hb_control)" = cancel ] || return 0
+  echo "✋ CANCELLED: a stop intent was collected from the coordinator." >&2
+  echo "   The run ended here on purpose — this is not a gate failure and not a broken executor." >&2
+  command -v hb_write >/dev/null 2>&1 && hb_write cancelled
+  exit 4
+}
+
 for f in "$SPEC" "$VERIFY" "$TASKS"; do [ -f "$f" ] || { echo "missing $f" >&2; exit 1; }; done
 
 # ── Per-task gate resolution (20260828i) ──────────────────────────────────────────────────────
@@ -222,6 +240,7 @@ bus_init; bus_open "$(basename "$SPEC_DIR")"
 
 while IFS= read -r task || [ -n "$task" ]; do
   [ -z "${task// }" ] && continue
+  _check_cancel
   echo "════════ TASK: $task ════════"
   HB_TASK="$task"; HB_TIDX=$((HB_TIDX + 1)); hb_write running
   # Skip-satisfied: if the task's gate already passes and we're not forcing, skip without
@@ -236,6 +255,7 @@ while IFS= read -r task || [ -n "$task" ]; do
   fi
   feedback=""; passed=0; retry_init
   for attempt in $(seq 1 $((RETRIES + 1))); do
+    _check_cancel
     HB_ATTEMPT="$attempt"; LOG_STARTED="$(date +%s)"; LOG_RECORDED=""; hb_write running
     prompt="${SHEET:+$SHEET
 
