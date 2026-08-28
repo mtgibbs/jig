@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # exec-container.sh — the container executor binding for the build loop.
 #
-# Thin by contract (specs/executor-binding §3, §7): take the prompt as $1, read ROOT from the
+# Thin by contract (specs/20260825c-executor-binding §3, §7): take the prompt as $1, read ROOT from the
 # environment, run the tool, let stdout be the transcript. No retry, no gate, no evidence, no
 # stopping logic — the loop owns all of that. If this file ever grows a decision, the decision
 # belongs in the loop, or every future binding has to reimplement it.

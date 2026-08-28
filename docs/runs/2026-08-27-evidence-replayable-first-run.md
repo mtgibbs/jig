@@ -1,4 +1,4 @@
-# First production run — `specs/evidence-replayable` on the container harness
+# First production run — `specs/20260826a-evidence-replayable` on the container harness
 
 **Date:** 2026-08-27 · **Executor:** qwen via `oc`/LiteLLM · **Strategy:** `build-converge`
 **Branch:** `run/evidence-replayable` · **Host:** `coding-harness-claude` (container, not the laptop)
@@ -170,7 +170,7 @@ measured here.
 
 - **`/tmp` is `noexec` in this container** (`tmpfs … rw,nosuid,nodev,noexec`). Both gates
   `chmod +x` a script inside `mktemp -d`. The TMPDIR preflight PR #5 added lives only in
-  `specs/judge-loop/verify.sh`, so every other gate is still exposed. This run used
+  `specs/20260802a-judge-loop/verify.sh`, so every other gate is still exposed. This run used
   `TMPDIR=/home/agent/tmp` throughout. **This is the fifth instance of this class** — it should
   be hoisted into a shared gate preamble rather than fixed a sixth time.
 - **`supervise.sh`'s `kill_tree()` fallback sweep is a silent no-op here**: it is built on
@@ -220,4 +220,4 @@ All seven written by the executor. The one it could not finish unaided (T4) was 
 broken gate for two of its three runs; the one it half-finished (T7) was passing a gate that
 could not fail. In both cases the executor was working correctly against a broken signal.
 
-**Final state:** `STRICT=1 bash specs/evidence-replayable/verify.sh` → rc 0, 28 PASS, 0 FAIL.
+**Final state:** `STRICT=1 bash specs/20260826a-evidence-replayable/verify.sh` → rc 0, 28 PASS, 0 FAIL.

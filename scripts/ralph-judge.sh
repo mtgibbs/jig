@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ralph-judge.sh — the post-convergence judge loop (specs/judge-loop, v0.3).
+# ralph-judge.sh — the post-convergence judge loop (specs/20260802a-judge-loop, v0.3).
 #
 # Runs AFTER a spec's deterministic gate is green: an independent judge (JUDGE_CMD, default
 # posture: a different model family than the executor) proposes findings against the spec's

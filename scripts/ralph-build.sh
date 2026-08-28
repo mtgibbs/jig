@@ -2,7 +2,7 @@
 # ralph-build.sh — THE bounded SDD build loop. One loop; the executor is a binding
 # (RALPH_EXEC_CMD), so this drives qwen, Codex, or anything else without being copied.
 # The filename still says qwen for now — renaming it ripples into seven specs' gates;
-# see specs/executor-binding §5.
+# see specs/20260825c-executor-binding §5.
 #
 # Philosophy (learned the hard way): qwen3-coder is a fast, faithful, literal STAMPER
 # with no stamina, taste, or self-checking. So we don't make it smarter — we build the
@@ -29,7 +29,7 @@ RETRIES="${RALPH_RETRIES:-2}"
 # The executor is a binding, exactly as JUDGE_CMD/EXECUTOR_CMD are for ralph-judge.sh. A
 # strategy in scripts/loops/ sets it; unset, the loop drives qwen and behaves as it always has.
 # The binding takes ONE argument (the prompt), reads ROOT from the environment, and writes the
-# transcript to stdout. It owns no tasks, no gate, no evidence — see specs/executor-binding §3.
+# transcript to stdout. It owns no tasks, no gate, no evidence — see specs/20260825c-executor-binding §3.
 # Expanded UNQUOTED at the call site, exactly as ralph-judge.sh expands $EXECUTOR_CMD, so a
 # binding may carry arguments ("bash /path/x.sh", or a wrapper plus flags) rather than having to
 # be a single executable file.
@@ -146,7 +146,7 @@ URLs/UIDs. When done, stop.${feedback}"
     # bounded the same way, and its transcript kept the same way. That seam is why there is one
     # build loop rather than one per executor — a duplicated loop is what a missing parameter
     # looks like, and the copy this replaced cost three specs a rule apiece to keep in sync.
-    # See specs/executor-binding §1.
+    # See specs/20260825c-executor-binding §1.
     log_prompt "$HB_TASK" "$attempt" "$prompt"
 
     # Keep the transcript. This used to go to /dev/null, which made every STOP undiagnosable.

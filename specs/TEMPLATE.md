@@ -282,7 +282,7 @@ promotes every later task's `pend` from the first task onward and no early task 
      AND THE PRACTICE THAT ACTUALLY CATCHES THESE: run the gate against a NEAR-MISS, not only
      against an empty tree. An empty tree proves a gate PENDS; a near-miss proves it
      DISCRIMINATES. Write a complete, plausible implementation with exactly one thing wrong,
-     in a scratch dir, uncommitted. specs/tasks-ledger did this — an ancestry-only build passed
+     in a scratch dir, uncommitted. specs/20260818d-tasks-ledger did this — an ancestry-only build passed
      25 of 28 checks and failed precisely the two written to catch it, and the experiment
      surfaced three gate defects that clean main could never have shown (see that spec's
      evidence/). Keep the adversary OUT of the repo, or a later loop run stops being a fair
