@@ -241,6 +241,53 @@ log_gate() {
   { printf '%s\n' "$3"; printf '%s\n' "---GATE-RC---"; printf '%s\n' "$4"; } > "$f" 2>/dev/null || { echo "$f" >&2; return 0; }
 }
 
+# _log_report <file> — POST an attempt record outward. Never fails, never stalls, never prints.
+#
+# Fire-and-forget by contract: an unreachable coordinator, a refused connection, a 500 or a
+# hang must not fail, delay or alter the run. `run-loop.sh` has to keep working on a laptop
+# with no infrastructure at all, which is why an unset HARNESS_REPORT_URL returns before
+# anything happens and leaves the run byte-identical to what it is today.
+#
+# On the header quoting: the arguments go in an ARRAY. Quotes are literal after expansion,
+# so building the flag as a string —
+#     auth="-H 'Authorization: Bearer $tok'" ; curl $auth ...
+# — word-splits into `-H`, `'Authorization:`, `Bearer`, `tok'`: a malformed header plus two
+# arguments curl reads as URLs. The `${tok:+-H "Authorization: Bearer $tok"}` shorthand fails
+# the same way for the same reason, splitting into `-H`, `Authorization:`, `Bearer`, `tok`,
+# where the bare `Authorization:` is curl's syntax for REMOVING the header. An array is the
+# only form that survives, because its elements are never re-split.
+_log_report() {
+  local url="${HARNESS_REPORT_URL:-}"
+  [ -n "$url" ] || return 0
+  [ -s "${1:-}" ] || return 0
+  local key; key="$(_ralph_host)/${HB_AGENT:-${RALPH_AGENT:-agent}}-$$"
+  local target="${url%/}/runs/$key/attempts"
+  local tok="${HARNESS_REPORT_TOKEN:-}"
+  if command -v curl >/dev/null 2>&1; then
+    local -a hdr=(-H 'Content-Type: application/json')
+    [ -n "$tok" ] && hdr+=(-H "Authorization: Bearer $tok")
+    curl -s -o /dev/null -X POST --connect-timeout 2 --max-time 3 \
+      "${hdr[@]}" --data-binary "@$1" "$target" >/dev/null 2>&1 || true
+  elif command -v python3 >/dev/null 2>&1; then
+    # The token goes through the ENVIRONMENT, not argv: argv is visible in `ps` to anyone on
+    # the box, and a secret that leaks through the process table has still leaked.
+    HB_T="$target" HB_B="$1" HB_K="$tok" python3 -c '
+import os, urllib.request
+try:
+    h = {"Content-Type": "application/json"}
+    if os.environ.get("HB_K"):
+        h["Authorization"] = "Bearer " + os.environ["HB_K"]
+    with open(os.environ["HB_B"], "rb") as fh:
+        body = fh.read()
+    urllib.request.urlopen(
+        urllib.request.Request(os.environ["HB_T"], body, h, method="POST"), timeout=3)
+except Exception:
+    pass
+' >/dev/null 2>&1 || true
+  fi
+  return 0
+}
+
 # log_meta <task-label> <attempt> — write the per-attempt metadata JSON.
 # Uses jq -n with --arg/--argjson so a quote in a task label or binding path does not produce
 # invalid JSON. Every field is always emitted; null means unmeasurable, 0 means measured-zero.
@@ -310,6 +357,7 @@ log_meta() {
         run_key: $run_key
       }'
   } > "$f" 2>/dev/null || true
+  _log_report "$f"
 }
 
 # log_where — one line telling a human where to look. Called on STOP.
