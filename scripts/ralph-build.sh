@@ -169,17 +169,26 @@ _task_satisfied() {
   if [ -z "$_bound" ] || ! [ "$_bound" -gt 0 ] 2>/dev/null; then
     _bound="$EXEC_TIMEOUT"
   fi
+  # The verdict is the gate's EXIT STATUS, never a search of its output. A failing gate prints a
+  # PASS line for every assertion that did hold, so grepping for the word reads a red gate as a
+  # satisfied task and skips it — worse than never skipping, because not skipping costs time and
+  # this costs correctness in silence. `out` is captured for the announcements, not consulted for
+  # the answer.
   local out; out="$(timeout "$_bound" bash "$g" 2>&1)"
   local _rc=$?
+  # The two refusals are different facts and read differently: one is a bound to raise or a gate
+  # to make cheaper, the other is work still to do. Neither says "skipped" — on both of these
+  # paths the task is about to RUN, and a line claiming otherwise tells a reader the reverse of
+  # what happened.
   if [ "$_rc" -eq 124 ]; then
-    echo "  ! $task skipped (gate did not finish within ${_bound}s; raise RALPH_SATISFIED_TIMEOUT to allow more time)" >&2
+    echo "  ! $task did not skip (gate did not finish within ${_bound}s; raise RALPH_SATISFIED_TIMEOUT to allow more time)" >&2
     return 1
   fi
-  if echo "$out" | grep -qE 'PASS|PASS|passed|passed'; then
-    return 0
+  if [ "$_rc" -ne 0 ]; then
+    echo "  ! $task did not skip (gate did not pass)" >&2
+    return 1
   fi
-  echo "  ! $task skipped (gate did not pass)" >&2
-  return 1
+  return 0
 }
 
 # run_gates <task-index> <strict> — run every gate that applies after that task, print all of

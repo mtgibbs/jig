@@ -88,7 +88,7 @@ mkexec() {
   cat > "$T/exec.sh" <<'X'
 #!/usr/bin/env bash
 p="${1:-}"
-printf 'invoked %s\n' "$p" >> "$ROOT/execlog.txt"
+printf 'invoked %s\n' "$p" >> "${FX_LOG:?fixtures: FX_LOG must point outside the fixture repo}"
 printf 'touched %s\n' "$(date +%s%N)" >> "$ROOT/notes.md"
 case "$p" in
   *"make a"*) echo a > "$ROOT/a.txt" ;;
@@ -103,10 +103,17 @@ runloop() {
   local d="$1"; shift
   local tag; tag="$(basename "$d")"
   ( cd "$d" && _fx_env "$@" RALPH_LOG=off RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate \
+      FX_LOG="$T/$tag.execlog" \
       timeout 240 bash scripts/ralph-build.sh specs/fx ) > "$T/$tag.out" 2>&1
   RC=$?
 }
 loopout() { tr '\n' ' ' < "$T/$1.out" 2>/dev/null | tail -c 500; }
-execs() { [ -f "$1/execlog.txt" ] && grep -c invoked "$1/execlog.txt" || echo 0; }
-# ran <dir> <make a|make b> — was the executor invoked FOR that task? Observed, not inferred.
-ran() { [ -f "$1/execlog.txt" ] && grep -qF "$2" "$1/execlog.txt"; }
+# The executor's log lives in $T, OUTSIDE the fixture repo, and this is not incidental. The loop
+# runs `git clean -fd` between attempts, which deletes untracked files in the worktree — measured
+# 2026-08-29, when a fixture whose task never converges had its execlog removed after every
+# attempt, so "the executor was invoked three times" was indistinguishable from "never invoked".
+# An instrument inside the thing being measured is not an instrument. (See harness#21.)
+#
+# ran <tag> <make a|make b> — was the executor invoked FOR that task? Observed, not inferred.
+ran() { [ -f "$T/$1.execlog" ] && grep -qF "$2" "$T/$1.execlog"; }
+execs() { [ -f "$T/$1.execlog" ] && grep -c invoked "$T/$1.execlog" || echo 0; }

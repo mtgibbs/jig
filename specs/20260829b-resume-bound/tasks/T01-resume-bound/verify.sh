@@ -14,11 +14,11 @@ mkexec
 # sleeps on its first invocation only, so the cumulative runs behind it stay fast.
 mkloop "$T/slow" 62 yes
 runloop "$T/slow"
-if ran "$T/slow" "make a"; then
+if ran slow "make a"; then
   no "ac1: task 1 was already done and its gate passes, but the executor was invoked for it anyway — the predicate could not outwait a 62s gate. Loop said: $(loopout slow)"
 elif [ "$RC" != 0 ]; then
   no "ac1: the run exited $RC. Loop said: $(loopout slow)"
-elif ! ran "$T/slow" "make b"; then
+elif ! ran slow "make b"; then
   no "ac1: task 2 never ran, so the run proves nothing about task 1 having been skipped. Loop said: $(loopout slow)"
 else
   ok "ac1: a task whose gate costs more than the old 60s bound is recognised as already done"
@@ -27,7 +27,7 @@ fi
 # ac2 — the bound still bites, and still fails CLOSED. Overridden low against a slower gate.
 mkloop "$T/tight" 6 yes
 runloop "$T/tight" RALPH_SATISFIED_TIMEOUT=2
-if ! ran "$T/tight" "make a"; then
+if ! ran tight "make a"; then
   no "ac2: task 1 was skipped although its gate needs ~6s and the bound was set to 2s. Either RALPH_SATISFIED_TIMEOUT is not being read at all, or an unanswered question was treated as a yes — the second is the one that costs correctness rather than time. Loop said: $(loopout tight)"
 else
   ok "ac2: a gate that outruns the bound still fails closed — the task runs"
@@ -58,7 +58,7 @@ fi
 # silently disable resume everywhere.
 mkloop "$T/junk" 0 yes
 runloop "$T/junk" RALPH_SATISFIED_TIMEOUT=abc
-if ran "$T/junk" "make a"; then
+if ran junk "make a"; then
   no "ac5: an unparseable RALPH_SATISFIED_TIMEOUT stopped an already-done task from being recognised — a malformed value fell through to a bound of no time at all instead of the default. Loop said: $(loopout junk)"
 else
   ok "ac5: a malformed override falls back to the default rather than to zero"
@@ -93,7 +93,7 @@ fi
 # front of that search turned this from latent into live, and it reached a commit.
 mkloop "$T/mixed" 0 mixed
 runloop "$T/mixed"
-if ! ran "$T/mixed" "make a"; then
+if ! ran mixed "make a"; then
   no "ac7: task 1's gate printed a PASS line and then FAILED, and the task was skipped anyway — the verdict was taken from the presence of the word PASS rather than from the gate's exit status, so a red gate now silently satisfies a task. Loop said: $(loopout mixed)"
 else
   ok "ac7: a failing gate is not satisfied, no matter how many of its assertions passed"
