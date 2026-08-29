@@ -33,7 +33,7 @@ bad=""
 for d in "$G"/tasks/T0[1-5]-*; do
   [ -d "$d/mutants" ] || continue
   rel="${d#"$ROOT"/}"
-  out="$( cd "$ROOT" && timeout 300 bash "$ST" "$rel" 2>&1 )"; rc=$?
+  out="$( cd "$ROOT" && bound 300 bash "$ST" "$rel" 2>&1 )"; rc=$?
   if [ "$rc" = 124 ]; then bad="$bad $(basename "$d"):hung"
   elif [ "$rc" != 0 ]; then
     bad="$bad $(basename "$d"):$(printf '%s' "$out" | grep -iE 'surviv|wrong|uncovered|pend' | head -1 | cut -c1-70)"

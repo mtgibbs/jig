@@ -18,7 +18,7 @@ else
   before="$(git -C "$ROOT" status --porcelain | sort)"
   for d in "$G"/tasks/T0[1-5]-*; do
     [ -d "$d/mutants" ] || continue
-    ( cd "$ROOT" && timeout 300 bash "$ST" "${d#"$ROOT"/}" ) >/dev/null 2>&1
+    ( cd "$ROOT" && bound 300 bash "$ST" "${d#"$ROOT"/}" ) >/dev/null 2>&1
   done
   after="$(git -C "$ROOT" status --porcelain | sort)"
   if [ "$before" = "$after" ]; then
@@ -32,7 +32,7 @@ fi
 bad=""
 for d in "$G"/tasks/T0[1-5]-*; do
   if [ ! -d "$d/mutants" ]; then bad="$bad $(basename "$d"):no-corpus"; continue; fi
-  out="$( cd "$ROOT" && timeout 300 bash "$ST" "${d#"$ROOT"/}" 2>&1 )"; rc=$?
+  out="$( cd "$ROOT" && bound 300 bash "$ST" "${d#"$ROOT"/}" 2>&1 )"; rc=$?
   [ "$rc" = 0 ] || bad="$bad $(basename "$d"):$(printf '%s' "$out" | grep -iE 'surviv|wrong|uncovered|pend' | head -1 | cut -c1-60)"
 done
 [ -z "$bad" ] && ok "end-2: every 20260828g mutant is killed and every id is covered" \
@@ -42,7 +42,7 @@ done
 redd=""
 for d in "$G"/tasks/T0[1-5]-*; do
   [ -f "$d/verify.sh" ] || { redd="$redd $(basename "$d"):absent"; continue; }
-  ( cd "$ROOT" && timeout 120 bash "$d/verify.sh" >/dev/null 2>&1 ) || redd="$redd $(basename "$d")"
+  ( cd "$ROOT" && bound 120 bash "$d/verify.sh" >/dev/null 2>&1 ) || redd="$redd $(basename "$d")"
 done
 [ -z "$redd" ] && ok "end-3: every migrated task gate passes against the merged implementation" \
                || no "end-3: a migrated task gate is red on the known-good tree —$redd"

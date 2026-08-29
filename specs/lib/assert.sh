@@ -8,6 +8,13 @@
 # This file is sourced, never executed, so it must not call `exit` at the top
 # level and must not run anything on load.
 
+# `bound` comes along for the ride, from the one implementation in scripts/bound.sh. A gate that
+# drives the loop or the tool needs a wall-clock bound as much as the tool does, and a second
+# copy of it here is the drift this repo keeps removing. Resolved relative to THIS file so it
+# works from a consumer repo's checkout as well as from the harness's own.
+# shellcheck source=/dev/null
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../scripts" 2>/dev/null && pwd)/bound.sh" 2>/dev/null || true
+
 fail=0
 
 # ok <message> — print PASS message to stdout

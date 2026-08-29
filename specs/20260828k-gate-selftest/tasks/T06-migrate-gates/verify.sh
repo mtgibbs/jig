@@ -30,7 +30,7 @@ done
 
 # ac2 — verbatim. The task text is what the executor is given; a paraphrase in task.md means the
 # gate and the prompt describe different work.
-_v="$(timeout 30 python3 - "$G" <<'PY' 2>&1
+_v="$(bound 30 python3 - "$G" <<'PY' 2>&1
 import sys, pathlib, re
 g = pathlib.Path(sys.argv[1])
 paras = [p.strip() for p in g.joinpath("tasks.txt").read_text().split("\n\n") if p.strip()]
@@ -63,7 +63,7 @@ _p="$(grep -l '\bpend\b' "$G"/tasks/T0[1-5]-*/verify.sh 2>/dev/null | tr '\n' ' 
 redd=""
 for d in "$G"/tasks/T0[1-5]-*; do
   [ -f "$d/verify.sh" ] || continue
-  out="$( cd "$ROOT" && timeout 120 bash "$d/verify.sh" 2>&1 )"; rc=$?
+  out="$( cd "$ROOT" && bound 120 bash "$d/verify.sh" 2>&1 )"; rc=$?
   [ "$rc" = 124 ] && { redd="$redd $(basename "$d"):hung"; continue; }
   [ "$rc" = 0 ] || redd="$redd $(basename "$d"):$(printf '%s' "$out" | grep -m1 '  FAIL' | cut -c1-70)"
 done
