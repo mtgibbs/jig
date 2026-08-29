@@ -3,7 +3,7 @@
 set -u
 ROOT="${ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 . "$ROOT/specs/lib/assert.sh"
-. "$ROOT/specs/20260828n-evidence-egress/lib/fixtures.sh"
+. "$ROOT/specs/20260828o-evidence-egress/lib/fixtures.sh"
 
 # gate_tmpdir SETS T as a side effect and prints nothing. `T="$(gate_tmpdir)"` runs it in a
 # subshell, discards that assignment and leaves T empty — after which every fixture path becomes
