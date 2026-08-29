@@ -32,7 +32,16 @@ X
 
 # coord_start [action] — stub coordinator. Sets COORD_URL; requests land in $T/coord.log.
 coord_start() {
-  : > "$T/coord.log"; echo "${1:-none}" > "$T/action.txt"
+  # Clear the port file FIRST. The readiness wait below is `while [ ! -s coord.port ]`, so a stale
+  # file from an earlier coord_start satisfies it instantly and COORD_URL is set to a server that
+  # has already been killed. Everything then behaves as though the coordinator were absent.
+  #
+  # This was not harmless. ac3 asserts that a 500, an unparseable body and an absent coordinator
+  # are all "carry on" — and it was green while testing the absent case three times over, because
+  # the 500 and BROKEN stubs were never actually reached. ac4 is what surfaced it: it needs a
+  # coordinator that really answers, and a check that must PASS is the only kind that notices a
+  # stub nobody is talking to.
+  : > "$T/coord.log"; rm -f "$T/coord.port"; echo "${1:-none}" > "$T/action.txt"
   python3 "$COORD_PY" "$T/coord.log" "$T/action.txt" > "$T/coord.port" 2>"$T/coord.err" &
   COORD_PID=$!
   local i=0

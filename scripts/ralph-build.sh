@@ -60,11 +60,30 @@ EXEC_TIMEOUT="${RALPH_EXEC_TIMEOUT:-480}"
 run_bounded() { # <seconds> <cmd...> -> 124 on timeout, else the command's exit code
   local secs="$1"; shift
   "$@" & local pid=$! waited=0
+  local poll="${RALPH_CANCEL_POLL:-10}"
   while kill -0 "$pid" 2>/dev/null; do
     if [ "$waited" -ge "$secs" ]; then
       echo "  ! executor exceeded ${secs}s — killing (likely a stalled session)." >&2
       kill -TERM "$pid" 2>/dev/null; sleep 1; kill -KILL "$pid" 2>/dev/null
       wait "$pid" 2>/dev/null; return 124
+    fi
+    # Collect a cancel WHILE the executor runs, not only between attempts.
+    #
+    # Checking only between attempts made Stop take up to RALPH_EXEC_TIMEOUT — 25 minutes by
+    # default — which is not a stop button, it is a request. Measured: a run cancelled six minutes
+    # into an attempt kept going, and the T3 gate passed anyway because its fixture executor
+    # finishes instantly, so "stops promptly" and "stops whenever this attempt happens to end"
+    # were the same reading.
+    #
+    # The earlier comment here claimed interrupting mid-executor was unsafe because it leaves a
+    # half-written tree. It does — and that is fine, because the run is ENDING. The danger was
+    # ever only a half-written tree the NEXT ATTEMPT inherits, and after a cancel there is no next
+    # attempt. A deliberate stop leaves the same partial work any interrupted run leaves.
+    if [ "$waited" -gt 0 ] && [ "$poll" -gt 0 ] && [ $((waited % poll)) -eq 0 ] \
+       && command -v _hb_control >/dev/null 2>&1 && [ "$(_hb_control)" = cancel ]; then
+      echo "  ! cancel intent collected — stopping the executor." >&2
+      kill -TERM "$pid" 2>/dev/null; sleep 1; kill -KILL "$pid" 2>/dev/null
+      wait "$pid" 2>/dev/null; return 125
     fi
     sleep 1; waited=$((waited+1))
   done
@@ -72,6 +91,24 @@ run_bounded() { # <seconds> <cmd...> -> 124 on timeout, else the command's exit 
 }
 
 SPEC="$SPEC_DIR/spec.md"; VERIFY="$SPEC_DIR/verify.sh"; TASKS="$SPEC_DIR/tasks.txt"
+# _check_cancel — collect an intent and act on it between tasks and between attempts, the two
+# moments the loop is already at rest. run_bounded polls as well, so a cancel is also collected
+# mid-executor; this covers the gaps that one cannot see — while a gate is running, or between the
+# last attempt and the next task.
+#
+# Exit 4 is its own code. 0 would report success for work that never happened, and 1/2/3 already
+# mean "gate failed", "stop, needs a human" and "the spec needs attention" — a cancelled run is
+# none of those, and a reader who cannot tell them apart will go looking for a bug that is not
+# there.
+_check_cancel() {
+  command -v _hb_control >/dev/null 2>&1 || return 0
+  [ "$(_hb_control)" = cancel ] || return 0
+  echo "✋ CANCELLED: a stop intent was collected from the coordinator." >&2
+  echo "   The run ended here on purpose — this is not a gate failure and not a broken executor." >&2
+  command -v hb_write >/dev/null 2>&1 && hb_write cancelled
+  exit 4
+}
+
 for f in "$SPEC" "$VERIFY" "$TASKS"; do [ -f "$f" ] || { echo "missing $f" >&2; exit 1; }; done
 
 # ── Per-task gate resolution (20260828i) ──────────────────────────────────────────────────────
@@ -222,6 +259,7 @@ bus_init; bus_open "$(basename "$SPEC_DIR")"
 
 while IFS= read -r task || [ -n "$task" ]; do
   [ -z "${task// }" ] && continue
+  _check_cancel
   echo "════════ TASK: $task ════════"
   HB_TASK="$task"; HB_TIDX=$((HB_TIDX + 1)); hb_write running
   # Skip-satisfied: if the task's gate already passes and we're not forcing, skip without
@@ -236,6 +274,7 @@ while IFS= read -r task || [ -n "$task" ]; do
   fi
   feedback=""; passed=0; retry_init
   for attempt in $(seq 1 $((RETRIES + 1))); do
+    _check_cancel
     HB_ATTEMPT="$attempt"; LOG_STARTED="$(date +%s)"; LOG_RECORDED=""; hb_write running
     prompt="${SHEET:+$SHEET
 
@@ -257,6 +296,12 @@ URLs/UIDs. When done, stop.${feedback}"
     # shellcheck disable=SC2086  # deliberate word-split: see below
     run_bounded "$EXEC_TIMEOUT" $RALPH_EXEC_CMD "$prompt" \
       > "$(log_path "$HB_TASK" "$attempt")" 2>&1; _rc=$?
+    if [ "$_rc" = 125 ]; then
+      echo "✋ CANCELLED: a stop intent was collected while the executor was running." >&2
+      echo "   The run ended here on purpose — this is not a gate failure and not a broken executor." >&2
+      command -v hb_write >/dev/null 2>&1 && hb_write cancelled
+      exit 4
+    fi
     # An executor that never started is NOT a failed attempt — it is a broken container, and
     # letting it fall through to verify is how a no-op run reports success. Observed 2026-07-22:
     # the executor died in <1s with "current working directory was deleted" on every attempt,

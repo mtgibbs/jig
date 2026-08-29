@@ -133,6 +133,53 @@ _hb_runkey() {
   printf '%s/%s' "$hostdir" "$leaf"
 }
 
+# _hb_control — ask the coordinator whether an intent is waiting for this run.
+#
+# Prints the action on stdout, ALWAYS, and prints "none" whenever the answer cannot be read.
+# That asymmetry is the whole design: fail OPEN on the channel, CLOSED on the intent. A 500, a
+# body that is not JSON, a coordinator that is not there — each of those is a broken channel, and
+# a broken channel must never be able to stop a build. Only an answer that is legibly a cancel
+# stops one.
+#
+# This is a pull, and it has to be: nothing can connect into a worker, so an intent is collected
+# rather than delivered — the same way a CI runner discovers it has been cancelled.
+_hb_control() {
+  local url="${HARNESS_REPORT_URL:-}"
+  [ -n "$url" ] || { printf 'none'; return 0; }
+  local key; key="$(_hb_runkey)" || { printf 'none'; return 0; }
+  local target="${url%/}/runs/$key/control"
+  local tok="${HARNESS_REPORT_TOKEN:-}" body=""
+  if command -v curl >/dev/null 2>&1; then
+    # Seeded non-empty on purpose: "${arr[@]}" on an empty array is an unbound-variable error
+    # under `set -u` on bash before 4.4, and this file is sourced by whatever the operator runs.
+    local -a args=(-s -f -m 3)
+    [ -n "$tok" ] && args+=(-H "Authorization: Bearer $tok")
+    body="$(curl "${args[@]}" "$target" 2>/dev/null)" || body=""
+  elif command -v python3 >/dev/null 2>&1; then
+    body="$(HB_T="$target" HB_K="$tok" python3 -c '
+import os, sys, urllib.request
+try:
+    req = urllib.request.Request(os.environ["HB_T"])
+    if os.environ.get("HB_K"):
+        req.add_header("Authorization", "Bearer " + os.environ["HB_K"])
+    sys.stdout.write(urllib.request.urlopen(req, timeout=3).read().decode("utf-8", "replace"))
+except Exception:
+    pass
+' 2>/dev/null)" || body=""
+  fi
+  # Extracted with a pattern rather than a JSON parser so an unreadable body yields no match and
+  # therefore "none". jq would be a second failure mode here, and its absence would read as an
+  # intent rather than as a missing tool.
+  local act
+  act="$(printf '%s' "$body" | grep -o '"action"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 \
+        | sed 's/.*"\([^"]*\)"$/\1/')"
+  case "$act" in
+    ''|*[!a-z-]*) printf 'none' ;;
+    *)            printf '%s' "$act" ;;
+  esac
+  return 0
+}
+
 # _hb_report <file> — POST a status record outward. Never fails, never stalls, never prints.
 #
 # Fire-and-forget by contract: an unreachable coordinator, a refused connection, a 500 or a
