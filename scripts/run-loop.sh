@@ -74,12 +74,17 @@ branch="$(git branch --show-current 2>/dev/null || true)"
 [ -n "$branch" ] && [ "$branch" != "main" ] \
   || { echo "run-loop: refuse to run on '$branch' — use a worktree on a throwaway branch" >&2; exit 1; }
 
-# Preflight: validate tools and MCP declared in spec
+# shellcheck source=/dev/null
+. "$ENV_FILE"
+: "${STRATEGY_PHASES:?$ENV_FILE must set STRATEGY_PHASES}"
+
+# Preflight: validate tools and MCP declared in spec and strategy
+FIELD="$SCRIPT_DIR/spec-field.sh"
+misses=""
+misses_strategy=""
+
+# Collect spec-declared tools
 if [ -f "$SPEC_DIR/spec.md" ]; then
-  FIELD="$SCRIPT_DIR/spec-field.sh"
-  
-  # Collect all missing tools
-  misses=""
   if bash "$FIELD" "$SPEC_DIR/spec.md" --list >/dev/null 2>&1; then
     tools_out="$(bash "$FIELD" "$SPEC_DIR/spec.md" Tools 2>/dev/null || true)"
     if [ -n "$tools_out" ]; then
@@ -89,6 +94,7 @@ if [ -f "$SPEC_DIR/spec.md" ]; then
         if [ "$tool" != "none" ]; then
           if ! command -v "$tool" >/dev/null 2>&1; then
             misses="$misses $tool"
+            misses_strategy="$misses_strategy (spec)"
           fi
         fi
       done <<< "$tools_out"
@@ -106,23 +112,35 @@ if [ -f "$SPEC_DIR/spec.md" ]; then
           cfg_name="$(basename "$RALPH_EXEC_CMD" .sh).json"
           if [ ! -f "$cfg_name" ]; then
             misses="$misses $cfg_name"
+            misses_strategy="$misses_strategy (spec)"
           fi
         else
           misses="$misses exec-qwen.json"
+          misses_strategy="$misses_strategy (spec)"
         fi
       fi
     done <<< "$mcp_out"
   fi
-  
-  if [ -n "$misses" ]; then
-    echo "run-loop: missing tools/config$misses declared in $SPEC_DIR/spec.md — container needs attention, not another retry" >&2
-    exit 3
-  fi
 fi
 
-# shellcheck source=/dev/null
-. "$ENV_FILE"
-: "${STRATEGY_PHASES:?$ENV_FILE must set STRATEGY_PHASES}"
+# Collect strategy-declared tools
+if [ -n "${STRATEGY_TOOLS:-}" ]; then
+  for tool in $STRATEGY_TOOLS; do
+    tool="$(echo "$tool" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    [ -z "$tool" ] && continue
+    if [ "$tool" != "none" ]; then
+      if ! command -v "$tool" >/dev/null 2>&1; then
+        misses="$misses $tool"
+        misses_strategy="$misses_strategy ($STRATEGY)"
+      fi
+    fi
+  done
+fi
+
+if [ -n "$misses" ]; then
+  echo "run-loop: missing tools/config$misses$misses_strategy declared in $SPEC_DIR/spec.md and/or $ENV_FILE — container needs attention, not another retry" >&2
+  exit 3
+fi
 
 echo "strategy: $STRATEGY — ${STRATEGY_DESC:-}"
 echo "spec:     $SPEC_DIR   branch: $branch"

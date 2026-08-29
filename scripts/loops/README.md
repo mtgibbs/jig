@@ -13,7 +13,7 @@ as invoking the loops by hand.
 ## The contract
 
 A strategy file may ONLY:
-- declare `STRATEGY_DESC` and `STRATEGY_PHASES` (space-separated, run in order)
+- declare `STRATEGY_DESC`, `STRATEGY_PHASES`, and `STRATEGY_TOOLS` (space-separated, run in order)
 - export env knobs the loop scripts already accept
 
 It may not define functions, add stopping logic, or invoke anything itself.
