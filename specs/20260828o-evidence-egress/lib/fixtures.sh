@@ -22,9 +22,11 @@ coord_start() {
 }
 
 # runloop_logged <dir> [env...] — like runloop, but with the evidence writer ENABLED.
+_fx_env() { env -u HARNESS_REPORT_URL -u HARNESS_REPORT_TOKEN "$@"; }
+
 runloop_logged() {
   local d="$1"; shift; local tag; tag="$(basename "$d")"
-  ( cd "$d" && env "$@" RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate \
+  ( cd "$d" && _fx_env "$@" RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate \
       timeout 180 bash scripts/ralph-build.sh specs/fx ) > "$T/$tag.out" 2>&1
   RC=$?
 }

@@ -316,7 +316,13 @@ URLs/UIDs. When done, stop.${feedback}"
     run_bounded "$EXEC_TIMEOUT" $RALPH_EXEC_CMD "$prompt" \
       > "$(log_path "$HB_TASK" "$attempt")" 2>&1; _rc=$?
     _logfile="$(log_path "$HB_TASK" "$attempt")"
-    [ -s "${_logfile:-}" ] && ralph_log_artifact_push log "$_logfile" "$HB_TASK" "$attempt"
+    # Guarded the way every other cross-file call here is (see `command -v hb_write` below):
+    # ralph-log.sh is sourced, and a ralph-build.sh that hard-depends on one of its functions
+    # breaks the moment the two files are not the same vintage. T01's control does exactly that
+    # on purpose — it runs this script against main's ralph-log.sh to prove the unconfigured
+    # path is unchanged — and an unguarded call turns that into "command not found" on stdout.
+    [ -s "${_logfile:-}" ] && command -v ralph_log_artifact_push >/dev/null 2>&1 \
+      && ralph_log_artifact_push log "$_logfile" "$HB_TASK" "$attempt"
     if [ "$_rc" = 125 ]; then
       echo "✋ CANCELLED: a stop intent was collected while the executor was running." >&2
       echo "   The run ended here on purpose — this is not a gate failure and not a broken executor." >&2
