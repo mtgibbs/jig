@@ -285,7 +285,7 @@ than porting it. The codex login check does **not** fold cleanly; see OQ3.
 ### The scripts
 
 - **`run-loop.sh` sources the strategy conf BEFORE any loop script runs, and `ROOT` is not set at
-  that point.** `ralph-build.sh:196` is what exports `ROOT="$(git rev-parse --show-toplevel)"`,
+  that point.** `ralph-build.sh:215` is what exports `ROOT="$(git rev-parse --show-toplevel)"`,
   and it runs later. A conf cannot reference `$ROOT`; `run-loop.sh` must compute and export
   `HARNESS_REPO_ROOT` itself before the `. "$ENV_FILE"` line.
 - `run-loop.sh` already has a fatal preflight for the **spec's** `Tools:` field — `command -v`

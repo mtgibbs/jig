@@ -1,6 +1,11 @@
 # Writing the first mutant corpus in this repo — three findings
 
 **Date:** 2026-08-29 · **Spec:** `20260829a-executor-image-layer`
+**Sibling:** `docs/runs/2026-08-29-the-run-that-lied.md` (#53) catalogues six ways a run's recorded
+outcome disagreed with what happened. These three are the same theme one level out — the tool that
+*measures* a gate, rather than the loop that reports a run. Its finding 1 and finding 1 below are
+the same defect class from opposite ends: there, a bound set too tight to evaluate the gates worth
+skipping; here, a bound that did not exist on the machine and was reported as the mutant's fault.
 
 `scripts/gate-selftest.sh` shipped 2026-08-28 (PR #40). Before this spec, **no `mutants/`
 directory existed anywhere in the repo** — the tool had a spec, a gate and no corpus. Its own
