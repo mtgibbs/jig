@@ -148,13 +148,13 @@ _validate_task_gates() {
 }
 _validate_task_gates || exit 3   # 3, not 1: the spec needs attention, not another retry.
 
-# _task_satisfied <n> — return 0 if task n's gate already passes, 1 otherwise.
+# _task_satisfied <n> <task-name> — return 0 if task n's gate already passes, 1 otherwise.
 # Answers false immediately when tasks/ does not exist (monolithic spec — question unanswerable).
 # Answers false when the task has no gate or the gate cannot run (fail-closed).
 # Runs ONLY that task's gate, never the cumulative group.
-# Times out after 60s and treats timeout as false (gate hangs -> task runs).
+# Times out after RALPH_SATISFIED_TIMEOUT (default RALPH_EXEC_TIMEOUT) and treats timeout as false (gate hangs -> task runs).
 _task_satisfied() {
-  local n="$1"
+  local n="$1" task="$2"
   # Monolithic spec: unanswerable. Fail-closed.
   [ -d "$SPEC_DIR/tasks" ] || { return 1; }
   # Force-all: skip never. Fail-closed.
@@ -164,11 +164,21 @@ _task_satisfied() {
   # Task has no gate. Fail-closed.
   local g; g="$(_gate_for "$n")" || { return 1; }
   # Bound the gate: a hanging gate must not wedge a resume.
-  local out; out="$(timeout 60 bash "$g" 2>&1)" || { _rc=$?; [ "$_rc" -eq 124 ] && return 1 || return 1; }
-  # Check if the gate passed (timeout returns 124, gate failure returns non-zero)
+  # Default to RALPH_EXEC_TIMEOUT if unset, empty, or non-positive-integer.
+  local _bound="${RALPH_SATISFIED_TIMEOUT:-$EXEC_TIMEOUT}"
+  if [ -z "$_bound" ] || ! [ "$_bound" -gt 0 ] 2>/dev/null; then
+    _bound="$EXEC_TIMEOUT"
+  fi
+  local out; out="$(timeout "$_bound" bash "$g" 2>&1)"
+  local _rc=$?
+  if [ "$_rc" -eq 124 ]; then
+    echo "  ! $task skipped (gate did not finish within ${_bound}s; raise RALPH_SATISFIED_TIMEOUT to allow more time)" >&2
+    return 1
+  fi
   if echo "$out" | grep -qE 'PASS|PASS|passed|passed'; then
     return 0
   fi
+  echo "  ! $task skipped (gate did not pass)" >&2
   return 1
 }
 
@@ -264,7 +274,7 @@ while IFS= read -r task || [ -n "$task" ]; do
   HB_TASK="$task"; HB_TIDX=$((HB_TIDX + 1)); hb_write running
   # Skip-satisfied: if the task's gate already passes and we're not forcing, skip without
   # invoking the executor or consuming an attempt. Announce in the same format as other tasks.
-  if _task_satisfied "$HB_TIDX"; then
+  if _task_satisfied "$HB_TIDX" "$task"; then
     echo "  ✓ $task skipped (gate already passed)"
     HB_ATTEMPT="skipped"; LOG_OUTCOME="skipped"; LOG_STARTED="$(date +%s)"; LOG_ENDED="$LOG_STARTED"; LOG_RECORDED=1
     log_meta "$HB_TASK" "$HB_ATTEMPT"
