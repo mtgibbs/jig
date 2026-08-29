@@ -11,20 +11,20 @@ acceptance criteria that must be proven on a host with `docker`, documented here
 
 ## 1. Multi-arch build and push
 
-The `docker/loop-executor.Dockerfile` is written once and must build for both `linux/amd64`
+The `docker/loop-executor-opencode.Dockerfile` is written once and must build for both `linux/amd64`
 (Beelink) and `linux/arm64` (Pi cluster). Architecture-specific decisions (like the `dpkg`
 command in the Dockerfile) are resolved at **build time**, not runtime.
 
 ### Normal path: CI on push to main
 
 The image is built and pushed automatically by `.github/workflows/build-images.yml` on every push
-to `main` that touches the Dockerfile or `docker/loop-executor.VERSION`.
+to `main` that touches the Dockerfile or `docker/loop-executor-opencode.VERSION`.
 
-- The tag comes from `docker/loop-executor.VERSION`, so Flux `ImagePolicy` has a stable pattern to
+- The tag comes from `docker/loop-executor-opencode.VERSION`, so Flux `ImagePolicy` has a stable pattern to
   match and a bump is a deliberate act rather than a mutable `:latest`.
-- The workflow builds for both `linux/amd64` and `linux/arm64` and pushes to `ghcr.io/mtgibbs/loop-executor`.
+- The workflow builds for both `linux/amd64` and `linux/arm64` and pushes to `ghcr.io/mtgibbs/loop-executor-opencode`.
 
-**To cut a release**, bump the semver in `docker/loop-executor.VERSION` and push.
+**To cut a release**, bump the semver in `docker/loop-executor-opencode.VERSION` and push.
 
 ### Fallback: manual local build
 
@@ -35,8 +35,8 @@ version file. It is the only way to validate the image on a host with Docker bef
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
   --push \
-  -t ghcr.io/mtgibbs/loop-executor:latest \
-  -f docker/loop-executor.Dockerfile \
+  -t ghcr.io/mtgibbs/loop-executor-opencode:0.1.0 \
+  -f docker/loop-executor-opencode.Dockerfile \
   .
 ```
 
@@ -131,5 +131,5 @@ Fix by exporting `HARNESS_LITELLM_KEY` before running.
 
 - `specs/20260828a-exec-container/spec.md` — contract and acceptance criteria.
 - `docs/design/fleet-dispatch.md` — fleet design, item 2.
-- `docker/loop-executor.Dockerfile` — image definition.
+- `docker/loop-executor-opencode.Dockerfile` — derived image definition (adds `opencode` CLI to harness-base).
 - `scripts/exec-container.sh` — binding script.
