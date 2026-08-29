@@ -50,6 +50,30 @@
 #
 # Best-effort, same contract as ralph-status.sh: a full disk or a read-only mount can never fail
 # the loop it is reporting on. RALPH_LOG=off disables.
+#
+# Evidence egress: on 20260828o-evidence-egress, the loop now pushes attempt artifacts over the
+# same outbound channel used for status (20260828m-worker-channel). Artifacts are pushed at the
+# moment each is written — prompt, patch (passing attempts), diff (failing attempts), gate output,
+# meta, and the executor transcript — never later, never in bulk. A run that dies mid-attempt still
+# delivers everything written up to the crash.
+#
+# Configuration:
+#
+#   HARNESS_REPORT_URL           same URL as status; unset means push nothing, print nothing
+#   HARNESS_REPORT_TOKEN         same bearer token as status; optional
+#   HARNESS_ARTIFACT_MAX_BYTES   cap per artifact; default 1048576 (1 MiB)
+#
+# When an artifact exceeds the cap it is clipped at (max_bytes - 1024) and a marker is appended:
+#
+#     --- artifact truncated (original: XXXX bytes, clipped at YYYY bytes) ---
+#
+# Truncation is visible so a reader can tell a complete artifact from a clipped one; a silently
+# short diff is as bad as no diff at all.
+#
+# This channel ends at the POST. It does not decide how artifacts are stored, indexed, retained,
+# or served — that is the coordinator's concern. It does not add polling, controls, or any inbound
+# path. It does not introduce a second identity: artifacts are keyed by the run key the loop
+# already has, plus the task and attempt.
 
 # _ralph_slug <spec-dir> — the feature identifier: the spec directory's basename, lowercased
 # and reduced to a single filename-safe path component ("specs/Asset Ladder/" -> "asset-ladder").
