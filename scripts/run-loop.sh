@@ -14,18 +14,56 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOOPS_DIR="$SCRIPT_DIR/loops"
 
 if [ "${1:-}" = "--list" ]; then
-  for f in "$LOOPS_DIR"/*.conf; do
-    [ -f "$f" ] || continue
-    name="$(basename "$f" .conf)"
-    desc="$(sed -n 's/^STRATEGY_DESC="\(.*\)"$/\1/p' "$f" | head -1)"
-    printf '  %-20s %s\n' "$name" "$desc"
+  ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+  HARNESS_DIR="$ROOT/.harness/loops"
+  declare -A SEEN
+  LIST_OUT=""
+
+  for dir in "$HARNESS_DIR" "$LOOPS_DIR"; do
+    [ -d "$dir" ] || continue
+    loc="$(basename "$(dirname "$dir")")"
+    for f in "$dir"/*.conf; do
+      [ -f "$f" ] || continue
+      name="$(basename "$f" .conf)"
+      [ -n "${SEEN[$name]:-}" ] && continue
+      SEEN[$name]=1
+      desc="$(sed -n 's/^STRATEGY_DESC="\(.*\)"$/\1/p' "$f" | head -1)"
+      LIST_OUT="$LIST_OUT$loc:$name:$desc
+"
+    done
+  done
+
+  if [ -z "$LIST_OUT" ]; then
+    echo "No strategies found in $HARNESS_DIR or $LOOPS_DIR"
+    exit 0
+  fi
+
+  echo "$LIST_OUT" | while IFS=: read -r loc name desc; do
+    [ -z "$name" ] && continue
+    if [ "$loc" = ".harness" ]; then
+      printf '  %-20s [%s] %s\n' "$name" "consumer" "$desc"
+    else
+      printf '  %-20s [%s] %s\n' "$name" "built-in" "$desc"
+    fi
   done
   exit 0
 fi
 
 STRATEGY="${1:?usage: run-loop.sh <strategy> <spec-dir>  (or --list)}"
 SPEC_DIR="${2:?usage: run-loop.sh <strategy> <spec-dir>}"
-ENV_FILE="$LOOPS_DIR/$STRATEGY.conf"
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+HARNESS_DIR="$ROOT/.harness/loops"
+
+if [ -d "$HARNESS_DIR" ] && [ -f "$HARNESS_DIR/$STRATEGY.conf" ]; then
+  ENV_FILE="$HARNESS_DIR/$STRATEGY.conf"
+  export HARNESS_REPO_ROOT="$ROOT"
+elif [ -f "$LOOPS_DIR/$STRATEGY.conf" ]; then
+  ENV_FILE="$LOOPS_DIR/$STRATEGY.conf"
+else
+  echo "run-loop: unknown strategy '$STRATEGY' (searched $HARNESS_DIR and $LOOPS_DIR) — try --list" >&2
+  exit 1
+fi
 
 # Preflight, all fatal: known strategy, real spec, and never on main —
 # the constitution's worktree rule applies to strategies same as hand runs.
