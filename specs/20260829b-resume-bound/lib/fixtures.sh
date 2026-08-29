@@ -14,7 +14,17 @@
 # HARNESS_REPORT_URL posts to the REAL coordinator — measured 2026-08-29, when gate fixtures put
 # rows keyed `spec=fx` on the production board. `20260829a-hermetic-gate` T2 moves this into
 # specs/lib/assert.sh for every gate; until it lands, each gate that spawns a loop does it here.
-_fx_env() { env -u HARNESS_REPORT_URL -u HARNESS_REPORT_TOKEN "$@"; }
+# Also unset the loop's OWN control variables. A gate that inherits RALPH_FORCE_ALL from the
+# shell that launched it is a gate whose fixtures cannot skip anything — measured 2026-08-29,
+# when running this very loop with RALPH_FORCE_ALL=1 made four of six assertions fail no matter
+# what the executor wrote, and made ac2 pass for the wrong reason because the task running is
+# what ac2 asserts. Three attempts were burned on a defect in the gate, not in the work.
+# RALPH_SATISFIED_TIMEOUT is unset for the same reason: this gate SETS it per invocation, and an
+# ambient value would silently override the case being tested.
+_fx_env() {
+  env -u HARNESS_REPORT_URL -u HARNESS_REPORT_TOKEN \
+      -u RALPH_FORCE_ALL -u RALPH_FORCE_FROM -u RALPH_SATISFIED_TIMEOUT "$@"
+}
 
 # mkloop <dir> <sleep-secs> <task1-done:yes|no> — a two-task fixture carrying the REAL scripts/.
 mkloop() {
