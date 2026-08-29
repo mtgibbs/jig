@@ -11,6 +11,12 @@
 #   4. Cleans up on exit (trap EXIT)
 set -uo pipefail
 
+# A portable wall-clock bound. See scripts/bound.sh: `timeout` is coreutils and macOS has none,
+# which made this tool exit 127 before running a single gate and then report every mutant as
+# WRONG-REASON — the reading that means "your mutant missed".
+# shellcheck source=/dev/null
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/bound.sh"
+
 # ARG GUARD — if $1 is missing, exit with distinct message
 if [ $# -ne 1 ]; then
   echo "Usage: $0 <task-dir>" >&2
@@ -29,6 +35,16 @@ if [ ! -d "$TASK_DIR" ]; then
   echo "error: task directory does not exist: $TASK_DIR" >&2
   exit 1
 fi
+
+# Resolve to the PHYSICAL path before anything computes a prefix from it.
+#
+# TASK_DIR is built from `pwd`, which is LOGICAL; REPO_ROOT below comes from `git rev-parse
+# --show-toplevel`, which is PHYSICAL. On macOS a repo under a temp dir is /var/folders/... to
+# one and /private/var/folders/... to the other, so `${TASK_DIR#$REPO_ROOT}` strips nothing,
+# TASK_PATH becomes "$T/worktree" with a whole absolute path appended, and the tool reports
+# "verify.sh not found" for a gate that is plainly there. It was invisible until the `timeout`
+# fault above stopped masking it — the tool never got far enough to compute a path.
+TASK_DIR="$(cd "$TASK_DIR" 2>/dev/null && pwd -P || echo "$TASK_DIR")"
 
 # Check for verify.sh
 if [ ! -f "$TASK_DIR/verify.sh" ]; then
@@ -140,13 +156,24 @@ for i in "${!M_NAME[@]}"; do
   name="${M_NAME[$i]}"; tgt="${M_TARGET[$i]}"
   restore_target "$tgt"
   mkdir -p "$(dirname "$T/worktree/$tgt")" 2>/dev/null || true
-  cp "$MUTANT_DIR/$name" "$T/worktree/$tgt"
+  # Install the mutant WITHOUT its MUTANT:/TARGET:/WHY: lines. Those are this tool's metadata,
+  # not part of the replacement artifact — and leaving them in makes the gate read them. A WHY
+  # line says what the mutant removed, so a gate grepping the target for that very token matches
+  # the DESCRIPTION OF ITS ABSENCE and passes. Measured 2026-08-29 on the first real corpus in
+  # this repo: two of six doc mutants survived that way, and both looked like weak assertions
+  # when the assertions were correct. Trap A, with the needle planted by the harness itself.
+  grep -vE '^[[:space:]]*#[[:space:]]*(MUTANT|TARGET|WHY):' "$MUTANT_DIR/$name" > "$T/worktree/$tgt"
 
-  gate_out="$( cd "$T/worktree" && timeout "$GATE_TIMEOUT" bash "$TASK_PATH/verify.sh" 2>&1 )"
+  gate_out="$( cd "$T/worktree" && bound "$GATE_TIMEOUT" bash "$TASK_PATH/verify.sh" 2>&1 )"
   gate_rc=$?
   restore_target "$tgt"
 
+  # Per mutant, not one shared variable. gate_rc is assigned here and was read in the verdict
+  # loop below, where it only ever held the LAST mutant's exit code — so one mutant that hung or
+  # survived would have been judged by another's result, silently and in whichever direction the
+  # last one happened to land.
   printf '%s' "$gate_out" > "$T/gate-$i.out"
+  printf '%s' "$gate_rc"  > "$T/gate-$i.rc"
 done
 
 # ── T4: Analyze verdicts from gate outputs ───────────────────────────────────────────────────
@@ -156,7 +183,8 @@ for i in "${!M_NAME[@]}"; do
   name="${M_NAME[$i]}"; id="${M_ID[$i]}"; tgt="${M_TARGET[$i]}"; why="${M_WHY[$i]}"
   
   gate_out="$(cat "$T/gate-$i.out")"
-  
+  gate_rc="$(cat "$T/gate-$i.rc" 2>/dev/null || echo 1)"
+
   if [ "$gate_rc" = 124 ]; then
     echo "$name: HUNG"
     HUNG=$((HUNG + 1))

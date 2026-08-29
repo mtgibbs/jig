@@ -44,7 +44,7 @@ MARKER_TWO
 # the executor. Sets RC and leaves output in $T/st.out.
 runst() {
   local d="$1" td="${2:-specs/fx/tasks/T01-thing}"
-  ( cd "$d" && timeout 90 bash "$ST" "$td" ) > "$T/st.out" 2>&1
+  ( cd "$d" && bound 90 bash "$ST" "$td" ) > "$T/st.out" 2>&1
   RC=$?
   [ "$RC" = 124 ] && echo "  (tool did not return within 90s)" >&2
   return 0
