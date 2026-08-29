@@ -6,7 +6,7 @@
 # entirely about the artifacts that logging produces, so reusing it would test nothing.
 . "$ROOT/specs/20260828m-worker-channel/lib/fixtures.sh"
 
-COORD_PY="$ROOT/specs/20260828n-evidence-egress/lib/coord.py"
+COORD_PY="$ROOT/specs/20260828o-evidence-egress/lib/coord.py"
 
 coord_start() {
   # Clear the port file FIRST. The readiness wait is `while [ ! -s coord.port ]`, so a stale file

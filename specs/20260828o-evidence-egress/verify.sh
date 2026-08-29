@@ -5,7 +5,7 @@
 set -u
 ROOT="${ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 . "$ROOT/specs/lib/assert.sh"
-. "$ROOT/specs/20260828n-evidence-egress/lib/fixtures.sh"
+. "$ROOT/specs/20260828o-evidence-egress/lib/fixtures.sh"
 
 gate_tmpdir
 if [ -z "${T:-}" ] || [ ! -d "$T" ] || ! touch "$T/.w" 2>/dev/null; then
