@@ -257,6 +257,8 @@ URLs/UIDs. When done, stop.${feedback}"
     # shellcheck disable=SC2086  # deliberate word-split: see below
     run_bounded "$EXEC_TIMEOUT" $RALPH_EXEC_CMD "$prompt" \
       > "$(log_path "$HB_TASK" "$attempt")" 2>&1; _rc=$?
+    _logfile="$(log_path "$HB_TASK" "$attempt")"
+    [ -s "${_logfile:-}" ] && ralph_log_artifact_push log "$_logfile" "$HB_TASK" "$attempt"
     # An executor that never started is NOT a failed attempt — it is a broken container, and
     # letting it fall through to verify is how a no-op run reports success. Observed 2026-07-22:
     # the executor died in <1s with "current working directory was deleted" on every attempt,
