@@ -495,7 +495,30 @@ second copy. It additionally needs a consumer-repo fixture with `.harness/loops/
 binding (T2, T3), and a bare origin plus a pre-made worktree so T4's clone, re-run and refusal
 paths can be exercised without network.
 
-**Mutants.** Per task dir, for `scripts/gate-selftest.sh`. The ones that matter: a derived
+**Mutants — when each corpus lands.** `T1` and `T6` ship theirs **with this spec**: their
+targets are a Dockerfile, a workflow, a doc — artifacts whose shape §6 and §10 already determine,
+so a mutant leaks nothing an implementer does not already have. Both are validated (T1: 6 killed,
+0 survivors; T6: 5 killed, 0 survivors; no uncovered ids).
+
+`T2`-`T5` ship **gates now and corpora with the task**, for two reasons found while writing this
+one (`evidence/2026-08-29-writing-the-first-mutant-corpus.md`). First, `gate-selftest.sh`
+installs a mutant as a COMPLETE replacement file, so a mutant for a behavioural assertion is the
+finished `run-loop.sh` or `run-task.sh` with one thing wrong — shipping four of those up front
+puts the implementation in the directory the loop reads, which `specs/TEMPLATE.md` forbids:
+*"Keep the adversary OUT of the repo, or a later loop run stops being a fair measurement."*
+Second, it would not measure anything: a per-task gate has no `pend`, so on an unbuilt tree every
+assertion already fails and a mutant either "kills" an assertion that was failing anyway or comes
+back WRONG-REASON because a sibling artifact is missing. Mutation is a post-implementation check.
+
+**Two tooling defects stand in the way, both recorded in `evidence/`.** `gate-selftest.sh` bounds
+each run with `timeout`, which macOS does not ship, and reports the resulting 127 as
+WRONG-REASON on every mutant rather than as "the gate never ran" — the amendment's own failure
+mode, in the tool that enforces it. And a mutant's `WHY:` header is grepped along with the
+artifact, so a WHY line saying a token is absent satisfies a gate looking for that token; two
+doc mutants passed that way before `lib/fixtures.sh` grew `content()`/`hasc()`. The proper fix
+for both is in the tool, not in this spec.
+
+**The mutants that matter.** For the corpora above and for the ones landing with T2-T5: a derived
 Dockerfile that copies the harness itself (AC-3); a resolver that checks the consumer path but
 does not prefer it (AC-7); a resolver that exports `HARNESS_REPO_ROOT` *after* sourcing (AC-9); a
 `STRATEGY_TOOLS` check that warns instead of exiting (AC-13); a `run-task.sh` that sanitises
