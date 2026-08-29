@@ -11,7 +11,8 @@ ROOT="${ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 . "$ROOT/specs/20260829a-executor-image-layer/lib/fixtures.sh"
 
 BASE="$ROOT/docker/harness-base.Dockerfile"
-DERIVED="$ROOT/docker/loop-executor.Dockerfile"
+DERIVED="$ROOT/docker/loop-executor-opencode.Dockerfile"
+OLD_DERIVED="$ROOT/docker/loop-executor.Dockerfile"
 WF="$ROOT/.github/workflows/build-images.yml"
 EC="$ROOT/scripts/exec-container.sh"
 BV="$ROOT/docker/harness-base.VERSION"
@@ -57,7 +58,9 @@ fi
 
 # ── ac3: the derived image is thin ───────────────────────────────────────────────────────────
 if [ ! -f "$DERIVED" ]; then
-  no "ac3: docker/loop-executor.Dockerfile is missing"
+  no "ac3: docker/loop-executor-opencode.Dockerfile is missing. After the split the BASE is what executes loops, so the generic name belongs to it; loop-executor-codex and loop-executor-claude are the point and they cannot all be 'loop-executor'"
+elif [ -f "$OLD_DERIVED" ]; then
+  no "ac3: both docker/loop-executor.Dockerfile and the renamed loop-executor-opencode.Dockerfile exist. A rename that leaves the old file behind is a copy, and CI will build whichever the matrix still names"
 elif ! nonempty_strip "$DERIVED"; then
   no "ac3: loop-executor.Dockerfile has no instruction lines"
 elif ! instr "$DERIVED" '^FROM[[:space:]]+.*harness-base'; then
@@ -107,6 +110,8 @@ if [ ! -f "$EC" ]; then
   no "ac6: scripts/exec-container.sh is missing"
 elif instr "$EC" 'LOOP_IMAGE:-[^"}]*:latest'; then
   no "ac6: exec-container.sh still defaults LOOP_IMAGE to a :latest tag that CI has never pushed. The default of the containerised binding must be an image that exists"
+elif instr "$EC" 'LOOP_IMAGE:-[^"}]*/loop-executor:'; then
+  no "ac6: exec-container.sh still defaults to the OLD image name. The tag may be real and the repository is not the one CI now publishes — an image that exists and an image CI publishes are two different things"
 elif ! instr "$EC" 'LOOP_IMAGE'; then
   no "ac6: exec-container.sh no longer honours LOOP_IMAGE at all — the override is the seam, do not remove it while fixing the default"
 else

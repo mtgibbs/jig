@@ -27,9 +27,9 @@ jobs:
           - image: harness-base
             dockerfile: docker/harness-base.Dockerfile
             version-file: docker/harness-base.VERSION
-          - image: loop-executor
-            dockerfile: docker/loop-executor.Dockerfile
-            version-file: docker/loop-executor.VERSION
+          - image: loop-executor-opencode
+            dockerfile: docker/loop-executor-opencode.Dockerfile
+            version-file: docker/loop-executor-opencode.VERSION
           - image: harness-coordinator
             dockerfile: docker/coordinator.Dockerfile
             version-file: docker/coordinator.VERSION

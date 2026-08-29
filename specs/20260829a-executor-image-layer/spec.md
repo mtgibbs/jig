@@ -4,7 +4,8 @@
 - **Owner:** mtgibbs
 - **Constitution:** `specs/constitution.md` (+ `/CLAUDE.md` Core Mandates)
 - **Touches:** `docker/harness-base.Dockerfile` (new), `docker/harness-base.VERSION` (new),
-  `docker/loop-executor.Dockerfile`, `docker/loop-executor.VERSION`,
+  `docker/loop-executor-opencode.Dockerfile` (renamed from `loop-executor`),
+  `docker/loop-executor-opencode.VERSION`,
   `.github/workflows/build-images.yml`, `scripts/run-task.sh` (new), `scripts/run-loop.sh`,
   `scripts/exec-container.sh`, `scripts/loops/README.md`, `specs/lib/assert.sh`,
   `scripts/dispatch/dispatcher.py`, `docs/executors.md` (new), `docs/loop-container.md`
@@ -164,6 +165,22 @@ harness at its own version and `$HARNESS_DIR` is a plain directory; the workstat
 keep cloning. One script serves both — the only change is that a non-git `$HARNESS_DIR` is used
 as-is instead of triggering a clone.
 
+**`loop-executor` becomes `loop-executor-opencode`.** After the split, the thing that executes
+loops is the BASE — it holds `run-loop.sh`, `ralph-build.sh`, the gates, and its entrypoint is
+`run-task.sh`. The derived image adds one CLI, so the generic name now describes the base better
+than the image carrying it. And the name has to scale: `loop-executor-codex` and
+`loop-executor-claude` are the point, and whichever one keeps the bare name reads as the
+canonical one — the opinionation the split exists to remove.
+
+The concrete cost of not renaming lands in T5's config, where the name becomes load-bearing:
+`HARNESS_WORKER_IMAGE = ghcr.io/mtgibbs/loop-executor` does not tell a reader whether that is
+*the opencode image* or *the default for any strategy*, and the dispatcher's fallback behaviour
+depends on which they believe. Renamed, the fallback reads as "the opencode image happens to be
+the default", which is what it is. Doing it now costs one VERSION file, one matrix entry and one
+line in `exec-container.sh` — nothing outside this repo names the image yet (§6). Doing it after
+the fleet manifests land is a coordinated change across two repos. The existing
+`loop-executor:0.1.0` tag stays where it is; the package simply stops receiving new ones.
+
 **Rejected: one image per executor, built here.** It scales by fork — every new agent is a PR to
 this repo, which is the thing §20260825c removed. The base image is the seam precisely so the
 harness does not have to know who its executors are.
@@ -178,7 +195,7 @@ the contrast explicit because the constitution's similar-but-different trap is e
 
 ### In scope
 - `docker/harness-base.Dockerfile`, `docker/harness-base.VERSION`
-- `docker/loop-executor.Dockerfile`, `docker/loop-executor.VERSION`
+- `docker/loop-executor-opencode.Dockerfile` + `.VERSION`, **renamed** from `loop-executor`
 - `.github/workflows/build-images.yml` — the base entry, ordered before the derived build
 - `scripts/run-task.sh` — new, the single reconciled remote entry point
 - `scripts/run-loop.sh` — strategy search path, `STRATEGY_TOOLS` preflight, `--strategy` plumbing
@@ -209,7 +226,8 @@ the contrast explicit because the constitution's similar-but-different trap is e
 
 ### The image
 
-- `docker/loop-executor.Dockerfile` today: `FROM node:22-bookworm-slim`, apt-installs
+- `docker/loop-executor.Dockerfile` today (to be renamed `loop-executor-opencode`):
+  `FROM node:22-bookworm-slim`, apt-installs
   `git ripgrep ca-certificates curl tini`, `npm install -g opencode-ai@1.17.10`,
   `WORKDIR /home/agent/run-container`, `ENTRYPOINT ["/usr/bin/tini", "--", "opencode"]`.
   It contains **no harness**. The apt set and the tini wrapper move DOWN into the base.
@@ -369,8 +387,9 @@ than porting it. The codex login check does **not** fold cleanly; see OQ3.
 
 Sequential. T4 depends on T2 and T3 (it routes through the `run-loop.sh` they change).
 
-1. **T1** — split the image: `harness-base.Dockerfile` + a thin `loop-executor.Dockerfile`,
-   public base, CI ordering, and the `:latest` default.
+1. **T1** — split the image: `harness-base.Dockerfile` + a thin
+   `loop-executor-opencode.Dockerfile` (renamed), public base, CI ordering, and the image
+   `exec-container.sh` defaults to.
 2. **T2** — the two search paths: strategies in `run-loop.sh`, `assert.sh` in the gates.
 3. **T3** — `STRATEGY_TOOLS`, preflighted in the existing accumulation.
 4. **T4** — one `scripts/run-task.sh`, reconciled, routed through `run-loop.sh`, baked-or-cloned.
@@ -386,15 +405,17 @@ Sequential. T4 depends on T2 and T3 (it routes through the `run-loop.sh` they ch
   `scripts/exec-qwen.sh`, `scripts/exec-codex.sh` and `specs/lib/assert.sh`.
 - **AC-2** The base image shall contain **no** model CLI: no `opencode`, `codex` or `claude`
   install instruction shall appear in `harness-base.Dockerfile`.
-- **AC-3** `docker/loop-executor.Dockerfile` shall begin `FROM` the base image and shall contain
-  no `apt-get install` and no harness copy of its own.
+- **AC-3** `docker/loop-executor-opencode.Dockerfile` shall exist, shall begin `FROM` the base
+  image, and shall contain no `apt-get install` and no harness copy of its own.
+  `docker/loop-executor.Dockerfile` shall no longer exist.
 - **AC-4** The base image shall put `$HARNESS_HOME/scripts` on `PATH` and set `ENTRYPOINT` to
   `run-task.sh` under `tini`.
 - **AC-5** `.github/workflows/build-images.yml` shall build `harness-base` from
   `docker/harness-base.VERSION` for `linux/amd64,linux/arm64`, in a job the derived build declares
-  in `needs:`.
-- **AC-6** `scripts/exec-container.sh` shall default `LOOP_IMAGE` to a tag that CI publishes, and
-  `docs/loop-container.md`'s manual fallback shall push that same tag rather than `:latest`.
+  in `needs:`, and shall build `loop-executor-opencode` rather than `loop-executor`.
+- **AC-6** `scripts/exec-container.sh` shall default `LOOP_IMAGE` to an image CI publishes —
+  both the renamed repository and a tag that exists — and `docs/loop-container.md`'s manual
+  fallback shall push that same tag rather than `:latest`.
 
 **T2 — the search paths**
 
@@ -556,6 +577,13 @@ throwaway branch. Six tasks, one per iteration, fresh context.
 - **OQ4 — `STRATEGY_TOOLS` declared vs inferred.** Declaring duplicates a fact the `exec-*.sh`
   already contains; inferring it means parsing shell, which is worse. **Closing as declared**, with
   the duplication recorded in `loops/README.md`. Noted here only so it is not re-litigated.
+
+- **OQ5 — does `loop-executor` keep its name?** **Closed 2026-08-29: renamed to
+  `loop-executor-opencode`**, folded into T1 and into AC-3, AC-5 and AC-6. After the split the
+  BASE is what executes loops, so the generic name described the wrong layer; and the name has to
+  scale to `loop-executor-codex` / `loop-executor-claude`, where whichever image keeps the bare
+  name reads as canonical. Reasoning in §4, cost evidence in §6. Noted here so it is not
+  re-litigated.
 
 ## Two-way sync rule
 
