@@ -64,4 +64,24 @@ else
   ok "ac5: a malformed override falls back to the default rather than to zero"
 fi
 
+
+# ac6 — an announcement must not contradict the action it describes. ac3 and ac4 check that the
+# right FACTS appear; neither notices a line that reports the opposite outcome while carrying
+# them. Both refusal branches are paths where the task is NOT skipped and the executor runs, so
+# a line calling it skipped tells a reader precisely the reverse of what happened — the defect
+# this spec exists to remove, reintroduced in the message that announces its removal. The legal
+# skip line ("gate already passed") belongs to the other branch and does not appear in either of
+# these runs, so any "skipped" found here is on a refusal.
+tl="$(grep -iE 'did not finish|timed out|exceed' "$T/tight.out" 2>/dev/null | head -1)"
+ul="$(grep -i 'did not pass' "$T/unmet.out" 2>/dev/null | head -1)"
+if [ -z "$tl" ] || [ -z "$ul" ]; then
+  no "ac6: one of the two refusal announcements was not found, so this assertion could not run — see ac3 and ac4"
+elif echo "$tl" | grep -qi 'skipped'; then
+  no "ac6: the bound-exceeded refusal calls the task skipped, and it was not — it ran. The line was: $tl"
+elif echo "$ul" | grep -qi 'skipped'; then
+  no "ac6: the failed-gate refusal calls the task skipped, and it was not — it ran. The line was: $ul"
+else
+  ok "ac6: neither refusal announces the task as skipped, because neither of them skipped it"
+fi
+
 gate_done
