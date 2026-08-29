@@ -13,24 +13,28 @@ fi
 
 CAP=8192
 
-# ac1 — an artifact comfortably under the cap arrives WHOLE.
+# ac1 — artifacts comfortably under the cap arrive WHOLE.
 #
-# Measured against the file on disk, not against a size threshold: an implementation that
-# truncates everything to the cap would satisfy "arrived under the cap" perfectly, and this is
-# the assertion that separates bounding from mangling.
+# Compared as SETS of content hashes, not "the largest received vs the largest on disk". Those
+# were two independent max() picks over two different collections, and two prompts of equal size
+# tie-break independently — so the gate diffed two different files and failed a correct
+# implementation. Hashing both sides asks what this assertion means: everything written arrived,
+# and nothing was altered on the way. An implementation that truncates everything to the cap
+# fails it, which is the point — this is the assertion separating bounding from mangling.
 coord_start
 mkexec_loud; mkloop_logged "$T/small"
 runloop_logged "$T/small" HARNESS_REPORT_URL="$COORD_URL" HARNESS_REPORT_TOKEN="$TOKEN" \
   HARNESS_ARTIFACT_MAX_BYTES=1000000
-disk="$(diskfile "$T/small" '*.prompt.md')"
+rx="$(arthashes prompt)"
+dk="$(diskhashes "$T/small" '*.prompt.md')"
 if [ "$(arts prompt)" = 0 ]; then
   no "ac1: no prompt artifact arrived, so nothing could be compared"
-elif [ -z "$disk" ] || [ ! -s "$disk" ]; then
+elif [ -z "$dk" ]; then
   no "ac1: the run wrote no prompt file, so the fixture is wrong rather than the implementation"
-elif ! diff -q <(artbody prompt) "$disk" >/dev/null 2>&1; then
-  no "ac1: an artifact under the cap did not arrive byte-identical — disk $(wc -c < "$disk") bytes vs received $(artsize prompt) bytes. Under the cap nothing may be altered"
+elif [ "$rx" != "$dk" ]; then
+  no "ac1: what arrived is not what was written — $(printf '%s' "$rx" | grep -c .) artifact(s) received against $(printf '%s' "$dk" | grep -c .) written, and their contents do not match as a set. Under the cap nothing may be altered and nothing may be dropped"
 else
-  ok "ac1: an artifact under the cap arrives byte-identical to what was written"
+  ok "ac1: every artifact under the cap arrives byte-identical to what was written"
 fi
 coord_stop
 
