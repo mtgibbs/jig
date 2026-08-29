@@ -7,6 +7,22 @@
 # small git fixtures for run-task.sh's clone paths. Sourcing that file would drag a whole
 # executor stub in for nothing.
 
+# The harness's OWN configuration is unset for every gate sourcing this file, and it is not
+# housekeeping. T02 and T03 drive the real run-loop.sh; HARNESS_REPORT_URL is set in every harness
+# container, so a gate run inherits it and the fixture loops POST TO THE PRODUCTION COORDINATOR.
+# Measured 2026-08-29: one pass over this spec's six gates put eight rows keyed `spec=fx` on the
+# live fleet board, where they are indistinguishable from real runs and share the oldest-first
+# eviction in harness#46 — so fixture rows can evict the record of an actual run.
+#
+# RALPH_FORCE_ALL/_FROM go too: a gate that inherits them from the shell that launched it cannot
+# skip anything inside its fixtures, which on 2026-08-29 made four assertions in another spec
+# unable to pass whatever the executor wrote and one pass for the wrong reason. Unset, never a
+# sentinel — a sentinel URL is still a URL and something eventually POSTs to it.
+#
+# 20260829a-hermetic-gate moves this into specs/lib/assert.sh so it holds for every gate in the
+# repo rather than for the ones whose author remembered.
+unset HARNESS_REPORT_URL HARNESS_REPORT_TOKEN RALPH_FORCE_ALL RALPH_FORCE_FROM RALPH_SATISFIED_TIMEOUT
+
 # strip_comments <file> — the file's instruction lines only, comments and blanks removed.
 #
 # THE reason this exists. Every string worth grepping in this spec — harness-base, opencode,
@@ -58,10 +74,15 @@ mkspec() {
 
 # bounded <seconds> <cmd...> — run with a hard wall-clock bound, portably.
 #
-# NOT `timeout`. macOS ships neither `timeout` nor `gtimeout`, and this gate is authored on one:
-# scripts/gate-selftest.sh uses `timeout` and therefore cannot run here at all — every mutant
-# comes back WRONG-REASON because the gate never executed. See this spec's evidence/. `perl -e
-# alarm` is present on both platforms and needs no coreutils.
+# NOT `timeout`. macOS ships neither `timeout` nor `gtimeout`, and this gate is authored on one.
+# `perl -e alarm` is present on both platforms and needs no coreutils.
+#
+# The stronger claim this comment used to make — that scripts/gate-selftest.sh cannot run on macOS
+# at all, so every mutant returns WRONG-REASON — was true when written and was FIXED by #51, which
+# merged forty-six minutes before this spec did. gate-selftest now bounds the gate with `bound`
+# from scripts/bound.sh. Corrected because the claim discourages running the repo's own mutation
+# tool, which does work: this spec's T01 and T06 corpora were run through it, 12 mutants, 12
+# killed, no survivors and no wrong-reason.
 #
 # The bound is not tidiness. A fixture that resolves the WRONG strategy runs the real
 # build-converge, which invokes ralph-build.sh, which calls an executor and waits. Unbounded,
