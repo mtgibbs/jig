@@ -1,0 +1,86 @@
+# fixtures.sh — a throwaway two-task loop whose FIRST task's gate has a controllable cost.
+#
+# Adapted from 20260828l-run-control's fixtures, which established the observation trick this
+# spec depends on: the stub executor appends a line to execlog.txt per invocation, so "the task
+# was skipped" is OBSERVED as the absence of a line, never inferred from the loop's own prose.
+#
+# What is new here is the cost dial. Task 1's gate sleeps SLEEP_SECS on its FIRST invocation only,
+# marked by a flag file, and returns immediately on every later one. The resume predicate calls
+# that gate before the executor runs, so it pays the sleep; the cumulative `run_gates` calls that
+# follow do not. Without that, a 62-second sleep would be paid three times and this gate would
+# cost minutes instead of one.
+
+# The harness's own outbound config is unset for every fixture loop. A fixture that inherits
+# HARNESS_REPORT_URL posts to the REAL coordinator — measured 2026-08-29, when gate fixtures put
+# rows keyed `spec=fx` on the production board. `20260829a-hermetic-gate` T2 moves this into
+# specs/lib/assert.sh for every gate; until it lands, each gate that spawns a loop does it here.
+_fx_env() { env -u HARNESS_REPORT_URL -u HARNESS_REPORT_TOKEN "$@"; }
+
+# mkloop <dir> <sleep-secs> <task1-done:yes|no> — a two-task fixture carrying the REAL scripts/.
+mkloop() {
+  local d="$1" secs="$2" done1="$3"
+  rm -rf "$d"; mkdir -p "$d/specs/fx"
+  cp -r "$ROOT/scripts" "$d/scripts"
+  printf '# fixture\n' > "$d/specs/fx/spec.md"
+  printf 'notes\n' > "$d/notes.md"
+  printf 'T1: make a.\n\nT2: make b.\n' > "$d/specs/fx/tasks.txt"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$d/specs/fx/verify.sh"
+  chmod +x "$d/specs/fx/verify.sh"
+
+  mkdir -p "$d/specs/fx/tasks/T01-a" "$d/specs/fx/tasks/T02-b"
+  # Task 1's gate: sleep once, then answer on the marker.
+  cat > "$d/specs/fx/tasks/T01-a/verify.sh" <<GATE
+#!/usr/bin/env bash
+if [ ! -f .gate1-ran ]; then : > .gate1-ran; sleep $secs; fi
+[ -f a.txt ] && { echo "  PASS  ac1: a"; echo "VERIFY: PASS"; exit 0; }
+echo "  FAIL  ac1: a" >&2; echo "VERIFY: FAIL"; exit 1
+GATE
+  printf '#!/usr/bin/env bash\n[ -f b.txt ] && { echo "  PASS  ac1: b"; echo "VERIFY: PASS"; exit 0; }\necho "  FAIL  ac1: b" >&2; echo "VERIFY: FAIL"; exit 1\n' \
+    > "$d/specs/fx/tasks/T02-b/verify.sh"
+  chmod +x "$d/specs/fx/tasks/T01-a/verify.sh" "$d/specs/fx/tasks/T02-b/verify.sh"
+
+  # Task 1 already done means its marker is COMMITTED — the state a resume walks into.
+  [ "$done1" = yes ] && echo a > "$d/a.txt"
+  ( cd "$d" && git init -q . && git config user.email t@t && git config user.name t \
+      && git add -A && git commit -qm init ) >/dev/null 2>&1
+  # .gate1-ran must not be tracked; the loop's inter-attempt clean may remove it, which only
+  # makes the gate slower, never wrong.
+  printf '.gate1-ran\n' > "$d/.gitignore"
+  ( cd "$d" && git add .gitignore && git commit -qm ignore ) >/dev/null 2>&1
+}
+
+# The stub executor records WHICH task invoked it, taken from the prompt, and does that task's
+# work. Keying off "the next missing marker" instead — as 20260828l's fixture does — cannot tell
+# this spec's two cases apart: when task 1 is NOT skipped its invocation creates task 2's marker,
+# task 2 is then skipped in turn, and both the skipped and unskipped paths show exactly one
+# invocation. Whether task 1 ran has to be observed directly.
+#
+# It also appends to a TRACKED file on every invocation, so an attempt always changes something.
+# Otherwise re-running an already-complete task trips the loop's no-op guard — "changed nothing
+# is a failure" — and the run burns three attempts on a condition this spec is not testing.
+mkexec() {
+  cat > "$T/exec.sh" <<'X'
+#!/usr/bin/env bash
+p="${1:-}"
+printf 'invoked %s\n' "$p" >> "$ROOT/execlog.txt"
+printf 'touched %s\n' "$(date +%s%N)" >> "$ROOT/notes.md"
+case "$p" in
+  *"make a"*) echo a > "$ROOT/a.txt" ;;
+  *"make b"*) echo b > "$ROOT/b.txt" ;;
+esac
+X
+  chmod +x "$T/exec.sh"
+}
+
+# runloop <dir> [env...] — BOUNDED well above the longest fixture sleep. Sets RC.
+runloop() {
+  local d="$1"; shift
+  local tag; tag="$(basename "$d")"
+  ( cd "$d" && _fx_env "$@" RALPH_LOG=off RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate \
+      timeout 240 bash scripts/ralph-build.sh specs/fx ) > "$T/$tag.out" 2>&1
+  RC=$?
+}
+loopout() { tr '\n' ' ' < "$T/$1.out" 2>/dev/null | tail -c 500; }
+execs() { [ -f "$1/execlog.txt" ] && grep -c invoked "$1/execlog.txt" || echo 0; }
+# ran <dir> <make a|make b> — was the executor invoked FOR that task? Observed, not inferred.
+ran() { [ -f "$1/execlog.txt" ] && grep -qF "$2" "$1/execlog.txt"; }
