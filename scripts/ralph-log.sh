@@ -258,14 +258,28 @@ ralph_log_artifact_push() {
   local run_key="${host}/${agent}-$$"
   local task_slug; task_slug="$(log_task "$task")"
   local target="${url%/}/runs/${run_key}/attempts/${task_slug}/${attempt}/artifacts/${kind}"
+  local max_bytes="${HARNESS_ARTIFACT_MAX_BYTES:-8192}"
+  case "$max_bytes" in
+    ''|*[!0-9]*) max_bytes=8192 ;;
+    0) max_bytes=8192 ;;
+  esac
+  local file_size; file_size=$(wc -c < "$file" 2>/dev/null || echo 0)
+  local truncated_file="$file"
+  if [ "$file_size" -gt "$max_bytes" ]; then
+    local tmp_trunc; tmp_trunc=$(mktemp "${TMPDIR:-/tmp}/ralph-log-trunc-XXXXXX")
+    local head_bytes=$((max_bytes - 1024))
+    head -c "$head_bytes" "$file" > "$tmp_trunc"
+    printf '\n\n--- artifact truncated (original: %s bytes, clipped at %s bytes) ---\n' "$file_size" "$max_bytes" >> "$tmp_trunc"
+    truncated_file="$tmp_trunc"
+  fi
   if command -v curl >/dev/null 2>&1; then
     local -a hdr=(-H 'Content-Type: application/octet-stream')
     local tok="${HARNESS_REPORT_TOKEN:-}"
     [ -n "$tok" ] && hdr+=(-H "Authorization: Bearer $tok")
     curl -s -o /dev/null -X POST --connect-timeout 2 --max-time 3 \
-      "${hdr[@]}" --data-binary "@$file" "$target" >/dev/null 2>&1 || true
+      "${hdr[@]}" --data-binary "@$truncated_file" "$target" >/dev/null 2>&1 || true
   elif command -v python3 >/dev/null 2>&1; then
-    RLA_F="$file" RLA_T="$target" RLA_K="$tok" python3 -c '
+    RLA_F="$truncated_file" RLA_T="$target" RLA_K="$tok" python3 -c '
 import os, urllib.request
 try:
     h = {"Content-Type": "application/octet-stream"}
@@ -279,6 +293,7 @@ except Exception:
     pass
 ' >/dev/null 2>&1 || true
   fi
+  [ "$truncated_file" != "$file" ] && rm -f "$truncated_file"
   return 0
 }
 
