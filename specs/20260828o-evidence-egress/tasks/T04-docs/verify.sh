@@ -15,11 +15,21 @@ fi
 # up in a new file or folded into the one the status channel already has is the author's call;
 # what matters is that some doc describes it. Absence is a FAIL, never a skip — a per-task gate
 # has nothing to defer to.
-DOC="$(grep -rl 'artifacts' "$ROOT/docs" 2>/dev/null | head -1)"
+# Select on the channel's SIGNATURE, not on the word "artifacts". The endpoint shape is what this
+# gate already requires of the doc and is the thing only the channel's documentation contains; the
+# bare word matched a run write-up under docs/runs/ — a record of a date, not reference
+# documentation — and `head -1` over an arbitrary traversal order handed it to the assertions,
+# failing a correct implementation on 2026-08-29. Among candidates prefer one that also names the
+# configuration, so a doc mentioning the endpoint in passing cannot displace the real one.
+DOC=""
+for _c in $(grep -rl '/artifacts/' "$ROOT/docs" 2>/dev/null); do
+  [ -z "$DOC" ] && DOC="$_c"
+  if grep -q 'HARNESS_REPORT_URL' "$_c" 2>/dev/null; then DOC="$_c"; break; fi
+done
 has() { [ -n "$DOC" ] && grep -qi -- "$1" "$DOC" 2>/dev/null; }
 
 if [ -z "$DOC" ]; then
-  no "ac1: no file under docs/ mentions the artifact channel at all. Searched: $(ls "$ROOT/docs"/*.md 2>/dev/null | xargs -n1 basename 2>/dev/null | tr '\n' ' ')"
+  no "ac1: no file under docs/ gives the artifact endpoint shape /runs/{key}/attempts/{task}/{attempt}/artifacts/{kind}. Searched: $(ls "$ROOT/docs"/*.md 2>/dev/null | xargs -n1 basename 2>/dev/null | tr '\n' ' ')"
 elif ! grep -q '/artifacts/' "$DOC"; then
   no "ac1: $(basename "$DOC") does not give the endpoint shape — a reader cannot tell where an artifact goes without /runs/{key}/attempts/{task}/{attempt}/artifacts/{kind}"
 else
