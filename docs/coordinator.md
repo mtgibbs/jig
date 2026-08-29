@@ -34,6 +34,7 @@ different value, not a fork.
 | `HARNESS_REPORT_TOKEN` | unset | shared bearer token. **Unset means open** — right on loopback, wrong anywhere else |
 | `COORD_STATE_PATH` | unset | JSON snapshot so a restart keeps the run record |
 | `COORD_MAX_RUNS` | `200` | oldest-first eviction |
+| `HARNESS_ARTIFACT_MAX_BYTES` | `1048576` | per-artifact cap; a larger body gets truncated with a visible marker |
 | `COORD_MAX_ARTIFACT_BYTES` | `1048576` | per-POST cap; a larger body gets 413 |
 
 ## Routes
@@ -43,6 +44,12 @@ different value, not a fork.
 | `POST /runs/{key}/status` | token | the loop's heartbeat |
 | `POST /runs/{key}/attempts` | token | each attempt record as it is written |
 | `POST /runs/{key}/attempts/{task}/{n}/artifacts/{kind}` | token | prompt, patch, diff, gate, meta, log |
+| | | **prompt**: executor's original instructions |
+| | | **patch**: applyable change from a passing attempt |
+| | | **diff**: diagnostic bundle (verify output, tracked diff, untracked files) from a failing attempt |
+| | | **gate**: per-assertion verdicts |
+| | | **meta**: run and executor metadata |
+| | | **log**: executor's stdout+stderr transcript |
 | `GET /runs/{key}/control` | none | the worker, polling for an intent |
 | `POST /runs/{key}/control` | none | the board's Stop / Pause / Resume |
 | `GET /api/runs` | none | the board |
@@ -78,3 +85,11 @@ cluster-internal with no ingress (ADR-001 D9). It does not keep artifacts foreve
 evicted oldest-first, and the state snapshot excludes artifact bytes, because they are the bulk
 and the worker can send them again. A coordinator that keeps everything is a log server nobody
 configured.
+
+## What the evidence channel deliberately does not do
+
+It does not store, index, retain, or serve artifacts — that is the coordinator's responsibility.
+It does not retry failed pushes; an unreachable coordinator simply loses that artifact. It does
+not guarantee order; a late `gate` may arrive after `log` if the network interleaves them. It
+does not deduplicate; the same artifact sent twice is stored twice. It does not replay; once an
+artifact leaves, it cannot be re-sent. It ends at the POST.

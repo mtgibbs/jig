@@ -50,6 +50,30 @@
 #
 # Best-effort, same contract as ralph-status.sh: a full disk or a read-only mount can never fail
 # the loop it is reporting on. RALPH_LOG=off disables.
+#
+# Evidence egress: on 20260828o-evidence-egress, the loop now pushes attempt artifacts over the
+# same outbound channel used for status (20260828m-worker-channel). Artifacts are pushed at the
+# moment each is written — prompt, patch (passing attempts), diff (failing attempts), gate output,
+# meta, and the executor transcript — never later, never in bulk. A run that dies mid-attempt still
+# delivers everything written up to the crash.
+#
+# Configuration:
+#
+#   HARNESS_REPORT_URL           same URL as status; unset means push nothing, print nothing
+#   HARNESS_REPORT_TOKEN         same bearer token as status; optional
+#   HARNESS_ARTIFACT_MAX_BYTES   cap per artifact; default 1048576 (1 MiB)
+#
+# When an artifact exceeds the cap it is clipped at (max_bytes - 1024) and a marker is appended:
+#
+#     --- artifact truncated (original: XXXX bytes, clipped at YYYY bytes) ---
+#
+# Truncation is visible so a reader can tell a complete artifact from a clipped one; a silently
+# short diff is as bad as no diff at all.
+#
+# This channel ends at the POST. It does not decide how artifacts are stored, indexed, retained,
+# or served — that is the coordinator's concern. It does not add polling, controls, or any inbound
+# path. It does not introduce a second identity: artifacts are keyed by the run key the loop
+# already has, plus the task and attempt.
 
 # _ralph_slug <spec-dir> — the feature identifier: the spec directory's basename, lowercased
 # and reduced to a single filename-safe path component ("specs/Asset Ladder/" -> "asset-ladder").
@@ -181,6 +205,7 @@ log_patch() {
     git -C "${ROOT:-.}" add -A -N -- . ':!.evidence' 2>/dev/null
     git -C "${ROOT:-.}" diff -- . ':!.evidence' 2>/dev/null
   } > "$f" 2>/dev/null || { echo "$f" >&2; return 0; }
+  ralph_log_artifact_push patch "$f" "$1" "$2"
 }
 
 # log_failure <task-label> <attempt> <verify-output>
@@ -222,6 +247,7 @@ log_failure() {
         fi
       done
   } > "$f" 2>/dev/null || true
+  ralph_log_artifact_push diff "$f" "$1" "$2"
 }
 
 # log_prompt <task-label> <attempt> <text>
@@ -230,6 +256,7 @@ log_prompt() {
   [ "${LOG_OK:-0}" = 1 ] || return 0
   local f; f="$(log_path "$1" "$2" prompt.md)"
   { printf '%s' "$3"; } > "$f" 2>/dev/null || true
+  ralph_log_artifact_push prompt "$f" "$1" "$2"
 }
 
 # log_gate <task-label> <attempt> <output> <rc>
@@ -239,6 +266,59 @@ log_gate() {
   [ "${LOG_OK:-0}" = 1 ] || return 0
   local f; f="$(log_path "$1" "$2" gate.txt)"
   { printf '%s\n' "$3"; printf '%s\n' "---GATE-RC---"; printf '%s\n' "$4"; } > "$f" 2>/dev/null || { echo "$f" >&2; return 0; }
+  ralph_log_artifact_push gate "$f" "$1" "$2"
+}
+
+# ralph_log_artifact_push <kind> <file> <task-label> <attempt> — POST an artifact to the coordinator.
+# Uses same transport and safety as hb_report: silent, timeout-bounded, no output on failure.
+# Does not fail if HARNESS_REPORT_URL is unset.
+ralph_log_artifact_push() {
+  local kind="$1" file="$2" task="$3" attempt="$4"
+  local url="${HARNESS_REPORT_URL:-}"
+  [ -n "$url" ] || return 0
+  [ -s "${file:-}" ] || return 0
+  local host; host="$(_ralph_host)"
+  local agent="${HB_AGENT:-${RALPH_AGENT:-agent}}"
+  local run_key="${host}/${agent}-$$"
+  local task_slug; task_slug="$(log_task "$task")"
+  local target="${url%/}/runs/${run_key}/attempts/${task_slug}/${attempt}/artifacts/${kind}"
+  local max_bytes="${HARNESS_ARTIFACT_MAX_BYTES:-8192}"
+  case "$max_bytes" in
+    ''|*[!0-9]*) max_bytes=8192 ;;
+    0) max_bytes=8192 ;;
+  esac
+  local file_size; file_size=$(wc -c < "$file" 2>/dev/null || echo 0)
+  local truncated_file="$file"
+  if [ "$file_size" -gt "$max_bytes" ]; then
+    local tmp_trunc; tmp_trunc=$(mktemp "${TMPDIR:-/tmp}/ralph-log-trunc-XXXXXX")
+    local head_bytes=$((max_bytes - 1024))
+    head -c "$head_bytes" "$file" > "$tmp_trunc"
+    printf '\n\n--- artifact truncated (original: %s bytes, clipped at %s bytes) ---\n' "$file_size" "$max_bytes" >> "$tmp_trunc"
+    truncated_file="$tmp_trunc"
+  fi
+  if command -v curl >/dev/null 2>&1; then
+    local -a hdr=(-H 'Content-Type: application/octet-stream')
+    local tok="${HARNESS_REPORT_TOKEN:-}"
+    [ -n "$tok" ] && hdr+=(-H "Authorization: Bearer $tok")
+    curl -s -o /dev/null -X POST --connect-timeout 2 --max-time 3 \
+      "${hdr[@]}" --data-binary "@$truncated_file" "$target" >/dev/null 2>&1 || true
+  elif command -v python3 >/dev/null 2>&1; then
+    RLA_F="$truncated_file" RLA_T="$target" RLA_K="$tok" python3 -c '
+import os, urllib.request
+try:
+    h = {"Content-Type": "application/octet-stream"}
+    if os.environ.get("RLA_K"):
+        h["Authorization"] = "Bearer " + os.environ["RLA_K"]
+    with open(os.environ["RLA_F"], "rb") as fh:
+        body = fh.read()
+    urllib.request.urlopen(
+        urllib.request.Request(os.environ["RLA_T"], body, h, method="POST"), timeout=3)
+except Exception:
+    pass
+' >/dev/null 2>&1 || true
+  fi
+  [ "$truncated_file" != "$file" ] && rm -f "$truncated_file"
+  return 0
 }
 
 # _log_report <file> — POST an attempt record outward. Never fails, never stalls, never prints.
@@ -319,7 +399,7 @@ log_meta() {
       --arg host "$(_ralph_host)" \
       --arg run_key "$(_ralph_host)/${HB_AGENT:-${RALPH_AGENT:-agent}}-$$" \
       --arg run_id "${LOG_DIR##*/}" \
-      --argjson run_label "$([ -n "${RUN_LABEL:-}" ] && printf '%s' "$RUN_LABEL" | jq -R . || jq -n null)" \
+      --arg run_label "$([ -n "${RUN_LABEL:-}" ] && printf '%s' "$RUN_LABEL" | jq -R . || jq -n null)" \
       --arg repo "$([ -n "${ROOT:-}" ] && basename "$ROOT" || echo null)" \
       --arg spec "$([ -n "${SPEC_DIR:-}" ] && basename "$SPEC_DIR" || echo null)" \
       --arg task "$1" \
@@ -357,6 +437,7 @@ log_meta() {
         run_key: $run_key
       }'
   } > "$f" 2>/dev/null || true
+  ralph_log_artifact_push meta "$f" "$1" "$2"
   _log_report "$f"
 }
 

@@ -22,9 +22,11 @@ coord_start() {
 }
 
 # runloop_logged <dir> [env...] — like runloop, but with the evidence writer ENABLED.
+_fx_env() { env -u HARNESS_REPORT_URL -u HARNESS_REPORT_TOKEN "$@"; }
+
 runloop_logged() {
   local d="$1"; shift; local tag; tag="$(basename "$d")"
-  ( cd "$d" && env "$@" RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate \
+  ( cd "$d" && _fx_env "$@" RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate \
       timeout 180 bash scripts/ralph-build.sh specs/fx ) > "$T/$tag.out" 2>&1
   RC=$?
 }
@@ -189,3 +191,31 @@ for ln in open(sys.argv[1]):
     try: print(json.loads(ln).get('p',''))
     except Exception: pass
 " "$T/coord.log" 2>/dev/null; }
+
+# arthashes <kind> / diskhashes <dir> <glob> — the CONTENT of every artifact of a kind, as sorted
+# hashes, for comparing what was shipped against what was written.
+#
+# Set comparison, not "the largest received vs the largest on disk". Those are two independent
+# max() operations over two different collections: two prompts of equal size make each side
+# tie-break its own way, and a byte comparison of two different files fails a CORRECT
+# implementation. Comparing the sets asks the question ac1 actually means — every artifact that
+# arrived is one that was written, unaltered, and none went missing — without needing to pair
+# them up by an identity neither side records.
+arthashes() {
+  python3 -c "
+import json,sys,hashlib
+h=[]
+for ln in open(sys.argv[1]):
+    try: r=json.loads(ln)
+    except Exception: continue
+    if '/artifacts/'+sys.argv[2] in r.get('p','').split('?')[0]:
+        try: h.append(hashlib.sha256(open(r['f'],'rb').read()).hexdigest())
+        except Exception: pass
+for x in sorted(h): print(x)
+" "$T/coord.log" "$1" 2>/dev/null
+}
+
+diskhashes() {
+  find "$1/.evidence/runs" -name "$2" -type f -print0 2>/dev/null \
+    | xargs -0 -r sha256sum 2>/dev/null | awk '{print $1}' | sort
+}
