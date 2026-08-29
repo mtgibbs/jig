@@ -1,0 +1,27 @@
+# Laptop mode. `docker compose -f docker/compose.yaml up` and open http://localhost:8877.
+#
+# Nothing here is homelab-specific: no cluster, no ingress, no 1Password, no token. That is the
+# same bar every spec in this repo is written against — an unconfigured loop must behave exactly
+# as it always did — applied to the receiving end. The Kubernetes manifests live in the pi-cluster
+# repo precisely so that none of this depends on them.
+services:
+  coordinator:
+    build:
+      context: ..
+      dockerfile: docker/coordinator.Dockerfile
+    # Or skip the build entirely and pull the published image:
+    # image: ghcr.io/mtgibbs/harness-coordinator:0.1.0
+    ports:
+      - "8877:8877"
+    volumes:
+      - coordinator-state:/var/lib/coordinator
+    environment:
+      # Unset means open, which is right on a loopback port and wrong anywhere else. Set it here
+      # and export the same value to the loop as HARNESS_REPORT_TOKEN if the port is reachable by
+      # anything but you.
+      # HARNESS_REPORT_TOKEN: change-me
+      COORD_MAX_RUNS: "200"
+      COORD_MAX_ARTIFACT_BYTES: "1048576"
+    restart: unless-stopped
+volumes:
+  coordinator-state:
