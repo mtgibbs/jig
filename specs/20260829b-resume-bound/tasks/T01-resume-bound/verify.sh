@@ -84,4 +84,19 @@ else
   ok "ac6: neither refusal announces the task as skipped, because neither of them skipped it"
 fi
 
+
+# ac7 — a gate that FAILS must never be read as satisfied, however much of it passed. The verdict
+# is the exit status; the PASS lines are per-assertion detail and a gate that fails prints plenty
+# of them. Deciding by searching the output for the word PASS therefore skips a task whose gate is
+# red, which is the one failure mode worse than not skipping at all: not-skipping costs time, this
+# costs correctness and does it silently. Measured 2026-08-29 — dropping the exit-status guard in
+# front of that search turned this from latent into live, and it reached a commit.
+mkloop "$T/mixed" 0 mixed
+runloop "$T/mixed"
+if ! ran "$T/mixed" "make a"; then
+  no "ac7: task 1's gate printed a PASS line and then FAILED, and the task was skipped anyway — the verdict was taken from the presence of the word PASS rather than from the gate's exit status, so a red gate now silently satisfies a task. Loop said: $(loopout mixed)"
+else
+  ok "ac7: a failing gate is not satisfied, no matter how many of its assertions passed"
+fi
+
 gate_done

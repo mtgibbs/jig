@@ -26,7 +26,13 @@ _fx_env() {
       -u RALPH_FORCE_ALL -u RALPH_FORCE_FROM -u RALPH_SATISFIED_TIMEOUT "$@"
 }
 
-# mkloop <dir> <sleep-secs> <task1-done:yes|no> — a two-task fixture carrying the REAL scripts/.
+# mkloop <dir> <sleep-secs> <task1-done:yes|no|mixed> — a two-task fixture carrying the REAL scripts/.
+#
+# `mixed` is the realistic failing gate: it prints a PASS line for an assertion that holds and
+# THEN fails overall. Every real gate does this — assert.sh's ok() prints "  PASS  <id>" per
+# satisfied assertion and the verdict comes from the exit status. A stub that prints only FAIL
+# lines when it fails cannot distinguish "the predicate read the verdict" from "the predicate
+# grepped for the word PASS", and those are the two states this fixture exists to separate.
 mkloop() {
   local d="$1" secs="$2" done1="$3"
   rm -rf "$d"; mkdir -p "$d/specs/fx"
@@ -39,18 +45,28 @@ mkloop() {
 
   mkdir -p "$d/specs/fx/tasks/T01-a" "$d/specs/fx/tasks/T02-b"
   # Task 1's gate: sleep once, then answer on the marker.
-  cat > "$d/specs/fx/tasks/T01-a/verify.sh" <<GATE
+  if [ "$done1" = mixed ]; then
+    cat > "$d/specs/fx/tasks/T01-a/verify.sh" <<GATE
+#!/usr/bin/env bash
+if [ ! -f .gate1-ran ]; then : > .gate1-ran; sleep $secs; fi
+echo "  PASS  ac0: a thing that is true"
+echo "  FAIL  ac1: a thing that is not" >&2
+echo "VERIFY: FAIL"; exit 1
+GATE
+  else
+    cat > "$d/specs/fx/tasks/T01-a/verify.sh" <<GATE
 #!/usr/bin/env bash
 if [ ! -f .gate1-ran ]; then : > .gate1-ran; sleep $secs; fi
 [ -f a.txt ] && { echo "  PASS  ac1: a"; echo "VERIFY: PASS"; exit 0; }
 echo "  FAIL  ac1: a" >&2; echo "VERIFY: FAIL"; exit 1
 GATE
+  fi
   printf '#!/usr/bin/env bash\n[ -f b.txt ] && { echo "  PASS  ac1: b"; echo "VERIFY: PASS"; exit 0; }\necho "  FAIL  ac1: b" >&2; echo "VERIFY: FAIL"; exit 1\n' \
     > "$d/specs/fx/tasks/T02-b/verify.sh"
   chmod +x "$d/specs/fx/tasks/T01-a/verify.sh" "$d/specs/fx/tasks/T02-b/verify.sh"
 
   # Task 1 already done means its marker is COMMITTED — the state a resume walks into.
-  [ "$done1" = yes ] && echo a > "$d/a.txt"
+  case "$done1" in yes|mixed) echo a > "$d/a.txt" ;; esac
   ( cd "$d" && git init -q . && git config user.email t@t && git config user.name t \
       && git add -A && git commit -qm init ) >/dev/null 2>&1
   # .gate1-ran must not be tracked; the loop's inter-attempt clean may remove it, which only
