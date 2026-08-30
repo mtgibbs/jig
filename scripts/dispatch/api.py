@@ -165,8 +165,13 @@ class DispatchHandler(BaseHTTPRequestHandler):
         self._send_json(404, {"error": "not found"})
 
 
-def serve(port: int):
-    """Start the HTTP server on the given port."""
+def serve(port=None):
+    """Start the HTTP server on the given port.
+
+    port may be None, in which case DISPATCH_PORT is read and 8878 is the default — the same
+    shape as coordinator.serve(), so the two services are configured the same way.
+    """
+    port = int(port if port is not None else os.environ.get("DISPATCH_PORT", 8878))
     token = os.environ.get("HARNESS_API_TOKEN", "")
     if not token:
         print("error: HARNESS_API_TOKEN is required", file=sys.stderr)
@@ -179,3 +184,10 @@ def serve(port: int):
         pass
     finally:
         server.shutdown()
+
+
+if __name__ == "__main__":
+    # Until this existed, api.py was a module nothing ran: `python3 api.py` defined serve() and
+    # exited 0. In an image that is the worst possible shape — a container that starts, does
+    # nothing, and reports healthy.
+    serve(sys.argv[1] if len(sys.argv) > 1 else None)
