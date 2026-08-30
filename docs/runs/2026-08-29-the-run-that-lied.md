@@ -85,7 +85,7 @@ against a convergence gate that does not pass.
 ## 5. Gates inherited an environment nobody declared — three times
 
 Each of these changed what a gate measured without changing what it said. Spec'd as
-`20260829a-hermetic-gate`.
+`20260829c-hermetic-gate`.
 
 - **`/tmp` is a `noexec` tmpfs** (docker mounts tmpfs `noexec`; the compose file asks for it
   deliberately). `gate_tmpdir` calls `mktemp -d`, gets a directory it cannot execute from, detects
