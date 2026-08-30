@@ -1,6 +1,6 @@
 # Amendments — ratified changes to the constitution
 
-> Version: 1.3.0 · rides with `constitution.md` as Tier-1 context.
+> Version: 1.4.0 · rides with `constitution.md` as Tier-1 context.
 >
 > The constitution is founding intent. **It does not morph.** Change arrives here:
 > proposed from the memory notes (`memory-amend propose`), ratified by a human via
@@ -101,3 +101,50 @@ still misleads — enumerate the states, then prove one reading per state.
 Corollary for mutation testing: a mutant must be confirmed to exercise the code
 path its assertion covers. A mutant that misses reads exactly like an assertion
 that cannot detect it, and sends you rewriting a correct check.
+
+## Portability follows the invoker, not the tool
+
+Status: Accepted · 2026-08-29 · Source: `specs/20260829a-executor-image-layer/evidence/2026-08-29-writing-the-first-mutant-corpus.md`
+
+Which machines a tool must run on is decided by **who invokes it**, not by what it
+does.
+
+- **A human invokes it while authoring** — a gate, `gate-selftest`, `run-loop.sh`,
+  anything you reach for while writing a spec. It must run on macOS **and** Linux.
+  Use `bound` (`scripts/bound.sh`), never `timeout`; resolve a path with `pwd -P`
+  before computing a prefix from it; assume bash 3.2 and BSD userland.
+- **Only the runtime invokes it** — `ralph-build.sh`'s watchdog, anything that runs
+  exclusively inside a container the harness declares. It may assume that
+  container, and `timeout` there is correct.
+- **Neither may require a homelab.** No Beelink, no cluster, no private shim. The
+  homelab is where we run this, not what it needs.
+
+The seam is not fussiness about platforms. **A tool that cannot run where it is
+authored stops being run, and nothing announces that.**
+
+**Rationale:** every portability failure in this repo has been the same one — GNU
+coreutils against BSD userland — and the README already carried rules for it,
+written after `loop-metrics.sh` used `stat -f %z` and silently measured the wrong
+thing on Linux for every task in every container. Those rules were incomplete in
+the direction nobody checked.
+
+`scripts/gate-selftest.sh` bounded each gate with `timeout`. macOS ships neither
+`timeout` nor `gtimeout`, so on the machine where gates are authored it exited 127
+before running a single one — and reported **every mutant as `WRONG-REASON`**,
+the verdict that means *"your mutant missed"* and sends the author to rewrite
+checks that were already correct. All eight of that spec's own gates were red for
+the same reason.
+
+The cost was not a bad afternoon. The tool shipped 2026-08-28 with a spec, a gate,
+and **zero mutants in the repo** — and its own outcome calling for a corpus went
+unmet. That reads as neglect and was not: the tool worked in the container where
+it was built and failed in the one place authoring happens. A second defect hid
+behind the first, invisible until it was fixed, because the tool never got far
+enough to compute a path.
+
+Corollary, from the same session: **a check must be affordable by the tooling meant
+to keep exercising it.** One assertion was rewritten behaviourally, correctly, and
+took 41s per gate run — over `gate-selftest`'s own 30s bound, so every mutant in
+that corpus came back `HUNG`. The most rigorous version made the corpus unrunnable,
+which here means it quietly stops being run: the same end state as a false green,
+reached from the opposite direction.

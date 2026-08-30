@@ -116,8 +116,22 @@ Portability rules that follow from that, and are not optional here:
 - **bash 3.2** is the floor (macOS ships it): no associative arrays, no `mapfile`, no `${x^^}`.
 - **GNU before BSD in any `stat` fallback.** `stat -f X || stat -c Y` is broken on Linux because
   `stat -f` exits 0 there. Prefer `wc -c` for size — POSIX, no branch to get wrong.
-- The harness is **authored on macOS and runs on Linux**. That split is gated for bash version
-  and was not gated for coreutils flavour.
+- **`bound`, never `timeout`.** `timeout` is GNU coreutils and macOS ships neither it nor
+  `gtimeout`. `scripts/bound.sh` prefers the real one where it exists and falls back to perl, and
+  it kills the process **group** — killing only the child leaves grandchildren holding the pipe,
+  so the caller inherits the hang it was bounding.
+- **`pwd -P` before computing a path prefix.** `pwd` is logical and `git rev-parse
+  --show-toplevel` is physical, so under a macOS temp dir one says `/var/…` and the other
+  `/private/var/…` and a `${path#$root}` strip silently does nothing.
+- The harness is **authored on macOS and runs on Linux**. Which rules apply to a given file
+  follows from **who invokes it** — see the amendment *"Portability follows the invoker, not the
+  tool"*. Anything a human reaches for while authoring runs on both. Anything only the runtime
+  invokes may assume its declared container. Neither may require the homelab.
+
+What that split was worth, the second time: `gate-selftest.sh` bounded gates with `timeout`, so
+on the authoring machine it exited 127 before running one and reported every mutant as
+`WRONG-REASON` — *"your mutant missed."* The tool shipped with a spec, a gate and **zero mutants
+in the repo**, which reads as neglect and was not.
 
 ## Amendments
 
