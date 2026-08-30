@@ -14,18 +14,56 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOOPS_DIR="$SCRIPT_DIR/loops"
 
 if [ "${1:-}" = "--list" ]; then
-  for f in "$LOOPS_DIR"/*.conf; do
-    [ -f "$f" ] || continue
-    name="$(basename "$f" .conf)"
-    desc="$(sed -n 's/^STRATEGY_DESC="\(.*\)"$/\1/p' "$f" | head -1)"
-    printf '  %-20s %s\n' "$name" "$desc"
+  ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+  HARNESS_DIR="$ROOT/.harness/loops"
+  declare -A SEEN
+  LIST_OUT=""
+
+  for dir in "$HARNESS_DIR" "$LOOPS_DIR"; do
+    [ -d "$dir" ] || continue
+    loc="$(basename "$(dirname "$dir")")"
+    for f in "$dir"/*.conf; do
+      [ -f "$f" ] || continue
+      name="$(basename "$f" .conf)"
+      [ -n "${SEEN[$name]:-}" ] && continue
+      SEEN[$name]=1
+      desc="$(sed -n 's/^STRATEGY_DESC="\(.*\)"$/\1/p' "$f" | head -1)"
+      LIST_OUT="$LIST_OUT$loc:$name:$desc
+"
+    done
+  done
+
+  if [ -z "$LIST_OUT" ]; then
+    echo "No strategies found in $HARNESS_DIR or $LOOPS_DIR"
+    exit 0
+  fi
+
+  echo "$LIST_OUT" | while IFS=: read -r loc name desc; do
+    [ -z "$name" ] && continue
+    if [ "$loc" = ".harness" ]; then
+      printf '  %-20s [%s] %s\n' "$name" "consumer" "$desc"
+    else
+      printf '  %-20s [%s] %s\n' "$name" "built-in" "$desc"
+    fi
   done
   exit 0
 fi
 
 STRATEGY="${1:?usage: run-loop.sh <strategy> <spec-dir>  (or --list)}"
 SPEC_DIR="${2:?usage: run-loop.sh <strategy> <spec-dir>}"
-ENV_FILE="$LOOPS_DIR/$STRATEGY.conf"
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+HARNESS_DIR="$ROOT/.harness/loops"
+
+if [ -d "$HARNESS_DIR" ] && [ -f "$HARNESS_DIR/$STRATEGY.conf" ]; then
+  ENV_FILE="$HARNESS_DIR/$STRATEGY.conf"
+  export HARNESS_REPO_ROOT="$ROOT"
+elif [ -f "$LOOPS_DIR/$STRATEGY.conf" ]; then
+  ENV_FILE="$LOOPS_DIR/$STRATEGY.conf"
+else
+  echo "run-loop: unknown strategy '$STRATEGY' (searched $HARNESS_DIR and $LOOPS_DIR) — try --list" >&2
+  exit 1
+fi
 
 # Preflight, all fatal: known strategy, real spec, and never on main —
 # the constitution's worktree rule applies to strategies same as hand runs.
@@ -36,12 +74,17 @@ branch="$(git branch --show-current 2>/dev/null || true)"
 [ -n "$branch" ] && [ "$branch" != "main" ] \
   || { echo "run-loop: refuse to run on '$branch' — use a worktree on a throwaway branch" >&2; exit 1; }
 
-# Preflight: validate tools and MCP declared in spec
+# shellcheck source=/dev/null
+. "$ENV_FILE"
+: "${STRATEGY_PHASES:?$ENV_FILE must set STRATEGY_PHASES}"
+
+# Preflight: validate tools and MCP declared in spec and strategy
+FIELD="$SCRIPT_DIR/spec-field.sh"
+misses=""
+misses_strategy=""
+
+# Collect spec-declared tools
 if [ -f "$SPEC_DIR/spec.md" ]; then
-  FIELD="$SCRIPT_DIR/spec-field.sh"
-  
-  # Collect all missing tools
-  misses=""
   if bash "$FIELD" "$SPEC_DIR/spec.md" --list >/dev/null 2>&1; then
     tools_out="$(bash "$FIELD" "$SPEC_DIR/spec.md" Tools 2>/dev/null || true)"
     if [ -n "$tools_out" ]; then
@@ -51,6 +94,7 @@ if [ -f "$SPEC_DIR/spec.md" ]; then
         if [ "$tool" != "none" ]; then
           if ! command -v "$tool" >/dev/null 2>&1; then
             misses="$misses $tool"
+            misses_strategy="$misses_strategy (spec)"
           fi
         fi
       done <<< "$tools_out"
@@ -64,27 +108,40 @@ if [ -f "$SPEC_DIR/spec.md" ]; then
       mcp="$(echo "$mcp" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
       [ -z "$mcp" ] && continue
       if [ "$mcp" != "none" ]; then
-        if [ -n "${RALPH_EXEC_CMD:-}" ]; then
-          cfg_name="$(basename "$RALPH_EXEC_CMD" .sh).json"
-          if [ ! -f "$cfg_name" ]; then
-            misses="$misses $cfg_name"
-          fi
-        else
-          misses="$misses exec-qwen.json"
+        # ONE derivation, both cases. An unset RALPH_EXEC_CMD means ralph-build.sh will apply
+        # its own default binding, so the fallback derives the config name from that same
+        # default rather than restating a filename — a second literal is a second thing to miss
+        # at the next rename, and 20260827a AC-11 exists precisely because the first version of
+        # this hardcoded one. The name follows the binding's basename, so a codex or container
+        # binding resolves its own config and not somebody else's.
+        cfg_name="$(basename "${RALPH_EXEC_CMD:-$SCRIPT_DIR/exec-opencode.sh}" .sh).json"
+        if [ ! -f "$cfg_name" ]; then
+          misses="$misses $cfg_name"
+          misses_strategy="$misses_strategy (spec)"
         fi
       fi
     done <<< "$mcp_out"
   fi
-  
-  if [ -n "$misses" ]; then
-    echo "run-loop: missing tools/config$misses declared in $SPEC_DIR/spec.md — container needs attention, not another retry" >&2
-    exit 3
-  fi
 fi
 
-# shellcheck source=/dev/null
-. "$ENV_FILE"
-: "${STRATEGY_PHASES:?$ENV_FILE must set STRATEGY_PHASES}"
+# Collect strategy-declared tools
+if [ -n "${STRATEGY_TOOLS:-}" ]; then
+  for tool in $STRATEGY_TOOLS; do
+    tool="$(echo "$tool" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    [ -z "$tool" ] && continue
+    if [ "$tool" != "none" ]; then
+      if ! command -v "$tool" >/dev/null 2>&1; then
+        misses="$misses $tool"
+        misses_strategy="$misses_strategy ($STRATEGY)"
+      fi
+    fi
+  done
+fi
+
+if [ -n "$misses" ]; then
+  echo "run-loop: missing tools/config$misses$misses_strategy declared in $SPEC_DIR/spec.md and/or $ENV_FILE — container needs attention, not another retry" >&2
+  exit 3
+fi
 
 echo "strategy: $STRATEGY — ${STRATEGY_DESC:-}"
 echo "spec:     $SPEC_DIR   branch: $branch"

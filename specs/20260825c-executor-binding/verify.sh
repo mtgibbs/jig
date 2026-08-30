@@ -20,7 +20,7 @@ cls(){  case "$1" in negative) N_NEG=$((N_NEG+1));; exec) N_EXEC=$((N_EXEC+1));;
 
 BUILD=scripts/ralph-build.sh          # the build loop; §5 defers renaming it to ralph-build.sh
 CODEX=scripts/ralph-codex.sh
-XQ=scripts/exec-qwen.sh
+XQ=scripts/exec-opencode.sh
 XC=scripts/exec-codex.sh
 ROOT_ABS="$(pwd)"
 T="$(mktemp -d "${TMPDIR:-/tmp}/xb.XXXXXX")"; trap 'rm -rf "$T"' EXIT
@@ -37,9 +37,9 @@ if [ ! -f "$BUILD" ]; then
   pend "AC-2:no-executor-name-in-loop" "$BUILD absent"
 else
   grep -q 'RALPH_EXEC_CMD' "$BUILD" \
-    && grep -qE 'RALPH_EXEC_CMD:-.*exec-qwen\.sh' "$BUILD" \
+    && grep -qE 'RALPH_EXEC_CMD:-.*exec-opencode\.sh' "$BUILD" \
     && ok "AC-1:default-binding-is-qwen" presence \
-    || no "AC-1:default-binding-is-qwen" "no RALPH_EXEC_CMD defaulting to exec-qwen.sh" presence
+    || no "AC-1:default-binding-is-qwen" "no RALPH_EXEC_CMD defaulting to exec-opencode.sh" presence
   # SG-1: the moment the loop names an executor, the seam has leaked and the next one forks it.
   # Search code only — a comment may legitimately mention what a binding does.
   leak="$(sed 's/#.*//' "$BUILD" | grep -vE 'usage:' \
@@ -98,7 +98,7 @@ echo "== AC-7  the executor layer is smaller than the loop pair it replaced"
 # What this spec can honestly claim is bounded and stable: the build loop plus its bindings are
 # smaller than the two duplicated loops they replaced (220 + 204 = 424 lines at 6d9dcb3^).
 BASE_PAIR=424
-now=$(cat scripts/ralph-build.sh scripts/exec-qwen.sh scripts/exec-codex.sh \
+now=$(cat scripts/ralph-build.sh scripts/exec-opencode.sh scripts/exec-codex.sh \
           scripts/loops/build-codex.conf 2>/dev/null | wc -l | tr -d ' ')
 [ "$now" -gt 0 ] && [ "$now" -lt "$BASE_PAIR" ] \
   && ok "AC-7:executor-layer-shrank ($now < $BASE_PAIR)" negative \

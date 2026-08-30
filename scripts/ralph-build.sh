@@ -50,7 +50,7 @@ fi
 # binding may carry arguments ("bash /path/x.sh", or a wrapper plus flags) rather than having to
 # be a single executable file.
 _SD="$(cd "$(dirname "$0")" && pwd)"
-RALPH_EXEC_CMD="${RALPH_EXEC_CMD:-$_SD/exec-qwen.sh}"
+RALPH_EXEC_CMD="${RALPH_EXEC_CMD:-$_SD/exec-opencode.sh}"
 EXEC_TIMEOUT="${RALPH_EXEC_TIMEOUT:-480}"
 
 # Portable watchdog, same shape as ralph-judge.sh's. It lives in the LOOP, not in the binding:
@@ -281,6 +281,18 @@ SHEET_GEN="$(dirname "$0")/gen-codesheet.mjs"
 if [ "${RALPH_SHEET:-on}" = "on" ] && [ -f "$SHEET_GEN" ] && command -v node >/dev/null 2>&1; then
   SHEET="$(node "$SHEET_GEN" "$ROOT" 2>/dev/null || true)"
   [ -n "$SHEET" ] && echo "codesheet: injected (~$(( ${#SHEET} / 4 )) tokens, stable for the whole loop)"
+else
+  # Say it ONCE, and say it here. RALPH_SHEET defaults on, harness-base ships no node (only
+  # gen-codesheet.mjs needs it, and the npm-based derived images add it themselves), so in any
+  # image that does not add node the default is silently off. The only symptom is a token count
+  # nobody is comparing — a run quietly losing its measured context saving with nothing in the
+  # log is the failure this repo catalogues most often.
+  # Flat, not a nested if: the announcement has to be the else branch's OWN statement. Wired
+  # behind another condition it is invisible to a reader scanning the guard, and it stops being
+  # the thing that fires in the case that matters.
+  [ "${RALPH_SHEET:-on}" = "on" ] && [ -f "$SHEET_GEN" ] && ! command -v node >/dev/null 2>&1 \
+    && echo "codesheet: OFF — node is not on PATH, so $(basename "$SHEET_GEN") cannot run. The measured 20-56% context saving is not being applied. Install node in the image, or set RALPH_SHEET=off to make this deliberate." \
+    || true
 fi
 
 hb_init; log_init; hb_write starting

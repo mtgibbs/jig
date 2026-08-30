@@ -23,10 +23,10 @@ BIND="$R/scripts/exec-container.sh"
 DOCKERFILE="$R/docker/loop-executor.Dockerfile"
 STRAT="$R/scripts/loops/build-container.conf"
 DOC="$R/docs/loop-container.md"
-REF="$R/scripts/exec-qwen.sh"
+REF="$R/scripts/exec-opencode.sh"
 
-[ -r "$REF" ] || { echo "  FAIL  scope: exec-qwen.sh missing — the contract's reference is gone" >&2; exit 1; }
-ok "scope: the binding contract's reference (exec-qwen.sh) is present"
+[ -r "$REF" ] || { echo "  FAIL  scope: exec-opencode.sh missing — the contract's reference is gone" >&2; exit 1; }
+ok "scope: the binding contract's reference (exec-opencode.sh) is present"
 
 _stray="$(find "$R/specs/20260828a-exec-container" -maxdepth 1 -mindepth 1 \
           ! -name spec.md ! -name tasks.txt ! -name verify.sh ! -name fixtures ! -name evidence \
@@ -138,7 +138,7 @@ else
       ok "ac6: no retry, gate or evidence logic — the binding stayed thin"
     fi
     [ "$(printf '%s' "$_body" | grep -c '^[[:space:]]*exec ')" = 1 ] \
-      && ok "ac6: exactly one exec, same shape as exec-qwen.sh" \
+      && ok "ac6: exactly one exec, same shape as exec-opencode.sh" \
       || no "ac6: expected exactly one 'exec' line"
   fi
 fi

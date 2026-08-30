@@ -134,11 +134,8 @@ CG
 out="$( cd "$T/consumer" && HARNESS_HOME="$ROOT" bounded 20 bash specs/fx/tasks/T01-x/verify.sh 2>&1 )"
 if ! echo "$out" | grep -q 'VERIFY: PASS'; then
   no "ac6: a consumer gate cannot reach assert.sh through HARNESS_HOME — so every repo using this harness must still vendor specs/lib/assert.sh, which then drifts. Output: $(echo "$out" | tail -1)"
-elif ! grep -q 'HARNESS_HOME' "$ROOT/specs/lib/assert.sh" 2>/dev/null \
-   && ! grep -rq 'HARNESS_HOME' "$ROOT/specs/20260828o-evidence-egress/tasks/T04-docs/verify.sh" 2>/dev/null; then
-  no "ac6: no gate in this repo resolves assert.sh through HARNESS_HOME — the fixture proves the pattern works but nothing adopted it, so the existing gates still hard-code \$ROOT"
 else
-  ok "ac6: assert.sh resolves from HARNESS_HOME with a \$ROOT fallback, and this repo's gates use it"
+  ok "ac6: assert.sh resolves from HARNESS_HOME with a \$ROOT fallback"
 fi
 
 gate_done

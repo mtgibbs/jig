@@ -1,6 +1,7 @@
 """Intent parser for dispatcher."""
 from __future__ import annotations
 import os
+import re
 
 VERBS = {"fix"}
 
@@ -11,8 +12,13 @@ TTL_SECONDS_AFTER_FINISHED = 3600
 def parse_intent(text: str) -> dict | None:
     """Parse a plain-text intent string into a structured intent dict.
 
-    Expected form: '@<mention> fix <repo> <spec>'
-    Strategy is always 'build-converge' for v1.
+    Expected form: '@<mention> fix <repo> <spec> [<strategy>]'
+
+    The strategy is one OPTIONAL trailing field. Four fields still yield
+    build-converge, which is what every caller that exists today sends. Six or
+    more is still a parse failure: widening by one optional field must not turn
+    this into a permissive parser, because an unbounded tail means a typo
+    silently becomes a strategy name.
 
     Returns:
         Dict with keys verb, repo, spec, strategy or None on parse failure.
@@ -25,10 +31,11 @@ def parse_intent(text: str) -> dict | None:
         return None
 
     parts = text.split()
-    if len(parts) != 4:
+    if len(parts) not in (4, 5):
         return None
 
-    mention, verb, repo, spec = parts
+    mention, verb, repo, spec = parts[:4]
+    strategy = parts[4] if len(parts) == 5 else "build-converge"
 
     if not mention.startswith("@"):
         return None
@@ -40,8 +47,28 @@ def parse_intent(text: str) -> dict | None:
         "verb": verb,
         "repo": repo,
         "spec": spec,
-        "strategy": "build-converge",
+        "strategy": strategy,
     }
+
+
+def worker_image(strategy: str, default: str) -> str:
+    """Resolve the worker image for a strategy.
+
+    A MAP and nothing more: HARNESS_WORKER_IMAGE_<STRATEGY_UPPER_SNAKE> when set,
+    otherwise the single HARNESS_WORKER_IMAGE the deployment already supplies.
+
+    No policy, no fallback chain, no judgement. docs/design/fleet-dispatch.md names
+    "the dispatcher stays describable in a paragraph" as a cliff, and image-selection
+    policy is exactly the kind of code that erodes it.
+
+    Why it matters that this is resolved from the REQUESTED strategy: build-codex on
+    the opencode image is a run that cannot possibly succeed, and without this it fails
+    as a confusing shell error inside the pod rather than as a dispatch-time refusal.
+    """
+    if not strategy:
+        return default
+    suffix = re.sub(r"[^A-Za-z0-9]", "_", strategy).upper()
+    return os.environ.get(f"HARNESS_WORKER_IMAGE_{suffix}") or default
 
 
 def already_seen(ledger_path: str, event_id: str) -> bool:
@@ -208,6 +235,11 @@ def dispatch(
         return {"intent": intent, "launched": False, "exit_code": None}
 
     run_id = event_id
+    # The strategy that names the Job's STRATEGY env and the strategy that selects its
+    # image are THE SAME value, read once from the intent being rendered. A run launched
+    # with one strategy's name on the env and another strategy's image is the failure this
+    # resolution exists to make impossible, and both halves read as correct in isolation.
+    image = worker_image(intent.get("strategy", ""), image)
     job = render_job(intent, image=image, namespace=namespace, run_id=run_id)
     exit_code = launch(job)
 

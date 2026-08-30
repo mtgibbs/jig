@@ -159,7 +159,7 @@ git -C "$WT" checkout -q -b throwaway 2>/dev/null
 # environment — a scratch strategy dir would silently never load, and every behavioural check
 # below would pass while measuring nothing (Trap A-prime: a scope that was written and was inert).
 runloop() {  # runloop <spec-dir>; sets $RL_OUT, returns run-loop.sh's exit code
-  RL_OUT="$(cd "$WT" && RALPH_EXEC_CMD="$R/scripts/exec-qwen.sh" \
+  RL_OUT="$(cd "$WT" && RALPH_EXEC_CMD="$R/scripts/exec-opencode.sh" \
             bash "$RUNLOOP" build-converge "$1" 2>&1)"
   return $?
 }
