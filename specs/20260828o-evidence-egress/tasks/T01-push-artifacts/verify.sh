@@ -28,8 +28,15 @@ fi
 # against main until both were handled, which would have failed correct work on every attempt.
 # Sorting is applied after normalisation so a genuine difference in WHAT the run said still shows
 # up — only the order of same-second commits is discarded.
+# The workspace prefix is $T, NOT the literal /tmp. gate_tmpdir honours GATE_TMPDIR, so on a
+# host whose default mount is noexec the workspace lives somewhere else entirely — and a
+# normaliser keyed on /tmp then leaves the fixture's own directory name (off vs ctl) in both
+# files, so the diff reports a difference that is only ever the two paths this gate itself chose.
+# That failure names the right gate for the wrong reason, which amendments.md rates worse than a
+# check that never fires. Keyed on $T it is correct wherever the workspace lands; the /tmp rule
+# stays for any path a child process resolved independently of $T.
 norm() {
-  sed -E 's#/tmp/[^ ]*#PATH#g; s#^[0-9a-f]{3,40} #SHA #; s#\b[0-9]{3,}\b#N#g' "$1" | sort
+  sed -E "s#${T}[^ ]*#PATH#g; s#/tmp/[^ ]*#PATH#g; s#^[0-9a-f]{3,40} #SHA #; s#\b[0-9]{3,}\b#N#g" "$1" | sort
 }
 
 mkexec_loud
