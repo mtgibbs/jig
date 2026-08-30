@@ -1,13 +1,14 @@
 # Spec: the executor is an image layer, not a fork
 
-- **Status:** Draft v0.2
+- **Status:** Draft v0.3
 - **Owner:** mtgibbs
 - **Constitution:** `specs/constitution.md` (+ `/CLAUDE.md` Core Mandates)
 - **Touches:** `docker/harness-base.Dockerfile` (new), `docker/harness-base.VERSION` (new),
   `docker/loop-executor-opencode.Dockerfile` (renamed from `loop-executor`),
   `docker/loop-executor-opencode.VERSION`,
   `.github/workflows/build-images.yml`, `scripts/run-task.sh` (new), `scripts/run-loop.sh`,
-  `scripts/exec-container.sh`, `scripts/loops/README.md`, `specs/lib/assert.sh`,
+  `scripts/exec-container.sh`, `scripts/exec-qwen.sh`, `scripts/loops/*.conf`,
+  `scripts/loops/README.md`, `specs/lib/assert.sh`,
   `scripts/dispatch/dispatcher.py`, `docs/executors.md` (new), `docs/loop-container.md`
 - **Tools:** git, python3, bash
 - **MCP:** none
@@ -81,9 +82,25 @@ works for someone who is not this account.
 HARNESS_HOME=/harness          # the harness tree; scripts/ and specs/lib/ live under it
 PATH                           # includes $HARNESS_HOME/scripts
 ENTRYPOINT ["/usr/bin/tini", "--", "run-task.sh"]
-contains                       # scripts/**, specs/lib/**, git, ripgrep, python3, bash, tini
-does NOT contain               # any model CLI, any credential, any model weights
+contains                       # scripts/**, specs/lib/**, and the runtime below
+does NOT contain               # any model CLI, any credential, any model weights, node
 ```
+
+**The runtime, derived from the scripts rather than guessed.** The current `loop-executor`
+installs `git ripgrep ca-certificates curl tini` and is missing two things the loop needs:
+
+| | | when absent |
+|---|---|---|
+| `jq` | `ralph-judge.sh`, `ralph-log.sh` | judge **dies** (`die 1 "jq is required"`); the attempt record vanishes **silently** |
+| `python3` | `loop-index.py`, `ralph-status.sh` fallbacks | the evidence index is never written |
+| `git bash coreutils sed awk grep curl ca-certificates tini` | everywhere | nothing runs |
+
+One missing tool, one loud path and one silent path, is itself a state a reader cannot tell
+apart — so AC-1 asserts the runtime is **installed**, not that `COPY` lines exist.
+
+Optional and guarded, absent from the base by design: `node` (codesheet only), `perl`
+(`bound.sh`'s fallback; the container has `timeout`), `ripgrep` (the executor's, not the
+loop's), `sqlite3`, `agent-bus`.
 
 **`HARNESS_DIR` — baked or cloned, both supported.**
 
@@ -181,6 +198,25 @@ line in `exec-container.sh` — nothing outside this repo names the image yet (�
 the fleet manifests land is a coordinated change across two repos. The existing
 `loop-executor:0.1.0` tag stays where it is; the package simply stops receiving new ones.
 
+**The default binding drives `opencode`, not `oc`.** `exec-qwen.sh` execs `oc`, which is not in
+this repo and not in the image: it is a private laptop shim that reads a LiteLLM key from the
+macOS Keychain, falls back to `op read op://pi-cluster/opencode-coder/password`, exports
+`OPENCODE_QWEN_KEY`, applies its own watchdog, and execs `opencode`. Three of those four things
+do not belong in a binding. **Credential acquisition is the operator's** — Keychain or 1Password
+on a laptop, `envFrom` a Secret in a Job — and the **watchdog is already the loop's**
+(`run_bounded`), which `exec-qwen.sh`'s own header says. What is left is the binding: take
+provider configuration from the environment and exec `opencode`. That is what makes the derived
+image runnable by someone who is not this account, and it is the single change that decides
+whether Claim 2 (§2 outcome 3) is real. `oc` survives as a laptop convenience that sets the env
+and calls the same binding.
+
+**`node` is not in the base.** The loop needs `bash`, `git`, `jq` and `python3`; only
+`gen-codesheet.mjs` needs node, and the derived images that want it (`opencode` and
+`claude-code` are both npm) install it themselves. The cost is that `RALPH_SHEET` defaults ON
+and is guarded by `command -v node`, so in a node-less image the codesheet turns off **silently**
+— the failure this repo catalogues most. So the base excludes node AND the absence is announced
+once per run, rather than being discovered by comparing token counts.
+
 **Rejected: one image per executor, built here.** It scales by fork — every new agent is a PR to
 this repo, which is the thing §20260825c removed. The base image is the seam precisely so the
 harness does not have to know who its executors are.
@@ -199,7 +235,9 @@ the contrast explicit because the constitution's similar-but-different trap is e
 - `.github/workflows/build-images.yml` — the base entry, ordered before the derived build
 - `scripts/run-task.sh` — new, the single reconciled remote entry point
 - `scripts/run-loop.sh` — strategy search path, `STRATEGY_TOOLS` preflight, `--strategy` plumbing
-- `scripts/exec-container.sh` — the `:latest` default (see §6)
+- `scripts/exec-container.sh` — the `:latest` default and the renamed image (see §6)
+- `scripts/exec-qwen.sh` — drives `opencode` from env instead of the private `oc` shim
+- `scripts/loops/*.conf` — every built-in strategy declares `STRATEGY_TOOLS`
 - `specs/lib/assert.sh` + the gates that source it — `HARNESS_HOME`-first resolution
 - `scripts/loops/README.md`, `docs/executors.md`, `docs/loop-container.md`
 - `scripts/dispatch/dispatcher.py` — `parse_intent` grammar, strategy-to-image resolution
@@ -300,6 +338,20 @@ than porting it. The codex login check does **not** fold cleanly; see OQ3.
   and `/usr/local/bin/run-task.sh` becomes a **symlink** to `$HARNESS_DIR/scripts/run-task.sh`. A
   symlink is a path, not a copy, so there is genuinely one implementation.
 
+### What `oc` is
+
+Read at `~/.local/bin/oc` on 2026-08-29. It is a laptop shim, not a harness file:
+
+1. reads a LiteLLM/qwen key from the macOS Keychain (`security find-generic-password -s
+   opencode-qwen`), falling back to `op read op://pi-cluster/opencode-coder/password`
+2. exports `OPENCODE_QWEN_KEY`, plus a homelab MCP key for its `ops` agent
+3. applies `OC_RUN_TIMEOUT` (default 600s) to `oc run`
+4. execs `opencode`
+
+Only (4) is the binding. (1) and (2) are the operator's, (3) is the loop's — `ralph-build.sh`'s
+`run_bounded` already bounds the executor, which is why `exec-qwen.sh` carries no timeout and
+says so. A container has no Keychain and no `op`, so every step but (4) is unreachable there.
+
 ### The scripts
 
 - **`run-loop.sh` sources the strategy conf BEFORE any loop script runs, and `ROOT` is not set at
@@ -387,9 +439,10 @@ than porting it. The codex login check does **not** fold cleanly; see OQ3.
 
 Sequential. T4 depends on T2 and T3 (it routes through the `run-loop.sh` they change).
 
-1. **T1** — split the image: `harness-base.Dockerfile` + a thin
-   `loop-executor-opencode.Dockerfile` (renamed), public base, CI ordering, and the image
-   `exec-container.sh` defaults to.
+1. **T1** — the image, **and proof it runs**: `harness-base.Dockerfile` + a thin
+   `loop-executor-opencode.Dockerfile` (renamed), the real runtime, public base, CI ordering
+   AND rebuild triggers, the default binding off `oc`, the image `exec-container.sh` defaults
+   to, and a CI smoke job that runs a fixture task end to end.
 2. **T2** — the two search paths: strategies in `run-loop.sh`, `assert.sh` in the gates.
 3. **T3** — `STRATEGY_TOOLS`, preflighted in the existing accumulation.
 4. **T4** — one `scripts/run-task.sh`, reconciled, routed through `run-loop.sh`, baked-or-cloned.
@@ -417,6 +470,16 @@ Sequential. T4 depends on T2 and T3 (it routes through the `run-loop.sh` they ch
   both the renamed repository and a tag that exists — and `docs/loop-container.md`'s manual
   fallback shall push that same tag rather than `:latest`.
 
+- **AC-6b** `.github/workflows/build-images.yml` shall rebuild `harness-base` when `scripts/**`
+  or `specs/lib/**` change, not only `docker/**`.
+- **AC-6c** `scripts/exec-qwen.sh` shall invoke `opencode` and shall not invoke `oc`, taking
+  provider configuration from the environment and acquiring no credential itself.
+- **AC-6d** The workflow shall run a smoke job, after the images are pushed, that executes a
+  fixture task through `run-task.sh` in the derived image and fails if the declared binding is
+  absent, if no commit is produced, or if no attempt record is written.
+- **AC-6e** Where the codesheet is enabled and `node` is absent, the run shall say so once —
+  it shall not turn the codesheet off silently.
+
 **T2 — the search paths**
 
 - **AC-7** When `$HARNESS_REPO_ROOT/.harness/loops/<name>.conf` exists, `run-loop.sh` shall prefer
@@ -440,6 +503,9 @@ Sequential. T4 depends on T2 and T3 (it routes through the `run-loop.sh` they ch
 - **AC-15** A conf with no `STRATEGY_TOOLS` shall behave exactly as today.
 - **AC-16** If both a spec `Tools:` entry and a `STRATEGY_TOOLS` entry are missing, then the run
   shall report both in one message and exit 3 once.
+- **AC-16b** Every built-in strategy in `scripts/loops/` shall declare `STRATEGY_TOOLS` naming
+  the executable its binding invokes. A strategy that declares nothing is the case the
+  preflight cannot protect, and the default strategy is the one that matters most.
 
 **T4 — one remote entry point**
 
@@ -584,6 +650,15 @@ throwaway branch. Six tasks, one per iteration, fresh context.
   scale to `loop-executor-codex` / `loop-executor-claude`, where whichever image keeps the bare
   name reads as canonical. Reasoning in §4, cost evidence in §6. Noted here so it is not
   re-litigated.
+
+- **OQ6 — does `exec-qwen.sh` keep its name?** Once it drives `opencode` from env rather than a
+  qwen-specific shim, the filename names a model the binding no longer knows about — the same
+  argument that renamed the image (OQ5). `exec-opencode.sh` says what it is, and
+  `build-converge.conf` would bind it. **Not free**, unlike the image rename:
+  `specs/20260825c-executor-binding/verify.sh:40` asserts by name that `RALPH_EXEC_CMD` defaults
+  to `exec-qwen.sh`, so that landed spec's AC-1 changes with it. Recommend renaming, and doing it
+  in this task rather than after the fleet manifests reference the path — but it is a decision,
+  not a consequence, so it is stated here rather than folded in.
 
 ## Two-way sync rule
 

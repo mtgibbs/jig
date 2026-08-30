@@ -1,4 +1,4 @@
-# MUTANT: ac2
+# MUTANT: ac02
 # TARGET: docker/harness-base.Dockerfile
 # WHY: bakes opencode into the BASE "so the common case is one image". That is the fork: every
 # WHY: derived image now ships a CLI it may not use, and a Claude image inherits a competitor's

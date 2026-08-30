@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# MUTANT: ac6
+# MUTANT: ac06
 # TARGET: scripts/exec-container.sh
 # WHY: keeps the :latest default while adding LOOP_TAG, so the file gains a version knob and
 # WHY: still resolves, by default, to a tag CI has never pushed. The knob makes it LOOK fixed.

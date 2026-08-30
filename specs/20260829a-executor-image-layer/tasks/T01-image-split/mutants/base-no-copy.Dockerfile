@@ -1,4 +1,4 @@
-# MUTANT: ac1
+# MUTANT: ac01
 # TARGET: docker/harness-base.Dockerfile
 # WHY: describes copying scripts/ and specs/lib/ in a comment but issues no COPY, so the image
 # WHY: has an ENTRYPOINT pointing at a run-task.sh that is not in it. A gate that greps the file

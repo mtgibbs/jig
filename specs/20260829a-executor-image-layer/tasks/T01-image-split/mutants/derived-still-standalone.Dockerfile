@@ -1,4 +1,4 @@
-# MUTANT: ac3
+# MUTANT: ac03
 # TARGET: docker/loop-executor-opencode.Dockerfile
 # WHY: is FROM harness-base — so a grep for the FROM line is satisfied — but re-installs the apt
 # WHY: set and re-COPYs the harness on top of it. Two copies of the loop in one image, and the

@@ -100,3 +100,31 @@ behaviour.
 So: **T1 and T6 ship their corpora with the spec** (structural and documentary targets, validated
 above). **T2–T5 ship gates now and their corpora with the task**, written by the author against
 what the loop actually produced, which is the first moment the verdict can mean anything.
+
+
+---
+
+## 4. Two more, from folding the review amendments in (2026-08-29, later)
+
+**A gate id that is a prefix of another id is a false kill.** `gate-selftest.sh` kills a mutant by
+grepping the gate's output for `FAIL.*<id>` — a SUBSTRING match. T1 grew past nine assertions, so
+a mutant declaring `ac1` would have been reported KILLED whenever `ac10` failed, and the author
+told an assertion was strong when it was never exercised. T1's ids are two-digit now. **The hazard
+is in the tool, not in this gate**: every corpus in this repo that reaches ten assertions inherits
+it, and none has yet.
+
+**A check can be correct and still unaffordable.** ac10 ("a node-less image says the codesheet is
+off") went through three forms:
+
+| form | verdict on an unbuilt tree | why it was wrong |
+|---|---|---|
+| `grep -qE 'else\|echo\|>&2'` over the guard's region | **PASS** | matched `echo "codesheet: injected …"` — the SUCCESS branch. Trap A, needle already in the haystack. |
+| behavioural: run the loop twice with node off `PATH`, one run against a patched control | FAIL, correct | **41s per gate run**, over gate-selftest's 30s bound — every mutant in the corpus came back HUNG |
+| parse the guard's own `if/else/fi` and require the ELSE to mention node or the sheet | FAIL, correct, **0s** | — |
+
+The middle one is the interesting failure. It was the *most* rigorous version and it made the
+corpus unrunnable, which in this repo means it would quietly stop being run — the same end state
+as the false green, reached from the opposite direction. A check has to be affordable by the
+tooling that is supposed to keep exercising it.
+
+Final state: T1 **11 killed / 0 survivors / 0 wrong-reason**, T6 **5 / 0 / 0**, no uncovered ids.
