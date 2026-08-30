@@ -1,13 +1,15 @@
 # Spec: the executor is an image layer, not a fork
 
-- **Status:** Draft v0.3
+- **Status:** Draft v0.4
 - **Owner:** mtgibbs
 - **Constitution:** `specs/constitution.md` (+ `/CLAUDE.md` Core Mandates)
 - **Touches:** `docker/harness-base.Dockerfile` (new), `docker/harness-base.VERSION` (new),
   `docker/loop-executor-opencode.Dockerfile` (renamed from `loop-executor`),
   `docker/loop-executor-opencode.VERSION`,
   `.github/workflows/build-images.yml`, `scripts/run-task.sh` (new), `scripts/run-loop.sh`,
-  `scripts/exec-container.sh`, `scripts/exec-qwen.sh`, `scripts/loops/*.conf`,
+  `scripts/exec-container.sh`, `scripts/exec-opencode.sh` (renamed from `exec-qwen.sh`),
+  `scripts/ralph-build.sh` (the default binding), `scripts/run-loop.sh`, `scripts/supervise.sh`,
+  `scripts/loops/*.conf`,
   `scripts/loops/README.md`, `specs/lib/assert.sh`,
   `scripts/dispatch/dispatcher.py`, `docs/executors.md` (new), `docs/loop-container.md`
 - **Tools:** git, python3, bash
@@ -236,7 +238,9 @@ the contrast explicit because the constitution's similar-but-different trap is e
 - `scripts/run-task.sh` — new, the single reconciled remote entry point
 - `scripts/run-loop.sh` — strategy search path, `STRATEGY_TOOLS` preflight, `--strategy` plumbing
 - `scripts/exec-container.sh` — the `:latest` default and the renamed image (see §6)
-- `scripts/exec-qwen.sh` — drives `opencode` from env instead of the private `oc` shim
+- `scripts/exec-opencode.sh` — renamed from `exec-qwen.sh`; drives `opencode` from env instead
+  of the private `oc` shim
+- the landed gates that name the binding — `20260825c`, `20260828a`, `20260827a` (see §6)
 - `scripts/loops/*.conf` — every built-in strategy declares `STRATEGY_TOOLS`
 - `specs/lib/assert.sh` + the gates that source it — `HARNESS_HOME`-first resolution
 - `scripts/loops/README.md`, `docs/executors.md`, `docs/loop-container.md`
@@ -351,6 +355,28 @@ Read at `~/.local/bin/oc` on 2026-08-29. It is a laptop shim, not a harness file
 Only (4) is the binding. (1) and (2) are the operator's, (3) is the loop's — `ralph-build.sh`'s
 `run_bounded` already bounds the executor, which is why `exec-qwen.sh` carries no timeout and
 says so. A container has no Keychain and no `op`, so every step but (4) is unreachable there.
+
+### What the rename drags with it
+
+`exec-qwen.sh` is named functionally in six places outside itself. All six move in T1, or the
+rename lands as a second name and a red gate:
+
+| file | what it does with the name |
+|---|---|
+| `scripts/ralph-build.sh:53` | `RALPH_EXEC_CMD="${RALPH_EXEC_CMD:-$_SD/exec-qwen.sh}"` — the default |
+| `scripts/run-loop.sh:73` | the MCP-config fallback `exec-qwen.json`, derived from the binding's basename |
+| `scripts/supervise.sh:77` | the process-pattern list the supervisor matches on |
+| `specs/20260825c-executor-binding/verify.sh:23,40,42,101` | asserts the default **by name**, and `cat`s the file for its shrink assertion — a missing path breaks the measurement, not just the check |
+| `specs/20260828a-exec-container/verify.sh:26,28,29,141` | treats it as the binding contract's reference implementation and **exits 1** if absent |
+| `specs/20260827a-spec-manifest/verify.sh:162` | runs it directly as `RALPH_EXEC_CMD` |
+
+`specs/20260828n-mcp-reachable`'s fixtures also use the name, for files they create in their own
+temp dir. Those are self-contained and stay as they are — renaming them is churn, not a fix.
+
+**Not in scope, and worth knowing:** `scripts/ralph-judge-exec-qwen.sh` is a different binding —
+the judge's executor — and it hard-requires `oc` on PATH (`:12`). So `build-then-judge` and
+`judge-refine` still cannot run in an image after this spec. That is the same defect one layer
+over, and it is its own change.
 
 ### The scripts
 
@@ -472,8 +498,12 @@ Sequential. T4 depends on T2 and T3 (it routes through the `run-loop.sh` they ch
 
 - **AC-6b** `.github/workflows/build-images.yml` shall rebuild `harness-base` when `scripts/**`
   or `specs/lib/**` change, not only `docker/**`.
-- **AC-6c** `scripts/exec-qwen.sh` shall invoke `opencode` and shall not invoke `oc`, taking
-  provider configuration from the environment and acquiring no credential itself.
+- **AC-6c** `scripts/exec-opencode.sh` shall exist, shall invoke `opencode` and not `oc`, shall
+  take provider configuration from the environment, and shall acquire no credential itself.
+  `scripts/exec-qwen.sh` shall no longer exist, and `RALPH_EXEC_CMD` shall default to the new
+  name.
+- **AC-6f** No script and no gate shall still reach for `exec-qwen.sh` functionally. A rename
+  that leaves a landed gate asserting the old name is not a rename; it is a second name.
 - **AC-6d** The workflow shall run a smoke job, after the images are pushed, that executes a
   fixture task through `run-task.sh` in the derived image and fails if the declared binding is
   absent, if no commit is produced, or if no attempt record is written.
@@ -651,14 +681,11 @@ throwaway branch. Six tasks, one per iteration, fresh context.
   name reads as canonical. Reasoning in §4, cost evidence in §6. Noted here so it is not
   re-litigated.
 
-- **OQ6 — does `exec-qwen.sh` keep its name?** Once it drives `opencode` from env rather than a
-  qwen-specific shim, the filename names a model the binding no longer knows about — the same
-  argument that renamed the image (OQ5). `exec-opencode.sh` says what it is, and
-  `build-converge.conf` would bind it. **Not free**, unlike the image rename:
-  `specs/20260825c-executor-binding/verify.sh:40` asserts by name that `RALPH_EXEC_CMD` defaults
-  to `exec-qwen.sh`, so that landed spec's AC-1 changes with it. Recommend renaming, and doing it
-  in this task rather than after the fleet manifests reference the path — but it is a decision,
-  not a consequence, so it is stated here rather than folded in.
+- **OQ6 — does `exec-qwen.sh` keep its name?** **Closed 2026-08-29: renamed to
+  `exec-opencode.sh`**, folded into T1 and AC-6c/AC-6f. Once the binding drives `opencode` from
+  the environment rather than a qwen-specific shim, the filename names a model it no longer knows
+  about — the same argument as OQ5. Unlike the image rename this one is **not free**: three
+  landed gates name it, and §6 lists them. Recorded so it is not re-litigated.
 
 ## Two-way sync rule
 

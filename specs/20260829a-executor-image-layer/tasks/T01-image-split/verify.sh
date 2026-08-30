@@ -152,11 +152,13 @@ else
 fi
 
 # ── ac08: the default binding drives opencode, and acquires no credential ────────────────────
-XQ="$ROOT/scripts/exec-qwen.sh"
+XQ="$ROOT/scripts/exec-opencode.sh"
 if [ ! -f "$XQ" ]; then
-  no "ac08: scripts/exec-qwen.sh is missing"
+  no "ac08: scripts/exec-opencode.sh does not exist. Once the binding drives opencode from the environment, the filename names a model it no longer knows about"
+elif [ -f "$ROOT/scripts/exec-qwen.sh" ]; then
+  no "ac08: both exec-qwen.sh and exec-opencode.sh exist. A rename that leaves the old file behind is a copy, and RALPH_EXEC_CMD still resolves to whichever ralph-build.sh names"
 elif ! nonempty_strip "$XQ"; then
-  no "ac08: exec-qwen.sh has no instruction lines"
+  no "ac08: exec-opencode.sh has no instruction lines"
 elif instr "$XQ" '(^|[[:space:]])oc([[:space:]]|$)'; then
   no "ac08: the default binding still execs \`oc\` — a private laptop shim that is not in this repo and not in the image. The derived image installs opencode and its own default cannot run"
 elif ! instr "$XQ" 'opencode'; then
@@ -165,6 +167,38 @@ elif instr "$XQ" '(op[[:space:]]+read|security[[:space:]]+find-generic-password|
   no "ac08: the binding acquires a credential itself. That is the operator's — Keychain or 1Password on a laptop, envFrom a Secret in a Job — and a binding that reaches for one works on exactly one machine"
 else
   ok "ac08: the default binding execs opencode and takes its provider config from the environment"
+fi
+
+# ── ac11: the rename is finished, not started ────────────────────────────────────────────────
+# Six places name the binding functionally, and three of them are LANDED GATES — 20260825c
+# asserts the default by name and cats the file for its shrink measurement, 20260828a exits 1
+# when it is absent, 20260827a runs it. A rename that moves the file and leaves those is not a
+# rename; it is a second name plus three red gates, and the next reader cannot tell which name
+# is current.
+#
+# Scoped to executable references with comments stripped: `exec-qwen` appears in this spec, in
+# five landed specs' PROSE and in evidence files that must not be rewritten, so a tree-wide grep
+# reports a finished rename as unfinished forever.
+# Resolved absolutely, because $f comes from a glob rooted at $ROOT while BASH_SOURCE[0] is the
+# path this gate was INVOKED with — relative when run by hand, absolute under gate-selftest. The
+# first version compared them raw, matched only under the tool, and reported the gate as stale
+# every time a human ran it.
+_self="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)/$(basename "${BASH_SOURCE[0]}")"
+_stale=""
+for f in "$ROOT"/scripts/*.sh "$ROOT"/specs/*/verify.sh "$ROOT"/specs/*/tasks/*/verify.sh; do
+  [ -f "$f" ] || continue
+  case "$f" in */ralph-judge-exec-qwen.sh) continue ;; esac   # a DIFFERENT binding, out of scope
+  case "$f" in */20260828n-mcp-reachable/*) continue ;; esac  # self-contained temp-dir fixtures
+  # And THIS FILE. The pattern below is the literal string being searched for, so on its first
+  # run the check reported ITSELF as a stale reference. Same shape as a mutant's WHY: line
+  # satisfying the gate that reads it: the instrument is inside the thing being measured.
+  [ "$f" = "$_self" ] && continue
+  strip_comments "$f" | grep -q 'exec-qwen\.sh' && _stale="$_stale ${f#$ROOT/}"
+done
+if [ -n "$_stale" ]; then
+  no "ac11: these still reach for exec-qwen.sh:$_stale — three of them are landed gates that assert or execute the old path, so the rename leaves them red and the binding with two names"
+else
+  ok "ac11: nothing executable still reaches for the old binding name"
 fi
 
 # ── ac09: CI proves the image RUNS, not that the Dockerfile looks layered ────────────────────
