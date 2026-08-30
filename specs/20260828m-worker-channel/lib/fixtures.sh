@@ -1,4 +1,11 @@
 # fixtures.sh — a throwaway loop plus a stub coordinator, so both directions are observed.
+# `bound` comes from scripts/bound.sh. Sourced here rather than relied on transitively:
+# every gate that loads this file also loads assert.sh first, which pulls bound in — but a
+# fixtures file that only works in that order is a trap for the next gate written against it.
+# Idempotent. See specs/amendments.md, "Portability follows the invoker, not the tool".
+# shellcheck source=/dev/null
+. "$ROOT/scripts/bound.sh" 2>/dev/null || true
+
 COORD_PY="$ROOT/specs/20260828m-worker-channel/lib/coord.py"
 
 # mkloop <dir> — a two-task fixture repo with per-task gates, carrying the REAL scripts/.
@@ -58,8 +65,8 @@ TOKEN="TOKEN-COORD-7b2"
 # runloop <dir> [env...] — BOUNDED; sets RC, output in $T/<tag>.out
 runloop() {
   local d="$1"; shift; local tag; tag="$(basename "$d")"
-  ( cd "$d" && env "$@" RALPH_LOG=off RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate \
-      timeout 180 bash scripts/ralph-build.sh specs/fx ) > "$T/$tag.out" 2>&1
+  ( cd "$d" && bound 180 env "$@" RALPH_LOG=off RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate \
+      bash scripts/ralph-build.sh specs/fx ) > "$T/$tag.out" 2>&1
   RC=$?
 }
 loopout() { tr '\n' ' ' < "$T/$1.out" 2>/dev/null | tail -c 400; }

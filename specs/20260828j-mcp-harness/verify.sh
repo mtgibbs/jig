@@ -11,6 +11,13 @@ no()   { echo "  FAIL  $1" >&2; fail=1; }
 pend() { echo "  pend  $1 — not built yet"; [ "${STRICT:-0}" = 1 ] && fail=1; return 0; }
 
 R="$(git rev-parse --show-toplevel)"
+
+# `bound`, not `timeout`: this gate is author-facing, so it runs on macOS as well as in the
+# container, and macOS ships neither timeout nor gtimeout. scripts/bound.sh is the one
+# implementation and prefers the real timeout where it exists. See specs/amendments.md,
+# "Portability follows the invoker, not the tool".
+# shellcheck source=/dev/null
+. "$R/scripts/bound.sh"
 SPEC="$R/specs/20260828j-mcp-harness"
 SRV="$R/scripts/mcp-harness/server.py"
 DOC="$R/docs/mcp-harness.md"
@@ -42,7 +49,7 @@ fi
 # ── ac10 · structural: a client, not a second dispatcher ───────────────────────────────────
 # Parsed, not grepped: a grep for "dispatcher" also matches the word in a comment explaining
 # why it is absent, and would fail correct work for saying the right thing.
-_imp="$(timeout 20 python3 - "$SRV" <<'PY' 2>&1
+_imp="$(bound 20 python3 - "$SRV" <<'PY' 2>&1
 import ast, sys
 mods = set()
 for n in ast.walk(ast.parse(open(sys.argv[1]).read())):
@@ -69,7 +76,7 @@ for var in HARNESS_API_URL HARNESS_API_TOKEN; do
   if [ "$var" = HARNESS_API_URL ]; then envset="HARNESS_API_URL= HARNESS_API_TOKEN=$TOKEN"
   else envset="HARNESS_API_URL=http://127.0.0.1:1 HARNESS_API_TOKEN="; fi
   # shellcheck disable=SC2086
-  out="$(env $envset timeout 10 python3 "$SRV" </dev/null 2>&1)"; rc=$?
+  out="$(bound 10 env $envset python3 "$SRV" </dev/null 2>&1)"; rc=$?
   if [ "$rc" = 124 ]; then
     no "ac1: with $var empty the server kept running — it must refuse to start, not serve"; break
   elif [ "$rc" = 0 ]; then
@@ -81,7 +88,7 @@ for var in HARNESS_API_URL HARNESS_API_TOKEN; do
 done
 
 # ── drive the server ───────────────────────────────────────────────────────────────────────
-timeout 90 python3 "$SPEC/drive.py" "$SRV" "$TOKEN" > "$T/d.json" 2> "$T/d.err"; drc=$?
+bound 90 python3 "$SPEC/drive.py" "$SRV" "$TOKEN" > "$T/d.json" 2> "$T/d.err"; drc=$?
 g() { python3 -c "
 import json,sys
 try: d=json.load(open(sys.argv[1]))

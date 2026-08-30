@@ -4,6 +4,13 @@
 # mkloop/mkexec already build a two-task repo carrying the real scripts/, and a second copy would
 # drift from it. What is NOT reused is runloop — it runs with RALPH_LOG=off, and this spec is
 # entirely about the artifacts that logging produces, so reusing it would test nothing.
+# `bound` comes from scripts/bound.sh. Sourced here rather than relied on transitively:
+# every gate that loads this file also loads assert.sh first, which pulls bound in — but a
+# fixtures file that only works in that order is a trap for the next gate written against it.
+# Idempotent. See specs/amendments.md, "Portability follows the invoker, not the tool".
+# shellcheck source=/dev/null
+. "$ROOT/scripts/bound.sh" 2>/dev/null || true
+
 . "$ROOT/specs/20260828m-worker-channel/lib/fixtures.sh"
 
 COORD_PY="$ROOT/specs/20260828o-evidence-egress/lib/coord.py"
@@ -22,12 +29,16 @@ coord_start() {
 }
 
 # runloop_logged <dir> [env...] — like runloop, but with the evidence writer ENABLED.
-_fx_env() { env -u HARNESS_REPORT_URL -u HARNESS_REPORT_TOKEN "$@"; }
+# The quarantined environment (HARNESS_REPORT_URL/_TOKEN, RALPH_FORCE_ALL/_FROM,
+# RALPH_SATISFIED_TIMEOUT) is cleared by specs/lib/assert.sh, which every gate that loads this
+# file sources first, and again by ralph-build.sh's run_gates. It used to be reset HERE, and the
+# incidents that earned each variable now live beside the unsets in assert.sh — one place, so
+# there is no second list to keep in sync and no rule a new gate's author has to know.
 
 runloop_logged() {
   local d="$1"; shift; local tag; tag="$(basename "$d")"
-  ( cd "$d" && _fx_env "$@" RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate \
-      timeout 180 bash scripts/ralph-build.sh specs/fx ) > "$T/$tag.out" 2>&1
+  ( cd "$d" && bound 180 env "$@" RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate \
+      bash scripts/ralph-build.sh specs/fx ) > "$T/$tag.out" 2>&1
   RC=$?
 }
 

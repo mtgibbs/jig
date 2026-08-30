@@ -13,6 +13,13 @@
 set -uo pipefail
 
 R="$(cd "$(dirname "$0")/../.." && pwd)"
+
+# `bound`, not `timeout`: this gate is author-facing, so it runs on macOS as well as in the
+# container, and macOS ships neither timeout nor gtimeout. scripts/bound.sh is the one
+# implementation and prefers the real timeout where it exists. See specs/amendments.md,
+# "Portability follows the invoker, not the tool".
+# shellcheck source=/dev/null
+. "$R/scripts/bound.sh"
 fail=0
 ok(){   echo "  PASS  $1"; }
 no(){   echo "  FAIL  $1" >&2; fail=1; }
@@ -171,7 +178,7 @@ touch -t 202001010000 "$RP/old-spec/qwen-777/T1-attempt1.log" "$RP/old-spec/qwen
 _t3_built(){ [ "$(sed 's/#.*//' "$R/scripts/ralph-log.sh" | grep -c 'empty -delete')" -ge 2 ]; }
 if [ -r "$NEST" ]; then
   if grep -q 'maxdepth 3' "$NEST" 2>/dev/null && _t3_built; then
-    if STRICT=1 timeout 180 bash "$NEST" >/dev/null 2>&1; then
+    if STRICT=1 bound 180 bash "$NEST" >/dev/null 2>&1; then
       ok "ac7: specs/20260825b-evidence-spec-nesting is green again"
     else
       no "ac7: evidence-spec-nesting is still red — the regression it detects is not fixed"

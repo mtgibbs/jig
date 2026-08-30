@@ -5,6 +5,13 @@
 # line in execlog — which is the only direct evidence that the executor was never invoked.
 
 # mkloop <dir> <pertask:yes|no> — a two-task fixture repo carrying the REAL scripts/.
+# `bound` comes from scripts/bound.sh. Sourced here rather than relied on transitively:
+# every gate that loads this file also loads assert.sh first, which pulls bound in — but a
+# fixtures file that only works in that order is a trap for the next gate written against it.
+# Idempotent. See specs/amendments.md, "Portability follows the invoker, not the tool".
+# shellcheck source=/dev/null
+. "$ROOT/scripts/bound.sh" 2>/dev/null || true
+
 mkloop() {
   local d="$1" pertask="$2"
   rm -rf "$d"; mkdir -p "$d/specs/fx"
@@ -42,8 +49,8 @@ X
 runloop() {
   local d="$1"; shift
   local tag; tag="$(basename "$d")"
-  ( cd "$d" && env "$@" RALPH_LOG=off RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate \
-      timeout 180 bash scripts/ralph-build.sh specs/fx ) > "$T/$tag.out" 2>&1
+  ( cd "$d" && bound 180 env "$@" RALPH_LOG=off RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate \
+      bash scripts/ralph-build.sh specs/fx ) > "$T/$tag.out" 2>&1
   RC=$?
 }
 loopout() { tr '\n' ' ' < "$T/$1.out" 2>/dev/null | tail -c 400; }

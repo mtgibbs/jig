@@ -10,21 +10,11 @@
 # follow do not. Without that, a 62-second sleep would be paid three times and this gate would
 # cost minutes instead of one.
 
-# The harness's own outbound config is unset for every fixture loop. A fixture that inherits
-# HARNESS_REPORT_URL posts to the REAL coordinator — measured 2026-08-29, when gate fixtures put
-# rows keyed `spec=fx` on the production board. `20260829a-hermetic-gate` T2 moves this into
-# specs/lib/assert.sh for every gate; until it lands, each gate that spawns a loop does it here.
-# Also unset the loop's OWN control variables. A gate that inherits RALPH_FORCE_ALL from the
-# shell that launched it is a gate whose fixtures cannot skip anything — measured 2026-08-29,
-# when running this very loop with RALPH_FORCE_ALL=1 made four of six assertions fail no matter
-# what the executor wrote, and made ac2 pass for the wrong reason because the task running is
-# what ac2 asserts. Three attempts were burned on a defect in the gate, not in the work.
-# RALPH_SATISFIED_TIMEOUT is unset for the same reason: this gate SETS it per invocation, and an
-# ambient value would silently override the case being tested.
-_fx_env() {
-  env -u HARNESS_REPORT_URL -u HARNESS_REPORT_TOKEN \
-      -u RALPH_FORCE_ALL -u RALPH_FORCE_FROM -u RALPH_SATISFIED_TIMEOUT "$@"
-}
+# The quarantined environment (HARNESS_REPORT_URL/_TOKEN, RALPH_FORCE_ALL/_FROM,
+# RALPH_SATISFIED_TIMEOUT) is cleared by specs/lib/assert.sh, which every gate that loads this
+# file sources first, and again by ralph-build.sh's run_gates. It used to be reset HERE, and the
+# incidents that earned each variable now live beside the unsets in assert.sh — one place, so
+# there is no second list to keep in sync and no rule a new gate's author has to know.
 
 # mkloop <dir> <sleep-secs> <task1-done:yes|no|mixed> — a two-task fixture carrying the REAL scripts/.
 #
@@ -102,9 +92,9 @@ X
 runloop() {
   local d="$1"; shift
   local tag; tag="$(basename "$d")"
-  ( cd "$d" && _fx_env "$@" RALPH_LOG=off RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate \
+  ( cd "$d" && bound 240 env "$@" RALPH_LOG=off RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate \
       FX_LOG="$T/$tag.execlog" \
-      timeout 240 bash scripts/ralph-build.sh specs/fx ) > "$T/$tag.out" 2>&1
+      bash scripts/ralph-build.sh specs/fx ) > "$T/$tag.out" 2>&1
   RC=$?
 }
 loopout() { tr '\n' ' ' < "$T/$1.out" 2>/dev/null | tail -c 500; }
