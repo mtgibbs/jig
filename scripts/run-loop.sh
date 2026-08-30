@@ -108,14 +108,15 @@ if [ -f "$SPEC_DIR/spec.md" ]; then
       mcp="$(echo "$mcp" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
       [ -z "$mcp" ] && continue
       if [ "$mcp" != "none" ]; then
-        if [ -n "${RALPH_EXEC_CMD:-}" ]; then
-          cfg_name="$(basename "$RALPH_EXEC_CMD" .sh).json"
-          if [ ! -f "$cfg_name" ]; then
-            misses="$misses $cfg_name"
-            misses_strategy="$misses_strategy (spec)"
-          fi
-        else
-          misses="$misses exec-qwen.json"
+        # ONE derivation, both cases. An unset RALPH_EXEC_CMD means ralph-build.sh will apply
+        # its own default binding, so the fallback derives the config name from that same
+        # default rather than restating a filename — a second literal is a second thing to miss
+        # at the next rename, and 20260827a AC-11 exists precisely because the first version of
+        # this hardcoded one. The name follows the binding's basename, so a codex or container
+        # binding resolves its own config and not somebody else's.
+        cfg_name="$(basename "${RALPH_EXEC_CMD:-$SCRIPT_DIR/exec-opencode.sh}" .sh).json"
+        if [ ! -f "$cfg_name" ]; then
+          misses="$misses $cfg_name"
           misses_strategy="$misses_strategy (spec)"
         fi
       fi
