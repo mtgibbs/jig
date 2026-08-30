@@ -15,6 +15,39 @@
 # shellcheck source=/dev/null
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../scripts" 2>/dev/null && pwd)/bound.sh" 2>/dev/null || true
 
+# ── the quarantine ───────────────────────────────────────────────────────────────────────────
+#
+# Sourcing this file is the protection. A gate inherits the environment of whatever launched it
+# — a shell, a container, the loop itself — and five variables in that environment change what a
+# gate MEASURES rather than how it runs. They are removed here, on load, so that no gate has to
+# carry a line of its own and no author has to know a rule.
+#
+# UNSET, never a sentinel. A sentinel URL is still a URL, and something eventually POSTs to it.
+#
+# This runs at SOURCE TIME, which is both what makes it unforgettable and what makes it bounded:
+# anything a gate sets AFTER this line is the gate's own choice and survives. Several gates
+# configure these deliberately for the case they are testing, this spec's own gate included.
+#
+# Each entry carries the failure that earned it. The list is the only place a reader learns what
+# kind of evidence puts a variable here, and a list that reads as arbitrary gets added to
+# arbitrarily.
+
+# A fixture loop that inherits these POSTS TO THE PRODUCTION COORDINATOR. Eight rows keyed
+# `spec=fx` landed on the live fleet board this way; they share harness#46's oldest-first
+# eviction, so a gate's throwaway run can push out the record of a real one.
+unset HARNESS_REPORT_URL
+unset HARNESS_REPORT_TOKEN
+
+# A gate that inherits these cannot skip anything inside its own fixtures — the loop it drives
+# is forced to re-run every task. Four of six assertions in 20260829b could not pass whatever
+# the executor wrote, and a fifth passed for the wrong reason.
+unset RALPH_FORCE_ALL
+unset RALPH_FORCE_FROM
+
+# A gate that sets this per case is silently overridden by an ambient value, so the case it
+# thinks it is testing is not the case that runs.
+unset RALPH_SATISFIED_TIMEOUT
+
 fail=0
 
 # ok <message> — print PASS message to stdout

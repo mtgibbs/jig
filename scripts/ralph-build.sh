@@ -196,13 +196,27 @@ _task_satisfied() {
 # fails, so the executor sees every failure at once rather than the first.
 run_gates() {
   local n="$1" strict="$2" rc=0 i g
+  # The SECOND placement of the quarantine; specs/lib/assert.sh is the first. Neither is
+  # redundant, because they cover different populations: assert.sh reaches the 31 per-task gates
+  # that source it and a gate run by hand or by gate-selftest, and NONE of the 24 monolithic
+  # gates — 20260801a..20260828j predate the per-task layout and define ok/no inline. Several of
+  # those drive the real loop, which makes them precisely the gates that can post to a
+  # coordinator. Clearing it here covers every gate the loop runs, whatever that gate sources.
+  #
+  # Not `unset` in this function: the LOOP reads RALPH_FORCE_ALL and RALPH_FORCE_FROM itself, and
+  # unsetting them here would take the loop's own controls with it. `env -u` is scoped to the
+  # child, which is the only scope that should lose them.
+  #
+  # Adding a source line to all 24 instead would be 24 edits that must not change one verdict,
+  # and it reinstates the rule-you-must-remember for gate number 25.
+  local _hermetic="env -u HARNESS_REPORT_URL -u HARNESS_REPORT_TOKEN -u RALPH_FORCE_ALL -u RALPH_FORCE_FROM -u RALPH_SATISFIED_TIMEOUT"
   if [ ! -d "$SPEC_DIR/tasks" ]; then
-    ( cd "$ROOT" && STRICT="$strict" bash "$VERIFY" 2>&1 )
+    ( cd "$ROOT" && $_hermetic STRICT="$strict" bash "$VERIFY" 2>&1 )
     return $?
   fi
   for i in $(seq 1 "$n"); do
     g="$(_gate_for "$i")" || { echo "ralph: task $i has no gate" >&2; return 3; }
-    ( cd "$ROOT" && STRICT="$strict" bash "$g" 2>&1 ) || rc=1
+    ( cd "$ROOT" && $_hermetic STRICT="$strict" bash "$g" 2>&1 ) || rc=1
   done
   return $rc   # 0 = every gate passed. Getting this backwards reports a red gate as green,
                # which is the only failure here worse than a broken loop.
