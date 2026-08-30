@@ -42,10 +42,23 @@ elif ! nonempty_strip "$base"; then
 elif instr "$base" '(opencode|@anthropic-ai/claude-code|gemini|codex)'; then
   no "end-2: the base image installs a model CLI, so it is an executor image and 'FROM harness-base' is not the whole cost of a new executor"
 else
+  # Scoped to EXECUTOR images — the ones that carry a model CLI. That is what the message below
+  # says and what the paragraph above is about: an image that bakes a CLI and is not FROM the
+  # base has forked the loop again. Sweeping every Dockerfile instead flagged
+  # docker/coordinator.Dockerfile, which is a stdlib-only Python service whose own header records
+  # that having no dependency tree is the point — "this service is the thing a human opens when
+  # the fleet is misbehaving". Putting the loop, git, ripgrep and jq underneath it to satisfy a
+  # check about executors would invert the one property it was built for, and the check would be
+  # failing for the wrong reason.
+  #
+  # Keyed on the CLI rather than on a filename pattern so it still catches the case that motivated
+  # it: a loop-executor-gemini added later, installing its CLI on top of python:slim, is an
+  # executor by this predicate no matter what it is called.
   offenders=""
   for df in "$ROOT"/docker/*.Dockerfile; do
     case "$(basename "$df")" in harness-base.Dockerfile) continue ;; esac
     nonempty_strip "$df" || continue
+    instr "$df" '(opencode|@anthropic-ai/claude-code|gemini|codex)' || continue
     instr "$df" '^FROM .*harness-base' || offenders="$offenders $(basename "$df")"
   done
   if [ -n "$offenders" ]; then
