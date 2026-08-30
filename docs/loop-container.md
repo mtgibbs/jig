@@ -131,5 +131,5 @@ Fix by exporting `HARNESS_LITELLM_KEY` before running.
 
 - `specs/20260828a-exec-container/spec.md` — contract and acceptance criteria.
 - `docs/design/fleet-dispatch.md` — fleet design, item 2.
-- `docker/loop-executor-opencode.Dockerfile` — derived image definition (adds `opencode` CLI to harness-base).
+- `docker/loop-executor-opencode.Dockerfile` — derived image definition (adds the `opencode` CLI to the base image; see `docs/executors.md` for what the base is and how to derive your own).
 - `scripts/exec-container.sh` — binding script.
