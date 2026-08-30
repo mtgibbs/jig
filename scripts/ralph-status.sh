@@ -86,7 +86,24 @@ hb_init() {
   HB_STARTED="$(date +%s 2>/dev/null || echo 0)"
   HB_TASK=""; HB_TIDX=0; HB_ATTEMPT=0
   HB_SLUG="$(_ralph_slug "$HB_SPEC")"
-   HB_HOST="$(scripts/run-key.sh 2>/dev/null || echo 'unknown')"
+   # Resolved from THIS FILE, not from the working directory.
+   #
+   # It was `scripts/run-key.sh` — a path relative to whatever repo the loop happens to be
+   # running in. That works only when the harness IS the worked repo. The convention is the
+   # opposite: a repo brings specs/ and gates and no harness scripts/, so the call missed, the
+   # `|| echo 'unknown'` swallowed it, and every status record for that run was keyed
+   # `unknown/<agent>-<pid>`. Meanwhile ralph-log.sh derives the SAME discriminator inline via
+   # _ralph_host(), from the real hostname — so one run wrote two different keys, status under
+   # `unknown` and artifacts under the host. Two pods with the same pid then collide in the
+   # status store, which is the collision specs/20260827b-fleet-run-key exists to prevent, and
+   # the coordinator cannot join a run's status to its attempts.
+   #
+   # ralph-status.sh is SOURCED, so BASH_SOURCE[0] is this file, and run-key.sh is its sibling
+   # in the harness — true whether the harness is a checkout, a worktree, or baked into an
+   # image. HARNESS_HOME wins when set, for a harness mounted somewhere else entirely.
+   _rk="${HARNESS_HOME:+$HARNESS_HOME/scripts/run-key.sh}"
+   [ -n "${_rk:-}" ] && [ -f "$_rk" ] || _rk="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)/run-key.sh"
+   HB_HOST="$(bash "$_rk" 2>/dev/null || echo 'unknown')"
    HB_DIR="${RALPH_STATUS_DIR:-$(git -C "${ROOT:-.}" rev-parse --show-toplevel 2>/dev/null || echo "$HOME/.harness")/.evidence/status}"
    # The root stays addressable: the sweeps below run from it so they still span every spec,
    # not just the one this loop happens to be running. HB_DIR then descends into this run's
