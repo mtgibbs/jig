@@ -111,6 +111,38 @@ if [ -f "$KEY" ]; then
   out="$(bash "$KEY" 2>/dev/null)"
   [ -n "$out" ] && ok "ac3: a bare call yields a discriminator ($out)" \
                 || no "ac3: a bare call printed nothing"
+
+  # ac3b — the STATUS store must reach the same discriminator the ARTIFACT store reaches, from a
+  # repo that carries no harness. This is the case the fleet is built on and the one the resolver
+  # was never exercised in: ralph-status.sh resolved `scripts/run-key.sh` relative to the WORKING
+  # DIRECTORY, which is the worked repo, and the convention says that repo brings specs/ and gates
+  # and no scripts/. The call missed, `|| echo unknown` swallowed it, and status was keyed
+  # `unknown/<agent>-<pid>` while ralph-log.sh's inline _ralph_host() keyed artifacts by the real
+  # hostname. Two keys for one run: the status store then collides across pods sharing a pid, and
+  # nothing can join a run's status to its attempts.
+  #
+  # Measured before the fix: HB_HOST=[unknown]. After: the hostname, equal to run-key.sh's own
+  # output. The assertion is EQUALITY against that output, not "not unknown" — a resolver that
+  # returned some other non-empty string would satisfy the weaker form and still split the keys.
+  mkdir -p "$T/noharness"
+  ( cd "$T/noharness" && git init -q -b work . && git config user.email t@t \
+      && git config user.name t && : > .keep && git add -A && git commit -qm i ) >/dev/null 2>&1
+  # Resolve the harness path BEFORE overriding ROOT for the probe. Written the other way round
+  # first, and the env assignment won: `$ROOT` inside the command expanded to the fixture, the
+  # source silently found nothing, and HB_HOST came back EMPTY — which the check below reported
+  # as the very defect it exists to detect. A broken probe and a real finding printed the same
+  # line. Hence the explicit "or empty" arm, and hence this note.
+  _rs="$STAT"
+  _want="$(bash "$KEY" 2>/dev/null)"
+  _got="$( cd "$T/noharness" && ROOT="$T/noharness" SPEC_DIR=specs/fx TASKS=/dev/null \
+             bash -c ". \"$_rs\"; hb_init 2>/dev/null || true; printf '%s' \"\$HB_HOST\"" 2>/dev/null )"
+  if [ "$_got" = unknown ] || [ -z "$_got" ]; then
+    no "ac3b: sourced from a repo with no scripts/, the heartbeat host is '$_got' — ralph-status.sh is resolving run-key.sh against the WORKED repo, so every consumer repo keys its status 'unknown' while its artifacts key by hostname"
+  elif [ "$_got" != "$_want" ]; then
+    no "ac3b: the heartbeat host is '$_got' but run-key.sh says '$_want' — status and artifacts would be filed under two different keys for one run"
+  else
+    ok "ac3b: from a repo with no harness, status resolves the same discriminator as the artifacts ($_got)"
+  fi
 else
   pend "ac1: run-key.sh honours RALPH_HOST_ID"
   pend "ac2: run-key.sh sanitises"
