@@ -77,6 +77,50 @@ Auth belongs to the **derived image and the operator** — your `Dockerfile`, yo
 `envFrom`. The binding reads it from the environment like any other program. This is the boundary
 that lets the base be public.
 
+### The contract is a set of names
+
+`exec-opencode.sh` acquires nothing — it takes provider configuration from the environment and
+execs. So what a worker needs is a set of **variable names**, and every context supplies the same
+names its own way:
+
+| variable | what it is |
+|---|---|
+| the provider key | whatever your CLI reads — `HARNESS_LITELLM_KEY`, `ANTHROPIC_API_KEY`, yours |
+| `HARNESS_REPORT_URL` | the coordinator to report to. Unset means report nothing, silently and deliberately |
+| `HARNESS_REPORT_TOKEN` | the bearer token presented when reporting |
+| the clone credential | a GitHub PAT, supplied through the credential helper — never in a URL |
+| `HARNESS_OUTCOME_PAT` | reserved: the identity that pushes a branch and opens a PR. Nothing consumes it yet |
+
+| context | how they arrive |
+|---|---|
+| a laptop | already exported; `oc` reads Keychain or 1Password |
+| a local container | `docker run -e` / `--env-file` |
+| a k8s Job | `envFrom` a Secret, named by `HARNESS_WORKER_SECRET_<STRATEGY>` |
+
+**A local run needs no Kubernetes concept at all.** `envFrom` is not rendered when nothing is
+configured, so the dispatcher's Job body is byte-identical to what it was before any of this
+existed, and a laptop or a `docker run` never encounters it. That is the property this design is
+arranged around — the fleet is not a prerequisite for using the harness.
+
+Secrets are resolved **per strategy**: `HARNESS_WORKER_SECRET_BUILD_CODEX` falls back to
+`HARNESS_WORKER_SECRET` and then to nothing, never to a sibling strategy's. A `build-codex` worker
+therefore never holds the LiteLLM key it would never use.
+
+### Three identities, and what each may do
+
+| identity | held by | may |
+|---|---|---|
+| dispatch API token | the coordinator | create compute — launch Jobs |
+| clone credential | every worker | read the repo it was handed |
+| outcome PAT | a worker that lands work | push a branch, open a PR — and **never launch compute** |
+
+The last two are separated on purpose. One PAT doing both means a worker that only ever needed to
+read is holding the credential that can write. And the worker is the **least-trusted component in
+the system**: it runs a model that writes code into a working tree and then executes that
+repository's own `verify.sh`. Its credentials should be the narrowest in the fleet, not the widest
+— which is also why the outcome PAT may never launch compute. A worker that can start more workers
+turns one compromise into a fleet.
+
 ## 4. Two different things are called "container"
 
 Read this section before you write anything, because conflating these two produces
