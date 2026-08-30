@@ -181,5 +181,44 @@ else
   pend "ac6: evidence-replayable's gate still only checks has(\"outcome\")"
 fi
 
+# ── ac8 · a gate that goes green but a commit that does not land is NOT a pass ─────────────
+#
+# The one ending no fixture in this repo could reach, because every fixture sets a git identity
+# and no image in this repo provides one. Before the fix, `git commit … || true` swallowed the
+# failure, `outcome=passed` had ALREADY been written, the loop continued, and the next task's
+# failure path (`git checkout -- .`) deleted work that had genuinely gone green.
+#
+# The fixture removes every source of an identity — local, global, system and the env — so the
+# commit fails for the reason a container fails, not for a reason invented here.
+git -C "$P" config --unset user.email 2>/dev/null || true
+git -C "$P" config --unset user.name  2>/dev/null || true
+mkdir -p "$T/nohome"
+rm -rf "$T/ev8"
+git -C "$P" reset -q --hard "$BASE" 2>/dev/null; git -C "$P" clean -qfd 2>/dev/null
+_h8="$(git -C "$P" rev-parse HEAD 2>/dev/null)"
+( cd "$P" && HOME="$T/nohome" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null \
+    GIT_AUTHOR_NAME= GIT_AUTHOR_EMAIL= GIT_COMMITTER_NAME= GIT_COMMITTER_EMAIL= EMAIL= \
+    ROOT="$P" RALPH_EXEC_CMD="$T/mock.sh" MOCK_MODE=pass RALPH_RETRIES=0 \
+    RALPH_AGENT=gate RALPH_LOG_DIR="$T/ev8" RALPH_STATUS_DIR="$T/st8" RALPH_BUS_DISABLE=1 \
+    bash "$BUILD" "$P/specs/demo" ) > "$T/out8" 2>&1
+_rc8=$?
+_h8b="$(git -C "$P" rev-parse HEAD 2>/dev/null)"
+_o8="$(for f in $(find "$T/ev8" -name 'T*-attempt*.json' 2>/dev/null); do jq -r '.outcome // empty' "$f" 2>/dev/null; done | tr '\n' ' ')"
+
+if [ "$_h8" != "$_h8b" ]; then
+  # The control. If a commit DID land, the identity leaked in from somewhere and this whole
+  # assertion is measuring nothing — which is indistinguishable from a pass unless it is said.
+  no "ac8: the fixture committed anyway (HEAD moved) — an identity reached it, so this check did not exercise the failure it exists to cover"
+elif [ "$_rc8" = 0 ]; then
+  no "ac8: the commit did not land and the loop still exited 0. It reports success for a task whose work is only in the working tree, and the next task's reset deletes it"
+elif printf '%s' "$_o8" | grep -qw passed; then
+  no "ac8: an attempt recorded outcome=passed with no commit behind it [$_o8]. The record is the durable claim; a green gate is not a saved change"
+elif ! grep -qi 'commit' "$T/out8"; then
+  no "ac8: the run stopped but never said the COMMIT was the problem. 'Gate failed' and 'gate passed, commit did not land' need different messages or the next reader retries the executor"
+else
+  ok "ac8: a green gate with no commit behind it aborts, says why, and records outcome=$_o8"
+fi
+git -C "$P" config user.email g@e; git -C "$P" config user.name g
+
 echo "---"
 [ "$fail" = 0 ] && exit 0 || exit 1

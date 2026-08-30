@@ -374,7 +374,12 @@ paths RELATIVE to the repo root (specs/... not /specs/...). Do the work this tim
       echo "  ✓ $task passed verify (attempt $attempt, gate: $_mode)"
       log_gate "$HB_TASK" "$attempt" "$out" "0"
       log_patch "$HB_TASK" "$attempt"
-      LOG_OUTCOME="passed"; LOG_ENDED="$(date +%s)"; LOG_RECORDED=1; log_meta "$HB_TASK" "$attempt"
+      # The outcome is recorded AFTER the commit, not before. It used to be this line, and the
+      # commit below ended in `|| true` — so a run whose commit failed recorded `passed`, kept
+      # going, and the next task's failure path (`git checkout -- .`) deleted the work. Silent
+      # loss of a task that had genuinely gone green. Absent a git identity — which no image in
+      # this repo provides and which every fixture happens to set — that is the DEFAULT path.
+      _head_before="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo none)"
       git -C "$ROOT" add -A
       # NOT "ralph(qwen)". This line named one executor while the same run filed its
       # evidence under another — a codex run committed as qwen. loop-index.py had already
@@ -382,7 +387,26 @@ paths RELATIVE to the repo root (specs/... not /specs/...). Do the work this tim
       # names one executor is a tool that stops working when you change executors"
       # (loop-index.py:160); the READER was fixed and the WRITER was not. git log is the
       # record a human reads first, so it was the copy that lied.
-      git -C "$ROOT" commit -q -m "ralph($RALPH_AGENT): ${task%%:*} — ${task#*: }" || true
+      _commit_err="$(git -C "$ROOT" commit -q -m "ralph($RALPH_AGENT): ${task%%:*} — ${task#*: }" 2>&1)" || true
+      # HEAD MOVED is the assertion, not the exit code. They are two different questions, and
+      # only one of them is about whether the work survives: a non-zero rc with a commit made
+      # and a zero rc with nothing committed are both reachable, and the durable fact is the
+      # ref. Checking rc alone would have kept the weaker half of the same bug.
+      if [ "$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo none)" = "$_head_before" ]; then
+        echo "✋ ABORT: $task passed its gate but the commit did not land — the work is not saved." >&2
+        printf '%s\n' "$_commit_err" | sed 's/^/    | /' | head -4 >&2
+        echo "    The tree still holds the change; commit it by hand before running again." >&2
+        echo "    If this is a container, it has no git identity: set user.name and user.email." >&2
+        LOG_OUTCOME="uncommitted"; LOG_ENDED="$(date +%s)"; LOG_RECORDED=1; log_meta "$HB_TASK" "$attempt"
+        hb_write stopped false; log_where
+        bus_say "✋ ABORT — $task went green but the commit did not land. Work is uncommitted."
+        exit 5
+      fi
+      # Recorded HERE, on the far side of the commit, which is the whole point of the change:
+      # `passed` now means "the gate went green AND the change is in the history", not "the gate
+      # went green and we tried". Moving this line without re-adding it is exactly the mistake
+      # this spec's own AC-1 caught on the first draft — a passing attempt wrote no record at all.
+      LOG_OUTCOME="passed"; LOG_ENDED="$(date +%s)"; LOG_RECORDED=1; log_meta "$HB_TASK" "$attempt"
       passed=1; hb_write passed true
       bus_say "✓ ${task%%:*} passed verify (attempt $attempt/$((RETRIES + 1))) — ${HB_TIDX}/${HB_TOTAL:-?}"
       retry_record "$out"
