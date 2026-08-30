@@ -70,7 +70,7 @@ runfx() {
   local d="$1" tag; tag="$(basename "$d")"
   : > "$GATELOG"
   ( cd "$d" && RALPH_LOG=off RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate \
-      timeout 180 bash scripts/ralph-build.sh specs/fx ) > "$T/$tag.out" 2>&1
+      bound 180 bash scripts/ralph-build.sh specs/fx ) > "$T/$tag.out" 2>&1
   echo $?
 }
 fxout() { tr '\n' ' ' < "$T/$1.out" 2>/dev/null | tail -c 400; }
@@ -82,7 +82,7 @@ if [ ! -r "$ASSERT" ]; then
 else
   # Behavioural, not a grep: source it and ask the shell what exists. A grep for "pend" would
   # also match the header comment that the task text REQUIRES, and would fail correct work.
-  _v="$(timeout 10 bash -c '. "$1" 2>/dev/null
+  _v="$(bound 10 bash -c '. "$1" 2>/dev/null
         for f in ok no; do type -t "$f" >/dev/null 2>&1 || { echo "missing:$f"; exit 0; }; done
         type -t pend >/dev/null 2>&1 && { echo "defines:pend"; exit 0; }
         echo good' _ "$ASSERT" 2>&1)"
@@ -219,7 +219,7 @@ if [ ! -x "$SELFTEST" ]; then
 else
   # A task directory with one honest assertion, one mutant that breaks it, and a target.
   st() {                                   # st <dir> -> exit code, output in $T/st.out
-    ( cd "$ROOT" && timeout 60 bash "$SELFTEST" "$1" ) > "$T/st.out" 2>&1; echo $?
+    ( cd "$ROOT" && bound 60 bash "$SELFTEST" "$1" ) > "$T/st.out" 2>&1; echo $?
   }
   mkst() {                                 # mkst <dir> <extra-assertion> <mutants...>
     local d="$1"; rm -rf "$d"; mkdir -p "$d/mutants"

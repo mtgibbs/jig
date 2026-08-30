@@ -13,8 +13,8 @@ coord_start pause
 mkloop "$T/p"
 ( sleep 25; coord_say none ) &
 _t0=$(date +%s)
-( cd "$T/p" && env HARNESS_REPORT_URL="$COORD_URL" RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate \
-    timeout 180 bash scripts/ralph-build.sh specs/fx ) > "$T/p.out" 2>&1
+( cd "$T/p" && bound 180 env HARNESS_REPORT_URL="$COORD_URL" RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate \
+    bash scripts/ralph-build.sh specs/fx ) > "$T/p.out" 2>&1
 RC=$?; _t1=$(date +%s); el=$((_t1-_t0))
 if [ "$RC" = 124 ]; then
   no "ac1: the run never returned — a pause must hold, not hang forever"

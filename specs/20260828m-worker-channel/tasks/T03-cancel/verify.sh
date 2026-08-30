@@ -57,7 +57,7 @@ X
 chmod +x "$T/slowexec.sh"
 coord_start none
 mkloop "$T/s"
-( cd "$T/s" && env HARNESS_REPORT_URL="$COORD_URL" RALPH_LOG=off RALPH_CANCEL_POLL=5     RALPH_EXEC_CMD="$T/slowexec.sh" RALPH_AGENT=gate     timeout 200 bash scripts/ralph-build.sh specs/fx ) > "$T/s.out" 2>&1 &
+( cd "$T/s" && bound 200 env HARNESS_REPORT_URL="$COORD_URL" RALPH_LOG=off RALPH_CANCEL_POLL=5     RALPH_EXEC_CMD="$T/slowexec.sh" RALPH_AGENT=gate     bash scripts/ralph-build.sh specs/fx ) > "$T/s.out" 2>&1 &
 _lp=$!
 sleep 20
 coord_say cancel

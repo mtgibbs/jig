@@ -13,6 +13,13 @@
 set -uo pipefail
 
 R="$(cd "$(dirname "$0")/../.." && pwd)"
+
+# `bound`, not `timeout`: this gate is author-facing, so it runs on macOS as well as in the
+# container, and macOS ships neither timeout nor gtimeout. scripts/bound.sh is the one
+# implementation and prefers the real timeout where it exists. See specs/amendments.md,
+# "Portability follows the invoker, not the tool".
+# shellcheck source=/dev/null
+. "$R/scripts/bound.sh"
 fail=0
 ok(){   echo "  PASS  $1"; }
 no(){   echo "  FAIL  $1" >&2; fail=1; }
@@ -80,7 +87,7 @@ export PATH="$T/bin:$PATH" HARNESS_KUBECTL=kubectl
 # and an unbounded call here would hang the whole gate rather than fail it. A hanging gate
 # is worse than a failing one — the loop's watchdog kills the attempt and blames the executor.
 MOCK_DIR="$T/m_noenv" HARNESS_API_TOKEN= \
-  timeout 10 python3 -c "import sys; sys.path.insert(0,'$DISP'); import api; api.serve(0)" >"$T/noenv.out" 2>&1
+  bound 10 python3 -c "import sys; sys.path.insert(0,'$DISP'); import api; api.serve(0)" >"$T/noenv.out" 2>&1
 rc=$?
 if [ "$rc" = 124 ]; then
   no "ac1: serve() kept running with no HARNESS_API_TOKEN — it must refuse to start, not serve"

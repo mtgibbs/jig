@@ -11,8 +11,8 @@ mkexec
 coord_start none
 mkloop "$T/on"
 # RALPH_LOG stays ON here: log_meta is what writes attempt records.
-( cd "$T/on" && env HARNESS_REPORT_URL="$COORD_URL" HARNESS_REPORT_TOKEN="$TOKEN" \
-    RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate timeout 180 bash scripts/ralph-build.sh specs/fx ) > "$T/on.out" 2>&1
+( cd "$T/on" && bound 180 env HARNESS_REPORT_URL="$COORD_URL" HARNESS_REPORT_TOKEN="$TOKEN" \
+    RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate bash scripts/ralph-build.sh specs/fx ) > "$T/on.out" 2>&1
 RC=$?
 if [ "$RC" = 124 ]; then
   no "ac1: the run did not return within 180s"
@@ -44,8 +44,8 @@ coord_stop
 
 # ac3 — same fail-open discipline as status: a dead coordinator is harmless.
 mkloop "$T/dead"
-( cd "$T/dead" && env HARNESS_REPORT_URL="http://127.0.0.1:1" HARNESS_REPORT_TOKEN="$TOKEN" \
-    RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate timeout 180 bash scripts/ralph-build.sh specs/fx ) > "$T/dead.out" 2>&1
+( cd "$T/dead" && bound 180 env HARNESS_REPORT_URL="http://127.0.0.1:1" HARNESS_REPORT_TOKEN="$TOKEN" \
+    RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate bash scripts/ralph-build.sh specs/fx ) > "$T/dead.out" 2>&1
 rc=$?
 case "$rc" in
   0)   ok "ac3: attempt reporting to a dead coordinator neither fails nor stalls the run" ;;

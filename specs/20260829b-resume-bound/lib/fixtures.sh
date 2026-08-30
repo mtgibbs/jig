@@ -21,10 +21,12 @@
 # what ac2 asserts. Three attempts were burned on a defect in the gate, not in the work.
 # RALPH_SATISFIED_TIMEOUT is unset for the same reason: this gate SETS it per invocation, and an
 # ambient value would silently override the case being tested.
-_fx_env() {
-  env -u HARNESS_REPORT_URL -u HARNESS_REPORT_TOKEN \
-      -u RALPH_FORCE_ALL -u RALPH_FORCE_FROM -u RALPH_SATISFIED_TIMEOUT "$@"
-}
+# The unset list is ARGS, not a wrapper function, because `bound` has to be outermost and
+# `bound` execs its argv — so the first word after it must be a real binary. `env` is;
+# a shell function is not. `_fx_env bound 180 bash …` fails with "env: bound: No such file
+# or directory", and it fails identically whether the reset works or not.
+# (20260829c-hermetic-gate removes this list entirely; the shape only has to survive until then.)
+FX_UNSET="-u HARNESS_REPORT_URL -u HARNESS_REPORT_TOKEN -u RALPH_FORCE_ALL -u RALPH_FORCE_FROM -u RALPH_SATISFIED_TIMEOUT"
 
 # mkloop <dir> <sleep-secs> <task1-done:yes|no|mixed> — a two-task fixture carrying the REAL scripts/.
 #
@@ -102,9 +104,9 @@ X
 runloop() {
   local d="$1"; shift
   local tag; tag="$(basename "$d")"
-  ( cd "$d" && _fx_env "$@" RALPH_LOG=off RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate \
+  ( cd "$d" && bound 240 env $FX_UNSET "$@" RALPH_LOG=off RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate \
       FX_LOG="$T/$tag.execlog" \
-      timeout 240 bash scripts/ralph-build.sh specs/fx ) > "$T/$tag.out" 2>&1
+      bash scripts/ralph-build.sh specs/fx ) > "$T/$tag.out" 2>&1
   RC=$?
 }
 loopout() { tr '\n' ' ' < "$T/$1.out" 2>/dev/null | tail -c 500; }

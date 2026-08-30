@@ -39,7 +39,12 @@ for f in "$ROOT"/specs/*/verify.sh "$ROOT"/specs/*/tasks/*/verify.sh "$ROOT"/spe
   # is the exact pattern this loop searches for. Third time in one session that a check matched
   # its own source; the first two were a mutant WHY: line and a rename census.
   case "$f" in "$ROOT"/specs/20260829c-hermetic-gate/*) continue ;; esac
-  strip_comments "$f" | grep -qE '(unset|env +-u)[^#]*HARNESS_REPORT_URL' && _dupes="$_dupes ${f#$ROOT/}"
+  # `-u` OR `unset` ADJACENT to the name, not `env +-u` — because a third mechanism appeared:
+  # an args LIST (`FX_UNSET="-u HARNESS_REPORT_URL …"`) held in a variable and expanded at the
+  # call site. The old pattern required the literal `env` on the same line and matched none of it,
+  # so the two copies this task exists to remove went invisible the day they were rewritten.
+  # A detector keyed to the mechanism dies of the next mechanism; key it to the name being removed.
+  strip_comments "$f" | grep -qE '(unset|-u)[[:space:]]+HARNESS_REPORT_URL' && _dupes="$_dupes ${f#$ROOT/}"
 done
 if [ -n "$_dupes" ]; then
   no "ac02: the quarantined set is re-implemented locally in:$_dupes — a second copy is a second thing to keep in sync, and the two that existed before this spec did not even use the same mechanism (unset at source time in one, env -u per invocation in the other)"

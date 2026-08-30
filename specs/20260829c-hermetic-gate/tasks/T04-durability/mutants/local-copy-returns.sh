@@ -1,14 +1,22 @@
 # MUTANT: ac02
 # TARGET: specs/20260828o-evidence-egress/lib/fixtures.sh
-# WHY: the third local copy comes back, under the same _fx_env name a different spec already
-# WHY: uses for a different set. Nothing fails; the next reader finds two helpers with one name
-# WHY: and no way to tell which is authoritative.
+# WHY: the third local copy comes back — this time as an inline `env -u` list at the call site,
+# WHY: not the wrapper it used to be. Nothing fails, so nothing announces it; the set now lives
+# WHY: in two places under two different shapes and the next reader cannot tell which is
+# WHY: authoritative. Derived from the live target so the ONLY difference is the copy itself.
 # fixtures.sh — a throwaway loop with LOGGING ON, plus a stub coordinator that keeps whole bodies.
 #
 # Reuses the worker-channel fixture repo and executor rather than cloning them: that spec's
 # mkloop/mkexec already build a two-task repo carrying the real scripts/, and a second copy would
 # drift from it. What is NOT reused is runloop — it runs with RALPH_LOG=off, and this spec is
 # entirely about the artifacts that logging produces, so reusing it would test nothing.
+# `bound` comes from scripts/bound.sh. Sourced here rather than relied on transitively:
+# every gate that loads this file also loads assert.sh first, which pulls bound in — but a
+# fixtures file that only works in that order is a trap for the next gate written against it.
+# Idempotent. See specs/amendments.md, "Portability follows the invoker, not the tool".
+# shellcheck source=/dev/null
+. "$ROOT/scripts/bound.sh" 2>/dev/null || true
+
 . "$ROOT/specs/20260828m-worker-channel/lib/fixtures.sh"
 
 COORD_PY="$ROOT/specs/20260828o-evidence-egress/lib/coord.py"
@@ -27,12 +35,11 @@ coord_start() {
 }
 
 # runloop_logged <dir> [env...] — like runloop, but with the evidence writer ENABLED.
-_fx_env() { env -u HARNESS_REPORT_URL -u HARNESS_REPORT_TOKEN "$@"; }
 
 runloop_logged() {
   local d="$1"; shift; local tag; tag="$(basename "$d")"
-  ( cd "$d" && _fx_env "$@" RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate \
-      timeout 180 bash scripts/ralph-build.sh specs/fx ) > "$T/$tag.out" 2>&1
+  ( cd "$d" && bound 180 env -u HARNESS_REPORT_URL -u HARNESS_REPORT_TOKEN "$@" RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate \
+      bash scripts/ralph-build.sh specs/fx ) > "$T/$tag.out" 2>&1
   RC=$?
 }
 
