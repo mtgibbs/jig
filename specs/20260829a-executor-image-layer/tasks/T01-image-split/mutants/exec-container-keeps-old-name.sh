@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# MUTANT: ac6
+# MUTANT: ac06
 # TARGET: scripts/exec-container.sh
 # WHY: fixes the :latest half and misses the rename half — it pins a REAL tag on the image name
 # WHY: CI no longer publishes. The obvious check, "is the default still :latest", passes; the

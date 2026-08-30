@@ -1,4 +1,4 @@
-# MUTANT: ac4
+# MUTANT: ac04
 # TARGET: docker/harness-base.Dockerfile
 # WHY: sets ENTRYPOINT to run-loop.sh instead of run-task.sh. Plausible — run-loop.sh IS the
 # WHY: engine — and wrong: run-loop.sh needs a checked-out repo on a throwaway branch, which is

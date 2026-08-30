@@ -1,0 +1,74 @@
+# MUTANT: ac09
+# TARGET: .github/workflows/build-images.yml
+# WHY: adds the paths: entries ac07 wants and a job literally named smoke — which pulls the
+# WHY: image and prints its version. It proves the registry has bytes, not that the image can
+# WHY: run a task. "It built" and "it works" are the two states this job exists to separate.
+name: build-images
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docker/**'
+      - 'scripts/**'
+      - 'specs/lib/**'
+      - '.github/workflows/build-images.yml'
+permissions:
+  contents: read
+  packages: write
+jobs:
+  base:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        run: echo "version=$(cat docker/harness-base.VERSION)" >> $GITHUB_OUTPUT
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/harness-base.Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ghcr.io/mtgibbs/harness-base:${{ steps.version.outputs.version }}
+  derived:
+    needs: base
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - image: loop-executor-opencode
+            dockerfile: docker/loop-executor-opencode.Dockerfile
+            version-file: docker/loop-executor-opencode.VERSION
+          - image: harness-coordinator
+            dockerfile: docker/coordinator.Dockerfile
+            version-file: docker/coordinator.VERSION
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        run: echo "version=$(cat ${{ matrix.version-file }})" >> $GITHUB_OUTPUT
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ghcr.io/mtgibbs/${{ matrix.image }}:${{ steps.version.outputs.version }}
+  smoke:
+    needs: derived
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker run --rm ghcr.io/mtgibbs/loop-executor-opencode:$(cat docker/loop-executor-opencode.VERSION) --version

@@ -91,4 +91,26 @@ else
   ok "ac4: a spec miss and a strategy miss are reported in one message, exiting 3 once"
 fi
 
+# ── ac5: every built-in strategy declares the executable its binding invokes ─────────────────
+# The preflight from ac1-ac4 protects a conf that DECLARES. A conf that declares nothing gets no
+# protection at all, and the one that matters most is the default: build-converge binds
+# exec-qwen.sh, whose executable is exactly the thing the derived image may not carry. Declaring
+# is what turns "strategy and image disagree" from a shell error mid-run into a preflight refusal
+# that names the missing tool.
+_ld="$ROOT/scripts/loops"
+if [ ! -d "$_ld" ]; then
+  no "ac5: scripts/loops/ is missing"
+else
+  _bare=""
+  for c in "$_ld"/*.conf; do
+    [ -f "$c" ] || continue
+    strip_comments "$c" | grep -q 'STRATEGY_TOOLS' || _bare="$_bare $(basename "$c" .conf)"
+  done
+  if [ -n "$_bare" ]; then
+    no "ac5: built-in strategies declare no STRATEGY_TOOLS:$_bare — the preflight cannot protect a conf that declares nothing, and build-converge is the one every default run uses"
+  else
+    ok "ac5: every built-in strategy declares the executable its binding invokes"
+  fi
+fi
+
 gate_done
