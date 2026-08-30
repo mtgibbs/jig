@@ -88,7 +88,7 @@ names its own way:
 | the provider key | whatever your CLI reads — `HARNESS_LITELLM_KEY`, `ANTHROPIC_API_KEY`, yours |
 | `HARNESS_REPORT_URL` | the coordinator to report to. Unset means report nothing, silently and deliberately |
 | `HARNESS_REPORT_TOKEN` | the bearer token presented when reporting |
-| the clone credential | a GitHub PAT, supplied through the credential helper — never in a URL |
+| `HARNESS_CLONE_PAT` | the clone credential: a GitHub PAT, supplied through the credential helper — never in a URL. Read-only on contents; it is not the outcome PAT |
 | `HARNESS_OUTCOME_PAT` | reserved: the identity that pushes a branch and opens a PR. Nothing consumes it yet |
 
 | context | how they arrive |
@@ -105,6 +105,12 @@ arranged around — the fleet is not a prerequisite for using the harness.
 Secrets are resolved **per strategy**: `HARNESS_WORKER_SECRET_BUILD_CODEX` falls back to
 `HARNESS_WORKER_SECRET` and then to nothing, never to a sibling strategy's. A `build-codex` worker
 therefore never holds the LiteLLM key it would never use.
+
+`HARNESS_CLONE_PAT` and `HARNESS_OUTCOME_PAT` are named as a pair on purpose. Earlier drafts called
+the first one `HARNESS_GITHUB_PAT` — written before these were two identities, and a name that says
+"the GitHub PAT" is the single-identity assumption this design exists to remove. If you are writing
+the entrypoint that populates `~/.git-credentials`, `HARNESS_CLONE_PAT` is the variable it reads,
+and it is the only one of the two that a worker which never lands work should hold at all.
 
 ### Three identities, and what each may do
 

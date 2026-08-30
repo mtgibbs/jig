@@ -107,9 +107,10 @@ if [ -e "$BASE" ] && ! git -C "$BASE" rev-parse --git-dir >/dev/null 2>&1; then
 fi
 
 if [ ! -e "$BASE" ]; then
-  # A plain https URL with NO token in it. entrypoint.sh already wrote ~/.git-credentials, so the
-  # helper supplies the secret; a token here would land in argv, in process listings, and in the
-  # transcript that now ships to the coordinator.
+  # A plain https URL with NO token in it. entrypoint.sh already wrote ~/.git-credentials from
+  # HARNESS_CLONE_PAT (docs/executors.md), so the helper supplies the secret; a token here would
+  # land in argv, in process listings, and in the transcript that now ships to the coordinator.
+  # HARNESS_CLONE_PAT, not HARNESS_OUTCOME_PAT: cloning is the read identity.
   REPO_URL="${HARNESS_REPO_URL:-https://github.com/${HARNESS_GITHUB_OWNER:-mtgibbs}/$REPO_NAME.git}"
   echo "run-task: cloning $REPO_URL"
   mkdir -p "$WORKSPACE"
