@@ -88,7 +88,7 @@ names its own way:
 | the provider key | whatever your CLI reads — `HARNESS_LITELLM_KEY`, `ANTHROPIC_API_KEY`, yours |
 | `HARNESS_REPORT_URL` | the coordinator to report to. Unset means report nothing, silently and deliberately |
 | `HARNESS_REPORT_TOKEN` | the bearer token presented when reporting |
-| `HARNESS_CLONE_PAT` | the clone credential: a GitHub PAT, supplied through the credential helper — never in a URL. Read-only on contents; it is not the outcome PAT |
+| `HARNESS_CLONE_PAT` | the clone credential: a GitHub PAT, written to `~/.git-credentials` by `scripts/entrypoint.sh` and supplied through the `store` helper — never in a URL. Read-only on contents; it is not the outcome PAT |
 | `HARNESS_OUTCOME_PAT` | reserved: the identity that pushes a branch and opens a PR. Nothing consumes it yet |
 
 | context | how they arrive |
@@ -105,6 +105,14 @@ arranged around — the fleet is not a prerequisite for using the harness.
 Secrets are resolved **per strategy**: `HARNESS_WORKER_SECRET_BUILD_CODEX` falls back to
 `HARNESS_WORKER_SECRET` and then to nothing, never to a sibling strategy's. A `build-codex` worker
 therefore never holds the LiteLLM key it would never use.
+
+**`scripts/entrypoint.sh` is what consumes it.** Every executor image inherits it as
+`harness-base`'s entrypoint: when `HARNESS_CLONE_PAT` is set it writes `~/.git-credentials` at mode
+0600, configures `credential.helper store`, and then execs `run-task.sh` with your arguments
+untouched. When the variable is **unset it does nothing at all** — no file, no git config, no
+message — so a laptop run and a plain `docker run` behave exactly as they did before it existed.
+The value reaches the file by redirection and never through argv, because argv is readable from
+`/proc` for the life of the process and the container transcript ships to the coordinator.
 
 `HARNESS_CLONE_PAT` and `HARNESS_OUTCOME_PAT` are named as a pair on purpose. Earlier drafts called
 the first one `HARNESS_GITHUB_PAT` — written before these were two identities, and a name that says
