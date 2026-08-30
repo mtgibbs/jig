@@ -215,23 +215,45 @@ def launch(job: dict, *, runner=None) -> int:
     """
     import json
     import subprocess
+    import sys
 
     cmd_name = runner
     if cmd_name is None:
         cmd_name = os.environ.get("HARNESS_KUBECTL", "kubectl")
 
-    data = json.dumps(job)
-
+    # Inside the try: json.dumps() raises on a Job it cannot serialise, and this function is
+    # documented as never raising. dispatch() has no handler, so an escape reaches the top of a
+    # long-lived process.
     try:
+        data = json.dumps(job)
         proc = subprocess.run(
             [cmd_name, "apply", "-f", "-"],
             input=data.encode("utf-8"),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        return proc.returncode
-    except Exception:
+    except Exception as exc:
+        # The runner could not be executed at all — a wrong image, or a typo'd HARNESS_KUBECTL.
+        # Name it: this message is what points a reader at the image rather than at the Job body.
+        print(
+            "dispatch: could not execute %r: %s" % (cmd_name, exc),
+            file=sys.stderr,
+        )
         return 1
+
+    if proc.returncode != 0:
+        # The runner ran and refused. Its own words are the diagnostic; captured-and-discarded is
+        # why a rejected Job used to reach a human as a bare exit code. stderr, never stdout — a
+        # caller may be reading structured output from stdout.
+        detail = (proc.stderr or b"").decode("utf-8", "replace").strip()
+        print(
+            "dispatch: %s apply rejected the Job (exit %d): %s"
+            % (cmd_name, proc.returncode, detail or "(no output)"),
+            file=sys.stderr,
+        )
+
+    # Silent on success. A dispatcher that logs every launch buries the one line that matters.
+    return proc.returncode
 
 
 def dispatch(
