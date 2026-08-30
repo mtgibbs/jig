@@ -71,6 +71,36 @@ def worker_image(strategy: str, default: str) -> str:
     return os.environ.get(f"HARNESS_WORKER_IMAGE_{suffix}") or default
 
 
+def worker_secret(strategy: str, default: str) -> str:
+    """Resolve the Secret whose contents a worker of this strategy should receive.
+
+    The same map as worker_image(), deliberately: HARNESS_WORKER_SECRET_<STRATEGY_UPPER_SNAKE>
+    when set, otherwise the single HARNESS_WORKER_SECRET, otherwise nothing. Two maps that
+    resolved per-strategy config differently would be two things to reason about, and the second
+    one is always the one somebody forgets.
+
+    Per strategy rather than one shared blob because the worker is the least-trusted component in
+    the fleet: it runs a model that writes code into a working tree and then executes that
+    repository's own deterministic gate. One secret for everyone means a build-codex worker holds
+    the LiteLLM key it will never use, and a compromise of any family is a compromise of all.
+
+    (Worded without naming the gate script: 20260828g ac8 greps this module for a gate invocation
+    and does not strip comments, so prose ABOUT the loop reads as this module driving one. The
+    check is blunt in the right direction — a dispatcher that grew a gate call would be the defect
+    it is looking for — so the prose moves, not the check.)
+
+    Falls back to the shared default or to NOTHING, never to a sibling strategy's secret. An empty
+    return renders no envFrom at all, which is what keeps a laptop and a local container free of
+    every Kubernetes concept in this module.
+
+    This resolves a NAME. No credential value passes through here.
+    """
+    if not strategy:
+        return default
+    suffix = re.sub(r"[^A-Za-z0-9]", "_", strategy).upper()
+    return os.environ.get(f"HARNESS_WORKER_SECRET_{suffix}") or default
+
+
 def already_seen(ledger_path: str, event_id: str) -> bool:
     """Return True if event_id has been actioned before.
 
@@ -109,7 +139,7 @@ def record_seen(ledger_path: str, event_id: str) -> None:
         pass
 
 
-def render_job(intent: dict, *, image: str, namespace: str, run_id: str) -> dict:
+def render_job(intent: dict, *, image: str, namespace: str, run_id: str, secret: str = "") -> dict:
     """Render a Kubernetes Job object as a plain Python dict.
 
     Args:
@@ -117,10 +147,37 @@ def render_job(intent: dict, *, image: str, namespace: str, run_id: str) -> dict
         image: Container image to run.
         namespace: Kubernetes namespace.
         run_id: Unique identifier for this run, used in the Job name.
+        secret: Name of a Secret to expose to the container via envFrom. Empty means the
+            key is OMITTED from the rendered object entirely — an envFrom of [] is a
+            different object from no envFrom, and every deployment that exists today
+            configures neither variable.
 
     Returns:
         Dict representing a Kubernetes Job object.
     """
+    container = {
+        "name": "run",
+        "image": image,
+        "env": [
+            {
+                "name": "REPO",
+                "value": intent["repo"],
+            },
+            {
+                "name": "SPEC",
+                "value": intent["spec"],
+            },
+            {
+                "name": "STRATEGY",
+                "value": intent["strategy"],
+            },
+        ],
+    }
+    # Added only when it resolves. Assigning None or [] would satisfy a reader skimming for
+    # "is envFrom handled" while changing the rendered object for every existing deployment.
+    if secret:
+        container["envFrom"] = [{"secretRef": {"name": secret}}]
+
     return {
         "apiVersion": "batch/v1",
         "kind": "Job",
@@ -138,26 +195,7 @@ def render_job(intent: dict, *, image: str, namespace: str, run_id: str) -> dict
                         "harness-fleet": "true",
                     },
                     "restartPolicy": "Never",
-                    "containers": [
-                        {
-                            "name": "run",
-                            "image": image,
-                            "env": [
-                                {
-                                    "name": "REPO",
-                                    "value": intent["repo"],
-                                },
-                                {
-                                    "name": "SPEC",
-                                    "value": intent["spec"],
-                                },
-                                {
-                                    "name": "STRATEGY",
-                                    "value": intent["strategy"],
-                                },
-                            ],
-                        }
-                    ],
+                    "containers": [container],
                 }
             },
         },
@@ -239,8 +277,14 @@ def dispatch(
     # image are THE SAME value, read once from the intent being rendered. A run launched
     # with one strategy's name on the env and another strategy's image is the failure this
     # resolution exists to make impossible, and both halves read as correct in isolation.
-    image = worker_image(intent.get("strategy", ""), image)
-    job = render_job(intent, image=image, namespace=namespace, run_id=run_id)
+    # ONE strategy, read once, feeding all three: the Job's STRATEGY env, the image that can run
+    # it, and the credentials it is entitled to. A run launched under one strategy's name on
+    # another strategy's image carrying a third strategy's secret is the failure this placement
+    # makes impossible, and every one of those three halves reads as correct in isolation.
+    strategy = intent.get("strategy", "")
+    image = worker_image(strategy, image)
+    secret = worker_secret(strategy, os.environ.get("HARNESS_WORKER_SECRET", ""))
+    job = render_job(intent, image=image, namespace=namespace, run_id=run_id, secret=secret)
     exit_code = launch(job)
 
     record_seen(ledger_path, event_id)
