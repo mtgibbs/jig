@@ -42,8 +42,12 @@ STUB
 chmod +x "$BAKED/scripts/run-loop.sh"
 cp "$BAKED/scripts/run-loop.sh" "$BAKED/scripts/ralph-build.sh"
 
+# Both names carry the SAME sentinel value on purpose: the clone credential was renamed
+# HARNESS_GITHUB_PAT -> HARNESS_CLONE_PAT by 20260830a (docs/executors.md), and one sentinel value
+# means the leak grep below covers either name without becoming two checks that can disagree.
 run_rt() { ( cd "$T" && HARNESS_WORKSPACE="$WS" HARNESS_DIR="$BAKED" HARNESS_REPO_NAME=proj \
-               HARNESS_GITHUB_PAT=SENTINEL-PAT-4c1f bounded 30 bash "$RT" "$@" ) 2>&1; }
+               HARNESS_GITHUB_PAT=SENTINEL-PAT-4c1f HARNESS_CLONE_PAT=SENTINEL-PAT-4c1f \
+               bounded 30 bash "$RT" "$@" ) 2>&1; }
 
 # ── ac1: flags work in any position ──────────────────────────────────────────────────────────
 a="$(run_rt specs/fx --repo proj --strategy build-converge)"
@@ -79,7 +83,7 @@ fi
 out="$(run_rt specs/fx --repo proj)"
 if echo "$out" | grep -q 'SENTINEL-PAT-4c1f'; then
   no "ac3: the PAT appeared in run-task.sh's own output. The transcript now ships to the coordinator, so a token here leaves the machine"
-elif instr "$RT" 'https://[^ ]*(x-access-token|\$\{?HARNESS_GITHUB_PAT)'; then
+elif instr "$RT" 'https://[^ ]*(x-access-token|\$\{?HARNESS_(GITHUB|CLONE)_PAT)'; then
   no "ac3: run-task.sh builds a clone URL containing a credential. entrypoint.sh already wrote ~/.git-credentials; a token in the URL lands in process listings and in the log"
 elif ! instr "$RT" 'git[[:space:]]+clone'; then
   no "ac3: run-task.sh no longer clones at all — the on-demand clone is what lets an agent be handed work in a repo it has not seen"

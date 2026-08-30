@@ -305,7 +305,10 @@ each image by `playbooks/50-ai-stack.yml` (tag `harness-images`) and invoked as
   path and a URL.
 - The target repo is cloned on demand over plain `https` with **no token in the URL**;
   `entrypoint.sh` has already written `~/.git-credentials` from `HARNESS_GITHUB_PAT`, so no
-  secret reaches argv or the logs. Keep that property exactly.
+  secret reaches argv or the logs. Keep that property exactly. **(Superseded 2026-08-30: the
+  variable is `HARNESS_CLONE_PAT` — see `docs/executors.md`. `20260830a` split one PAT into a
+  clone identity and an outcome identity after this was written; the property described here is
+  unchanged, only the name.)**
 - A worktree is created off `origin/$BASE_BRANCH` on a throwaway branch. `git worktree remove
   --force` **and** `git worktree prune` both run before `add`: `rm -rf` alone leaves the worktree
   registered in `.git/worktrees`, which made a spec runnable exactly once per container.
