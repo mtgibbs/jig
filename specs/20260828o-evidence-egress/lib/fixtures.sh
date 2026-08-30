@@ -29,16 +29,15 @@ coord_start() {
 }
 
 # runloop_logged <dir> [env...] — like runloop, but with the evidence writer ENABLED.
-# The unset list is ARGS, not a wrapper function, because `bound` has to be outermost and
-# `bound` execs its argv — so the first word after it must be a real binary. `env` is;
-# a shell function is not. `_fx_env bound 180 bash …` fails with "env: bound: No such file
-# or directory", and it fails identically whether the reset works or not.
-# (20260829c-hermetic-gate removes this list entirely; the shape only has to survive until then.)
-FX_UNSET="-u HARNESS_REPORT_URL -u HARNESS_REPORT_TOKEN"
+# The quarantined environment (HARNESS_REPORT_URL/_TOKEN, RALPH_FORCE_ALL/_FROM,
+# RALPH_SATISFIED_TIMEOUT) is cleared by specs/lib/assert.sh, which every gate that loads this
+# file sources first, and again by ralph-build.sh's run_gates. It used to be reset HERE, and the
+# incidents that earned each variable now live beside the unsets in assert.sh — one place, so
+# there is no second list to keep in sync and no rule a new gate's author has to know.
 
 runloop_logged() {
   local d="$1"; shift; local tag; tag="$(basename "$d")"
-  ( cd "$d" && bound 180 env $FX_UNSET "$@" RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate \
+  ( cd "$d" && bound 180 env "$@" RALPH_EXEC_CMD="$T/exec.sh" RALPH_AGENT=gate \
       bash scripts/ralph-build.sh specs/fx ) > "$T/$tag.out" 2>&1
   RC=$?
 }

@@ -7,21 +7,11 @@
 # small git fixtures for run-task.sh's clone paths. Sourcing that file would drag a whole
 # executor stub in for nothing.
 
-# The harness's OWN configuration is unset for every gate sourcing this file, and it is not
-# housekeeping. T02 and T03 drive the real run-loop.sh; HARNESS_REPORT_URL is set in every harness
-# container, so a gate run inherits it and the fixture loops POST TO THE PRODUCTION COORDINATOR.
-# Measured 2026-08-29: one pass over this spec's six gates put eight rows keyed `spec=fx` on the
-# live fleet board, where they are indistinguishable from real runs and share the oldest-first
-# eviction in harness#46 — so fixture rows can evict the record of an actual run.
-#
-# RALPH_FORCE_ALL/_FROM go too: a gate that inherits them from the shell that launched it cannot
-# skip anything inside its fixtures, which on 2026-08-29 made four assertions in another spec
-# unable to pass whatever the executor wrote and one pass for the wrong reason. Unset, never a
-# sentinel — a sentinel URL is still a URL and something eventually POSTs to it.
-#
-# 20260829a-hermetic-gate moves this into specs/lib/assert.sh so it holds for every gate in the
-# repo rather than for the ones whose author remembered.
-unset HARNESS_REPORT_URL HARNESS_REPORT_TOKEN RALPH_FORCE_ALL RALPH_FORCE_FROM RALPH_SATISFIED_TIMEOUT
+# The quarantined environment (HARNESS_REPORT_URL/_TOKEN, RALPH_FORCE_ALL/_FROM,
+# RALPH_SATISFIED_TIMEOUT) is cleared by specs/lib/assert.sh, which every gate that loads this
+# file sources first, and again by ralph-build.sh's run_gates. It used to be reset HERE, and the
+# incidents that earned each variable now live beside the unsets in assert.sh — one place, so
+# there is no second list to keep in sync and no rule a new gate's author has to know.
 
 # strip_comments <file> — the file's instruction lines only, comments and blanks removed.
 #
