@@ -132,3 +132,38 @@ lesson about spec authoring.
 
 This run's raw records were exported before teardown (lesson 5, applied) to
 `.evidence/runs/20260831a-selftest-sweep-rerun/`.
+
+## Postscript 2 — run 4: the per-task shape, first try, clean
+
+Same experiment, third rerun of the stripped tree (branch `qwen/selftest-sweep-rerun2`
+off main at `9df4c31`), but the first against the **converted** spec: per-task gates
+(#94), the TEMPLATE scrub live (#92), the no-op guard deferring to per-task gates (#93).
+
+**Result: exit 0, both tasks green on attempt 1.** Every prior run needed three
+attempts for T1 and died fail-closed on T2.
+
+- **T1 held scope.** Its commit carries `scripts/selftest-sweep.sh` and nothing of
+  T2's — the README bullet is absent from the diff. With no `pend ac5` line anywhere
+  to read as a to-do, the executor built exactly its own task. (The commit does carry
+  `.evidence/` ledger rows because qwen ran the live sweep to test its script and
+  `add -A` swept the output in — the attribution half of issue #91, still open, in
+  miniature.)
+- **T1 went green on attempt 1**, where runs 2 and 3 both took three attempts. A
+  gate that states only the current task's criteria is also a *smaller, sharper*
+  target — the executor wasn't juggling five future criteria while building one.
+- **T2 did real work for the first time in the experiment's history.** Skip-satisfied
+  found its gate red (no absorption needed — there was no overshoot to absorb), the
+  #93 deferral let an `.evidence/`-only diff count as work instead of refusing it as
+  "changed nothing", and T2's own gate judged the bullet verbatim and in position.
+  STRICT, attempt 1, green.
+- **Independent confirmation after exit:** both task gates and the convergence gate
+  re-run by hand in the worktree — rc=0 across the board; convergence saw all 8
+  corpora from the repo root.
+
+The comparison is now three runs on one side, one on the other: monolithic shape —
+two different leak paths, T2 structurally unwinnable, fail-closed endings; per-task
+shape — scoped commits, first-attempt greens, a T2 that exists. Defect 2 of
+`20260828i` ("the gate is the roadmap") is confirmed closed in practice, not just in
+fixtures. Records exported before teardown to
+`.evidence/runs/20260831a-selftest-sweep-rerun2/` (loop stdout and both commits as a
+patch included).
