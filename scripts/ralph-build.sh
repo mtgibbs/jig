@@ -50,6 +50,11 @@ fi
 # binding may carry arguments ("bash /path/x.sh", or a wrapper plus flags) rather than having to
 # be a single executable file.
 _SD="$(cd "$(dirname "$0")" && pwd)"
+# The portable wall-clock bound (defines `bound`, runs nothing on load). _task_satisfied
+# needs it: its old bare `timeout(1)` call was coreutils-only, so on macOS every satisfied
+# check exited 127, read as "gate did not pass", and skip-satisfied never once skipped
+# there (issue #98 — the same 127 gate-selftest hit in 20260828k, same cure).
+. "$_SD/bound.sh"
 RALPH_EXEC_CMD="${RALPH_EXEC_CMD:-$_SD/exec-opencode.sh}"
 EXEC_TIMEOUT="${RALPH_EXEC_TIMEOUT:-480}"
 
@@ -188,7 +193,7 @@ _task_satisfied() {
   # satisfied task and skips it — worse than never skipping, because not skipping costs time and
   # this costs correctness in silence. `out` is captured for the announcements, not consulted for
   # the answer.
-  local out; out="$(timeout "$_bound" bash "$g" 2>&1)"
+  local out; out="$(bound "$_bound" bash "$g" 2>&1)"
   local _rc=$?
   # The two refusals are different facts and read differently: one is a bound to raise or a gate
   # to make cheaper, the other is work still to do. Neither says "skipped" — on both of these
@@ -540,9 +545,13 @@ if ! _strict_out="$( { run_gates "${HB_TOTAL:-0}" 1; _r=$?
      exit $_r; } 2>&1)"; then
    echo "✋ STOP: every task passed, but the final STRICT gate found unbuilt work:" >&2
        printf '%s\n' "$_strict_out" | grep -E 'FAIL' | head -10 >&2
-       LOG_OUTCOME="failed"; LOG_ENDED="$(date +%s)" && log_meta "$HB_TASK" "$attempt"
+       # ${attempt:-skipped}: `attempt` is assigned only inside the attempt loop, and a run
+       # whose every task was skip-satisfied never enters it — this line crashed unbound
+       # under set -u before hb_write could stamp the status terminal (issue #49). The
+       # default is the skip path's own sentinel, not 0, because 0 reads as a real attempt.
+       LOG_OUTCOME="failed"; LOG_ENDED="$(date +%s)" && log_meta "$HB_TASK" "${attempt:-skipped}"
        hb_write stopped false; log_where
-   bus_say "✋ STOP — '${task%%:*}' failed verify after $((RETRIES + 1)) attempts. Needs a human."
+   bus_say "✋ STOP — every task passed, but the final STRICT gate found unbuilt work. Needs a human."
    exit 2
 fi
 

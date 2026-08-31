@@ -1,0 +1,11 @@
+  PASS  ac1: the satisfied task was skipped
+  PASS  ac1: the executor was never invoked
+  PASS  ac1: the all-skipped green run exits 0
+  PASS  ac2: the hanging gate was bounded (did-not-finish within 3s reported)
+  PASS  ac2: the task ran and the run completed (fail-closed skip, then real work)
+  PASS  ac3: _task_satisfied bounds the gate with bound()
+  PASS  ac3: no bare timeout(1) call remains
+  PASS  ac3: ralph-build.sh sources bound.sh
+  PASS  ac4: ralph-build.sh passes bash -n
+
+VERIFY: all checks passed

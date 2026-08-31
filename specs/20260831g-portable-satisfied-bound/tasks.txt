@@ -1,0 +1,1 @@
+T1: source scripts/bound.sh in scripts/ralph-build.sh and replace _task_satisfied's bare timeout(1) call with bound, so skip-satisfied works on machines without coreutils and a hanging gate is still answered false within RALPH_SATISFIED_TIMEOUT
