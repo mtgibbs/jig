@@ -53,8 +53,15 @@ Reset to the spec commit, config seeded pre-launch.
 
 `STRICT=1 verify.sh` → exit 0, 14 PASS. The operator reviewed the 46-line script,
 approved it, and ran the first real sweep with it — the sweep recording its own corpora
-into the store its own spec's sibling built. Board history, attempt logs, prompts,
-diffs and gate transcripts are under `.evidence/runs/20260831a-selftest-sweep/`.
+into the store its own spec's sibling built.
+
+**Correction (2026-08-31, same operator):** the raw attempt records — prompts, transcripts,
+per-attempt diffs and gate outputs under `.evidence/runs/…` — did NOT survive. They are
+gitignored ("bulky"), lived only inside the loop's worktree, and `git worktree remove
+--force` at teardown deleted them; `~/.harness/` held no copy for these runs. What
+survives is what was committed: the joined `index-20260831a-selftest-sweep.{md,jsonl}`,
+the status row, the task commits' diffs, and the excerpts quoted in this document, which
+were read from the live files before teardown.
 
 ## The generalizable lessons
 
@@ -70,3 +77,16 @@ diffs and gate transcripts are under `.evidence/runs/20260831a-selftest-sweep/`.
 4. **Watchdog kills read as progress on the board** (attempt increments), but only the
    transcript says *stalled reading the repo*. The coordinator row should carry the
    kill reason — it already carries the attempt.
+5. **Teardown eats the gitignored evidence.** `.evidence/runs/` is in-repo but ignored,
+   so it exists exactly as long as the worktree does — `git worktree remove --force`
+   destroyed both runs' raw records minutes after the run doc cited them. The fleet
+   already has the answer (`20260828o-evidence-egress`: artifacts leave the worker as
+   produced); the laptop flow needs its equivalent, or teardown needs an
+   evidence-export step before the remove.
+6. **Task atomicity is a convention, not a guard.** T1's task line said "per spec §6"
+   and §6 carried T2's deliverable verbatim (the README bullet, quoted for T2 to copy) —
+   so the executor, reading the whole spec as designed, implemented everything its
+   anchor section contained. The task line anchors harder than the spec, and it anchored
+   into a section holding two tasks' payloads. Spec-authoring rule: a task's anchor
+   section carries only that task's deliverables. Enforcement candidate: same as
+   lesson 3 — nothing in the build loop scopes what a task's diff may touch.
