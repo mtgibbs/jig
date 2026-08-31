@@ -1,0 +1,47 @@
+── T01-run-convergence-gate ──
+  PASS  ac1: the spec-level convergence gate RAN at the final task
+  PASS  ac1: a red convergence gate fails the run (rc=2)
+  PASS  ac2: green task gates + green convergence exit 0
+  PASS  ac3: two-task run converged with exactly one convergence run
+  PASS  ac4: legacy no-tasks-dir path still judged by the spec verify (rc=0)
+  PASS  ac5: ralph-build.sh passes bash -n
+
+VERIFY: T01 all checks passed
+── T02-strategy-env-preflight ──
+  FAIL  ac1: expected exit 3, got rc=0
+  FAIL  ac1: the missing variable is not named in the refusal
+  FAIL  ac1: a phase ran despite the missing env
+  FAIL  ac2: empty FX_REQUIRED_KEY was not refused (rc=0)
+  PASS  ac3: satisfied env reaches the build phase and exits 0 (rc=0)
+  PASS  ac3: the value never appears in output
+  PASS  ac4: undeclared strategy runs as before (rc=0)
+  FAIL  ac5: build-then-judge.conf does not declare its executor key
+  PASS  ac6: run-loop.sh passes bash -n
+
+VERIFY: failures above
+── T03-judge-prompt-logged ──
+  FAIL  ac1: ralph-judge.sh never sources ralph-log.sh — log_prompt is undefined at its call site
+  FAIL  ac2: no fallback — a judge run without ralph-log.sh still dies at the call
+  PASS  ac3: ralph-log.sh defines log_prompt (the import target is real)
+  FAIL  ac4: sourcing does not precede the call (source: none, call: 258)
+  PASS  ac5: ralph-judge.sh passes bash -n
+
+VERIFY: failures above
+── T04-index-guard-label ──
+  FAIL  ac1: 3 use(s) of the colon-keeping expansion remain — the guard probes for a label the indexer never writes
+  FAIL  ac2: the guard's WARN lines do not use the bare label expansion
+  FAIL  ac2: the row probe still greps for a label with the colon
+  PASS  ac3: bare-label probe matches a real indexer row (label 'T1')
+  PASS  ac4: ralph-build.sh passes bash -n
+
+VERIFY: failures above
+── T05-executor-gate-edits-refused ──
+  FAIL  ac1: the executor rewrote its own gate to exit 0 and the loop exited 0 — the hack landed
+  FAIL  ac1: no explicit spec-edit refusal in the output
+  FAIL  ac2: the executor's gate rewrite survived in the tree
+  FAIL  ac3: the refusal does not name the edited file
+  PASS  ac4: an attempt touching only product files still converges (rc=0)
+  PASS  ac5: ralph-build.sh passes bash -n
+
+VERIFY: failures above
+VERIFY: task-gate failures above
