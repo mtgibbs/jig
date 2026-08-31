@@ -1,0 +1,9 @@
+  FAIL  ac1: per-task empty attempt still hit the no-op refusal
+  FAIL  ac1: gate feedback missing from the empty attempt (rc=2)
+  PASS  ac1: the empty per-task attempt still fails the run (exit 2)
+  FAIL  ac2: .evidence-only attempt did not pass (rc=2) —   ✗ attempt 1 changed nothing — a no-op is a failure, not a pass 
+  FAIL  ac2: the blind-spot refusal fired on the deliverable
+  PASS  ac3: monolithic empty attempt still refused (positive control for the ac1/ac2 probe)
+  PASS  ac4: ralph-build.sh passes bash -n
+
+VERIFY: failures above

@@ -1,0 +1,9 @@
+  PASS  ac1: no no-op refusal for the per-task empty attempt
+  PASS  ac1: the empty attempt was judged by its GATE (loop reports 'verify failed', not a refusal)
+  PASS  ac1: the empty per-task attempt still fails the run (exit 2)
+  PASS  ac2: an .evidence-only deliverable passes under a per-task gate (the #91 blind spot is closed here)
+  PASS  ac2: no no-op refusal on the .evidence deliverable
+  PASS  ac3: monolithic empty attempt still refused (positive control for the ac1/ac2 probe)
+  PASS  ac4: ralph-build.sh passes bash -n
+
+VERIFY: all checks passed

@@ -388,13 +388,22 @@ URLs/UIDs. When done, stop.${feedback}"
 
     # A run that changed NOTHING is not a pass. The stillborn-log guard above catches an
     # executor that never STARTED; this catches one that started, was blocked, and wrote
-    # nothing. It matters because a pend-staged gate (specs/TEMPLATE.md §11) is satisfied
+    # nothing. It matters because a pend-staged gate (legacy shape) is satisfied
     # by an empty tree — every check pends — so a no-op attempt sails through and the task
     # after it inherits the work plus a spent retry budget. Observed 2026-08-12 on
     # specs/model-watch: opencode asked to Read `/specs/model-watch/spec.md` (absolute,
     # from filesystem root), opencode auto-rejected it as an external directory, the model
     # produced no file, and the staged gate passed T1 with "nothing to commit".
-    if [ -z "$(git -C "$ROOT" status --porcelain -- . ':!.evidence' 2>/dev/null)" ]; then
+    #
+    # PER-TASK SPECS SKIP THIS GUARD (2026-08-31, issue #91 / the watched-run rerun). A
+    # per-task gate bans pend, so an empty tree FAILS it — the gate is no-op-proof and its
+    # feedback names the missing criteria, which beats the generic hint below. And the
+    # ':!.evidence' exclusion (kept so the indexer's writes don't count as work) blinded
+    # this check to a task whose DELIVERABLE lives under .evidence/ — 20260831a's T2 was
+    # refused as "changed nothing" in both watched runs even when done perfectly. Where
+    # the gate can decide, the gate decides.
+    if [ ! -d "$SPEC_DIR/tasks" ] \
+       && [ -z "$(git -C "$ROOT" status --porcelain -- . ':!.evidence' 2>/dev/null)" ]; then
       echo "  ✗ attempt $attempt changed nothing — a no-op is a failure, not a pass" >&2
       LOG_OUTCOME="noop"; LOG_ENDED="$(date +%s)"; LOG_RECORDED=1; log_meta "$HB_TASK" "$attempt"
       hb_write failed false
