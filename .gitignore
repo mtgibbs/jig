@@ -1,3 +1,6 @@
 .evidence/runs/
 __pycache__/
 *.pyc
+
+# per-machine headless-loop permission config (operator-seeded, never committed)
+opencode.jsonc

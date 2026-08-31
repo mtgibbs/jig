@@ -13,15 +13,15 @@ Sweep dates: 2026-08-31 · **6 corpora · 31 mutants**
 
 | corpus | run | mutants | killed | survived | wrong-reason | hung |
 |---|---|---:|---:|---:|---:|---:|
-| [`20260829a-executor-image-layer · T01-image-split`](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants) | `20260831T032201Z.27722` | 12 | 12 | 0 | 0 | 0 |
-| [`20260829a-executor-image-layer · T06-docs`](../specs/20260829a-executor-image-layer/tasks/T06-docs/mutants) | `20260831T032212Z.38560` | 5 | 5 | 0 | 0 | 0 |
-| [`20260829c-hermetic-gate · T01-reset`](../specs/20260829c-hermetic-gate/tasks/T01-reset/mutants) | `20260831T032219Z.39751` | 5 | 5 | 0 | 0 | 0 |
-| [`20260829c-hermetic-gate · T02-migration`](../specs/20260829c-hermetic-gate/tasks/T02-migration/mutants) | `20260831T032228Z.45649` | 3 | 3 | 0 | 0 | 0 |
-| [`20260829c-hermetic-gate · T03-workspace`](../specs/20260829c-hermetic-gate/tasks/T03-workspace/mutants) | `20260831T032233Z.51413` | 3 | 3 | 0 | 0 | 0 |
-| [`20260829c-hermetic-gate · T04-durability`](../specs/20260829c-hermetic-gate/tasks/T04-durability/mutants) | `20260831T032239Z.53286` | 3 | 3 | 0 | 0 | 0 |
+| [`20260829a-executor-image-layer · T01-image-split`](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants) | `20260831T040830Z.79421` | 12 | 12 | 0 | 0 | 0 |
+| [`20260829a-executor-image-layer · T06-docs`](../specs/20260829a-executor-image-layer/tasks/T06-docs/mutants) | `20260831T040840Z.90478` | 5 | 5 | 0 | 0 | 0 |
+| [`20260829c-hermetic-gate · T01-reset`](../specs/20260829c-hermetic-gate/tasks/T01-reset/mutants) | `20260831T040847Z.91667` | 5 | 5 | 0 | 0 | 0 |
+| [`20260829c-hermetic-gate · T02-migration`](../specs/20260829c-hermetic-gate/tasks/T02-migration/mutants) | `20260831T040856Z.97590` | 3 | 3 | 0 | 0 | 0 |
+| [`20260829c-hermetic-gate · T03-workspace`](../specs/20260829c-hermetic-gate/tasks/T03-workspace/mutants) | `20260831T040901Z.3758` | 3 | 3 | 0 | 0 | 0 |
+| [`20260829c-hermetic-gate · T04-durability`](../specs/20260829c-hermetic-gate/tasks/T04-durability/mutants) | `20260831T040905Z.5627` | 3 | 3 | 0 | 0 | 0 |
 
 ## 20260829a-executor-image-layer · T01-image-split
-[mutants/](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants) · [gate](../specs/20260829a-executor-image-layer/tasks/T01-image-split/verify.sh) · run `20260831T032201Z.27722`
+[mutants/](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants) · [gate](../specs/20260829a-executor-image-layer/tasks/T01-image-split/verify.sh) · run `20260831T040830Z.79421`
 
 ### ✓ `base-entrypoint-run-loop.Dockerfile` — KILLED
 breaks `ac04` · ±36 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants/base-entrypoint-run-loop.Dockerfile) · target [`docker/harness-base.Dockerfile`](../docker/harness-base.Dockerfile)
@@ -1488,7 +1488,7 @@ breaks `ac05` · ±268 lines · [mutant](../specs/20260829a-executor-image-layer
 </details>
 
 ## 20260829a-executor-image-layer · T06-docs
-[mutants/](../specs/20260829a-executor-image-layer/tasks/T06-docs/mutants) · [gate](../specs/20260829a-executor-image-layer/tasks/T06-docs/verify.sh) · run `20260831T032212Z.38560`
+[mutants/](../specs/20260829a-executor-image-layer/tasks/T06-docs/mutants) · [gate](../specs/20260829a-executor-image-layer/tasks/T06-docs/verify.sh) · run `20260831T040840Z.90478`
 
 ### ✓ `doc-names-container-no-contrast.md` — KILLED
 breaks `ac3` · ±190 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T06-docs/mutants/doc-names-container-no-contrast.md) · target [`docs/executors.md`](../docs/executors.md)
@@ -2440,7 +2440,7 @@ breaks `ac5` · ±69 lines · [mutant](../specs/20260829a-executor-image-layer/t
 </details>
 
 ## 20260829c-hermetic-gate · T01-reset
-[mutants/](../specs/20260829c-hermetic-gate/tasks/T01-reset/mutants) · [gate](../specs/20260829c-hermetic-gate/tasks/T01-reset/verify.sh) · run `20260831T032219Z.39751`
+[mutants/](../specs/20260829c-hermetic-gate/tasks/T01-reset/mutants) · [gate](../specs/20260829c-hermetic-gate/tasks/T01-reset/verify.sh) · run `20260831T040847Z.91667`
 
 ### ✓ `boundary-reset-after-the-gate.sh` — KILLED
 breaks `ac05` · ±36 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/T01-reset/mutants/boundary-reset-after-the-gate.sh) · target [`scripts/ralph-build.sh`](../scripts/ralph-build.sh)
@@ -3101,7 +3101,7 @@ breaks `ac04` · ±102 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/
 </details>
 
 ## 20260829c-hermetic-gate · T02-migration
-[mutants/](../specs/20260829c-hermetic-gate/tasks/T02-migration/mutants) · [gate](../specs/20260829c-hermetic-gate/tasks/T02-migration/verify.sh) · run `20260831T032228Z.45649`
+[mutants/](../specs/20260829c-hermetic-gate/tasks/T02-migration/mutants) · [gate](../specs/20260829c-hermetic-gate/tasks/T02-migration/verify.sh) · run `20260831T040856Z.97590`
 
 ### ✓ `boundary-covers-only-the-loop-vars.sh` — KILLED
 breaks `ac03` · ±38 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/T02-migration/mutants/boundary-covers-only-the-loop-vars.sh) · target [`scripts/ralph-build.sh`](../scripts/ralph-build.sh)
@@ -3368,7 +3368,7 @@ breaks `ac01` · ±22 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/T
 </details>
 
 ## 20260829c-hermetic-gate · T03-workspace
-[mutants/](../specs/20260829c-hermetic-gate/tasks/T03-workspace/mutants) · [gate](../specs/20260829c-hermetic-gate/tasks/T03-workspace/verify.sh) · run `20260831T032233Z.51413`
+[mutants/](../specs/20260829c-hermetic-gate/tasks/T03-workspace/mutants) · [gate](../specs/20260829c-hermetic-gate/tasks/T03-workspace/verify.sh) · run `20260831T040901Z.3758`
 
 ### ✓ `advice-still-prints-the-hostname.sh` — KILLED
 breaks `ac02` · ±100 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/T03-workspace/mutants/advice-still-prints-the-hostname.sh) · target [`specs/lib/assert.sh`](../specs/lib/assert.sh)
@@ -3819,7 +3819,7 @@ breaks `ac03` · ±104 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/
 </details>
 
 ## 20260829c-hermetic-gate · T04-durability
-[mutants/](../specs/20260829c-hermetic-gate/tasks/T04-durability/mutants) · [gate](../specs/20260829c-hermetic-gate/tasks/T04-durability/verify.sh) · run `20260831T032239Z.53286`
+[mutants/](../specs/20260829c-hermetic-gate/tasks/T04-durability/mutants) · [gate](../specs/20260829c-hermetic-gate/tasks/T04-durability/verify.sh) · run `20260831T040905Z.5627`
 
 ### ✓ `list-without-the-incidents.sh` — KILLED
 breaks `ac03` · ±95 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/T04-durability/mutants/list-without-the-incidents.sh) · target [`specs/lib/assert.sh`](../specs/lib/assert.sh)
