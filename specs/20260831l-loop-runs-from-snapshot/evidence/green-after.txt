@@ -1,0 +1,10 @@
+  PASS  ac1: the self-editing run exits 0
+  PASS  ac2: no 'command not found' / 'syntax error' in the run output
+  PASS  ac3: the task's commit landed
+  PASS  ac3: the worktree's loop script carries the edit (the deliverable)
+  PASS  ac4: no ralph-snap.* left behind after the run
+  PASS  ac4b: an early exit leaves no snapshot behind
+  PASS  ac5: control — a plain run passes end-to-end (rc=0)
+  PASS  ac6: ralph-build.sh passes bash -n
+
+VERIFY: all checks passed
