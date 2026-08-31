@@ -36,8 +36,19 @@ class DispatchHandler(BaseHTTPRequestHandler):
         return False
 
     def do_POST(self):
-        """Handle POST /runs."""
+        """Handle POST /runs and POST /reap."""
         if not self._require_auth():
+            return
+
+        if self.path == "/reap":
+            # One reconciliation pass (issue #22): registry records still 'launched' are
+            # checked against their Jobs and the orphans settled. Scheduling the pass is
+            # the deployment's business — a CronJob or an operator's curl, not this file.
+            from dispatcher import reap_runs
+
+            registry_path = os.environ.get("HARNESS_REGISTRY_PATH", "")
+            namespace = os.environ.get("HARNESS_NAMESPACE", "harness-fleet")
+            self._send_json(200, reap_runs(registry_path, namespace))
             return
 
         if self.path != "/runs":

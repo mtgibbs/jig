@@ -1,0 +1,15 @@
+  PASS  ac1: absent job reaped to failed and get_run returns the superseding record
+  PASS  ac2: active job left alone
+  PASS  ac2: indeterminate job status left for the next pass
+  PASS  ac3: failed job reaped to failed
+  PASS  ac3: succeeded job reaped to succeeded
+  PASS  ac4: settled records were not re-queried
+  PASS  ac7: the reap appended; prior lines are byte-identical
+  PASS  ac5: a broken kubectl marks nothing (no signal is not a verdict)
+  PASS  ac6: /reap without the token 401s
+  PASS  ac6: /reap returns {checked, reaped}
+  PASS  ac6: the route's reap reached the registry
+  PASS  ac8: dispatcher.py and api.py compile
+
+VERIFY: all checks passed
+specs/20260831i-registry-reaper/verify.sh: line 18: 97857 Terminated: 15          ( cd "$R/scripts/dispatch" && HARNESS_API_TOKEN="$TOK" HARNESS_REGISTRY_PATH="$REG" HARNESS_KUBECTL="$KUBECTL" DISPATCH_PORT="$PORT" python3 api.py > /dev/null 2>&1 )
