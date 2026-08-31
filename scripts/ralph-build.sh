@@ -32,6 +32,33 @@
 # signals, so run control decisions must be discovered by polling.
 set -uo pipefail
 
+# ── Snapshot-and-re-exec (issue #48) ──────────────────────────────────────────────────────────
+# Bash reads a running script incrementally and remembers a byte offset. A spec whose task
+# edits THIS FILE rewrites it while bash executes it; the next read resumes at the old offset
+# in displaced content and bash runs whatever fragment it finds. Observed 2026-08-29
+# (20260829b-resume-bound): the task passed and COMMITTED, then the loop died on a fragment of
+# a comment ("last: command not found") and exited 2 — a false red after the work succeeded,
+# inviting exactly the wrong response. So the loop never executes the worktree's copy: it
+# copies its scripts dir to a run-local snapshot and re-execs from there. The executor still
+# edits the worktree's copy — that is the deliverable; it is just not the copy being read.
+# $0/_SD then resolve into the snapshot, so every sibling (bound.sh, loop-index.py, the
+# default exec binding) is read from the frozen copy too. Failure is fatal up front: a loop
+# that silently ran unprotected would reintroduce the bug only on the days it matters.
+# RALPH_NO_SNAPSHOT=1 skips (debugging). Cleanup rides the hb_tick_stop EXIT trap below.
+if [ -z "${RALPH_SNAPSHOT:-}" ] && [ "${RALPH_NO_SNAPSHOT:-0}" != "1" ]; then
+  _src="$(cd "$(dirname "$0")" && pwd)"
+  _snap="$(mktemp -d "${TMPDIR:-/tmp}/ralph-snap.XXXXXX")" \
+    || { echo "ralph-build: cannot create the script snapshot" >&2; exit 1; }
+  cp -R "$_src/." "$_snap/" \
+    || { rm -rf "$_snap"; echo "ralph-build: cannot populate the script snapshot" >&2; exit 1; }
+  RALPH_SNAPSHOT="$_snap" exec bash "$_snap/$(basename "$0")" "$@"
+fi
+# Cleanup must be armed NOW, not only at the hb_tick_stop trap much further down: the early
+# exits (missing spec files, gate validation's exit 3) fire before that line is reached, and
+# each one leaked a snapshot until this trap existed. The later trap REPLACES this one and
+# carries the same rm — one trap at a time is bash's rule, so both sites must know it.
+trap '[ -n "${RALPH_SNAPSHOT:-}" ] && rm -rf "$RALPH_SNAPSHOT"' EXIT INT TERM
+
 SPEC_DIR="${1:?usage: ralph-build.sh <spec-dir>}"
 RETRIES="${RALPH_RETRIES:-2}"
 
@@ -374,7 +401,9 @@ hb_init; log_init; hb_write starting
 # Keep the heartbeat alive through the long model calls, and make sure it stops when this
 # loop does — a heartbeat that outlives its loop would make a dead agent look busy forever.
 hb_tick_start
-trap 'hb_tick_stop' EXIT INT TERM
+# One trap, two duties: a second `trap … EXIT` would silently replace the first.
+# The snapshot (issue #48, top of file) is this process's own litter to remove.
+trap 'hb_tick_stop; [ -n "${RALPH_SNAPSHOT:-}" ] && rm -rf "$RALPH_SNAPSHOT"' EXIT INT TERM
 bus_init; bus_open "$(basename "$SPEC_DIR")"
 
 while IFS= read -r task || [ -n "$task" ]; do

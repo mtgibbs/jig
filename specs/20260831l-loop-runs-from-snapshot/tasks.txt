@@ -1,0 +1,1 @@
+T1: add a snapshot-and-re-exec block to scripts/ralph-build.sh (copy the scripts dir to a mktemp snapshot, exec the copy, RALPH_SNAPSHOT guard, RALPH_NO_SNAPSHOT=1 escape hatch) and extend the existing EXIT trap to remove the snapshot, so a spec that edits the running loop script can no longer corrupt its own run

@@ -1,0 +1,9 @@
+  FAIL  ac1: the run died (rc=2) — /private/var/folders/67/jbvc_vl129gb2030cgd5bwl40000gn/T/tmp.Yz2E5UluQG/scripts/ralph-build.sh: line 636: ee: command not found /private/var/folders/67/jbvc_vl129gb2030cgd5bwl40000gn/T/tmp.Yz2E5UluQG/scripts/ralph-build.sh: line 654: syntax error near unexpected token `fi' 
+  FAIL  ac2: displaced fragments executed: /private/var/folders/67/jbvc_vl129gb2030cgd5bwl40000gn/T/tmp.Yz2E5UluQG/scripts/ralph-build.sh: line 636: ee: command not found
+  PASS  ac3: the task's commit landed
+  PASS  ac3: the worktree's loop script carries the edit (the deliverable)
+  PASS  ac4: no ralph-snap.* left behind after the run
+  PASS  ac5: control — a plain run passes end-to-end (rc=0)
+  PASS  ac6: ralph-build.sh passes bash -n
+
+VERIFY: failures above
