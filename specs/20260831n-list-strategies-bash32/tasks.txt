@@ -1,0 +1,1 @@
+T1: replace the declare -A SEEN associative array in scripts/run-loop.sh --list with the bash-3.2 string/case dedup idiom agent-bus-bootstrap documents, keeping consumer-shadows-builtin dedup and the exact output shape

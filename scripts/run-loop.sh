@@ -16,7 +16,10 @@ LOOPS_DIR="$SCRIPT_DIR/loops"
 if [ "${1:-}" = "--list" ]; then
   ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
   HARNESS_DIR="$ROOT/.harness/loops"
-  declare -A SEEN
+  # A space-delimited string probed with `case`, NOT `declare -A`: macOS ships bash 3.2,
+  # where associative arrays are a hard error and --list died before listing anything
+  # (issue #106). Same idiom, same reason, as agent-bus-bootstrap.
+  SEEN=" "
   LIST_OUT=""
 
   for dir in "$HARNESS_DIR" "$LOOPS_DIR"; do
@@ -25,8 +28,8 @@ if [ "${1:-}" = "--list" ]; then
     for f in "$dir"/*.conf; do
       [ -f "$f" ] || continue
       name="$(basename "$f" .conf)"
-      [ -n "${SEEN[$name]:-}" ] && continue
-      SEEN[$name]=1
+      case "$SEEN" in *" $name "*) continue ;; esac
+      SEEN="$SEEN$name "
       desc="$(sed -n 's/^STRATEGY_DESC="\(.*\)"$/\1/p' "$f" | head -1)"
       LIST_OUT="$LIST_OUT$loc:$name:$desc
 "

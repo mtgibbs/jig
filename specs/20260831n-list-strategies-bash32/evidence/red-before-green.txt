@@ -1,0 +1,11 @@
+  PASS  ac1: --list exits 0 under /bin/bash
+  FAIL  ac1: build-converge missing from --list
+  FAIL  ac1: a declare error leaked: /Users/mtgibbs/dev/harness/scripts/run-loop.sh: line 19: declare: -A: invalid option
+  FAIL  ac2: build-converge listed 0 times — dedup broke
+  FAIL  ac2: the consumer override lost: 
+  FAIL  ac3: fx-local missing or mistagged
+  FAIL  ac3: no built-in strategies listed from the fixture repo
+  FAIL  ac4: malformed lines: /Users/mtgibbs/dev/harness/scripts/run-loop.sh: line 19: declare: -A: invalid option declare: usage: declare [-afFirtx] [-p] [name[=value] ...] 
+  PASS  ac5: run-loop.sh parses under /bin/bash
+
+VERIFY: failures above
