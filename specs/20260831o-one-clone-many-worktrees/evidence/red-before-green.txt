@@ -1,0 +1,13 @@
+  PASS  ac1: run A completed (rc=0)
+  PASS  ac1: the canonical clone exists at $WORKSPACE/fxrepo
+  FAIL  ac1: fxrepo-fxa/.git is not a worktree pointer — a clone-per-run regression
+  FAIL  ac1: 2 full clones after one run
+  FAIL  ac2: 3 full clones after two runs — the 11-clone pile is back
+  FAIL  ac2: fxrepo-fxb is not a worktree
+  FAIL  ac3: worktree list is not the inventory: /private/var/folders/67/jbvc_vl129gb2030cgd5bwl40000gn/T/tmp.tkZh5SYheg/ws/fxrepo  79eb6d4 [main]
+  PASS  ac4: re-running spec A succeeds (not runnable-exactly-once)
+  FAIL  ac4: the re-run grew a clone (3)
+  PASS  ac5: fxa's worktree holds the loop's commit (2 commits)
+  PASS  ac5: fxb's worktree holds the loop's commit (2 commits)
+
+VERIFY: failures above

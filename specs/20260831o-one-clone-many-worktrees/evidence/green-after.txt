@@ -1,0 +1,12 @@
+  PASS  ac1: run A completed (rc=0)
+  PASS  ac1: the canonical clone exists at $WORKSPACE/fxrepo
+  PASS  ac1: the task dir is a WORKTREE (.git is a file)
+  PASS  ac1: exactly one full clone in the workspace
+  PASS  ac2: a second spec reuses the one clone (still exactly one)
+  PASS  ac2: run B's dir is a worktree too
+  PASS  ac3: git worktree list names both run dirs (the inventory)
+  PASS  ac4: re-running spec A succeeds (not runnable-exactly-once)
+  PASS  ac5: fxa's worktree holds the loop's commit (2 commits)
+  PASS  ac5: fxb's worktree holds the loop's commit (2 commits)
+
+VERIFY: all checks passed
