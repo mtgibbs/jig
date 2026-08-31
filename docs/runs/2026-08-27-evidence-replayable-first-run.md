@@ -84,7 +84,7 @@ PASSes, `run_label` hardcoded to `jq -n null` FAILs. A control that cannot pass 
 control, it is a broken one, so repairing it had to be shown to keep its teeth.
 
 **The generalizable lesson.** This spec *did* get a red-before-green pass
-(`evidence/2026-08-26-red-before-green.md`) and it did not catch this, because that pass ran with
+(`specs/20260826a-evidence-replayable/evidence/2026-08-26-red-before-green.md`) and it did not catch this, because that pass ran with
 **nothing built**. `has log_meta` was false, the whole AC-7/AC-8 block short-circuited to `pend`,
 and the control never executed. Red-before-green on an empty tree proves the gate fails; it
 cannot reach a single assertion that lives behind a `has` guard. Those arms ship unexecuted and

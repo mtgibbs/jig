@@ -95,7 +95,7 @@ One Job per run, from the loop-executor image, in a dedicated namespace.
 | ResourceQuota | on the namespace | a runaway fleet must not take DNS down |
 
 **On the RBAC precedent.** A service in this cluster already creates Jobs:
-`clusters/pi-k3s/mcp-homelab/clusterrole.yaml` grants `batch/jobs: [create]` under the comment
+`pi-cluster/clusters/pi-k3s/mcp-homelab/clusterrole.yaml` grants `batch/jobs: [create]` under the comment
 "Action: Create manual backup jobs" — that is the `trigger_backup` MCP tool. So this is not new
 authority, and the pattern is established.
 
@@ -178,7 +178,7 @@ a **client** of this API rather than a second copy of the machinery. That answer
 dispatcher is the fixture, the laptop gets a handle.
 
 **These tools do not go into `mcp-homelab`.** They belong to a separate `mcp-harness` server, as
-`fleet-dispatch.md` item 4 already names it.
+`docs/design/fleet-dispatch.md` item 4 already names it.
 
 **The reason is the concern boundary, not the risk.** `mcp-homelab` is *cluster administration* —
 DNS, media, backups, certificates, Flux reconciliation. `mcp-harness` is *loop infrastructure* —
@@ -227,13 +227,13 @@ its build; the cluster owns everything needed to run it.**
 | `serviceaccount` + **namespaced `Role`** + `rolebinding` for `batch/v1` Jobs | D4; deliberately narrower than `mcp-homelab`'s cluster-wide grant |
 | a **second namespace for loop Jobs**, with `ResourceQuota` and `LimitRange` | cliff 5 — loop Jobs share the Pis with Pi-hole and media |
 | `external-secret.yaml` — Matrix token, the PR-opening bot identity, the LiteLLM key | secrets stay in 1Password; only `op://` paths in git |
-| a numbered Kustomization entry in `flux-system/infrastructure.yaml` | that file is the deploy-order DAG; review-hub is #29 |
+| a numbered Kustomization entry in `pi-cluster/flux-system/infrastructure.yaml` | that file is the deploy-order DAG; review-hub is #29 |
 | `image-automation.yaml` | the established auto-bump pattern |
 | Homepage tile + AutoKuma monitor | the `add-service` convention |
 | **node placement** — the `harness-fleet` label, and a taint if a dedicated node arrives | D11 |
 
 **Node placement is not optional here.** The cluster is three Pi 5s at 8 GB and one Pi 3 at 1 GB,
-and `ARCHITECTURE.md` already restricts the Pi 3 to lightweight services. A loop Job scheduled
+and `pi-cluster/ARCHITECTURE.md` already restricts the Pi 3 to lightweight services. A loop Job scheduled
 there will fail or evict something that matters. Both the dispatcher and the Jobs need a
 nodeSelector or affinity keeping them on the Pi 5s — and the images must be `linux/arm64`, which
 is why item 2's multi-arch requirement is load-bearing rather than tidy.
@@ -288,7 +288,7 @@ the fleet faster. If throughput ever becomes the constraint, the answer is on th
 the Pis.
 
 **The Pi 3 is excluded by construction.** At 1 GB it cannot host a 256 MB-floor pod alongside
-anything else, and `ARCHITECTURE.md` already restricts it to lightweight services. Selecting on a
+anything else, and `pi-cluster/ARCHITECTURE.md` already restricts it to lightweight services. Selecting on a
 label it does not carry is what keeps a loop Job off it — which makes the selector a correctness
 requirement rather than an optimisation.
 
@@ -336,7 +336,7 @@ ingress.
 
 ## The test this design has to keep passing
 
-From `fleet-dispatch.md`'s simplicity bar — one command locally, one message remotely, one place
+From `docs/design/fleet-dispatch.md`'s simplicity bar — one command locally, one message remotely, one place
 to look when it breaks, and adding a repo to the fleet means that repo adds `specs/` and the
 dispatcher changes not at all.
 

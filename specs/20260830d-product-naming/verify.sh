@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# specs/20260830a-product-naming/verify.sh — the deterministic gate for "the product is named
+# specs/20260830d-product-naming/verify.sh — the deterministic gate for "the product is named
+# Jig" (dir renamed from 20260830a- by 20260830e: the slug prefix collided with
+# 20260830a-worker-credentials, which held first claim).
 # Jig — identity renames, the bones do not".
 #
 # THE THREE-VERDICT CONTRACT: ok / no / pend; STRICT=1 promotes every pend. An identity file
