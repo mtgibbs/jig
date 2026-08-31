@@ -1,0 +1,1 @@
+T1: add the per-task deferral condition to the no-op check in scripts/ralph-build.sh per spec §6, with the dated comment citing docs/runs/2026-08-31-the-watched-run.md and issue #91
