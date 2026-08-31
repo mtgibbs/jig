@@ -153,3 +153,10 @@ None.
   task's anchor section holds nothing but that task's own deliverables.** The task line
   anchors harder than the spec (TEMPLATE §11 corollary); this is the authoring-side half of
   the guard until diff-scoping exists on the build loop.
+- **2026-08-31 — the rerun: authoring can't close the hole.** With the §6b split in place,
+  a stripped-tree rerun overshot anyway: the executor ran the gate mid-task, read
+  `pend ac5 … (not built yet)` as a to-do, and implemented T2's bullet during T1 — naming
+  T2 as it did so. The spec stopped leaking; the pend-staged gate advertised the payload
+  instead. Two leak paths, same destination: the atomicity guard must be harness-side
+  (task-scoped staging or a diff-scope check), not spec-side. Run record:
+  `docs/runs/2026-08-31-the-watched-run.md`, postscript.
