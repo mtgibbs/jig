@@ -95,6 +95,20 @@ class DispatchHandler(BaseHTTPRequestHandler):
             registry_path=registry_path,
         )
 
+        if result.get("refused"):
+            # Not success-shaped: a 200 here is indistinguishable from a duplicate to a
+            # caller with no eyes on the board (issue #79). Name the strategy and the
+            # exact variable that would have enabled it.
+            self._send_json(
+                422,
+                {
+                    "error": "strategy not configured",
+                    "strategy": result.get("strategy", strategy),
+                    "enable": f"add '{result.get('strategy', strategy)}' to HARNESS_STRATEGIES",
+                },
+            )
+            return
+
         status_code = 202 if result.get("launched") else 200
         self._send_json(
             status_code,

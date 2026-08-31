@@ -68,6 +68,14 @@ Then dispatch against it. The strategy name selects both the phases and — thro
 fails as a confusing shell error partway through a build phase; with it, the run stops at preflight
 naming both the missing executable and the strategy that declared it.
 
+An enforcing deployment also lists its strategies: set `HARNESS_STRATEGIES="build-converge
+build-yours"` on the dispatcher and anything unlisted is **refused at dispatch time** — no Job,
+no ledger entry, a 422 naming the strategy and this variable. That is the explicit-usage rule:
+a strategy must be configured before it can be dispatched, because an unconfigured one would
+otherwise ride the default image as a Job that looks entirely correct and cannot succeed.
+Unset, the variable enforces nothing (a laptop stays friction-free); the cluster manifests
+should always set it.
+
 ## 3. Credentials: the harness ships none
 
 **The harness ships no credentials, no API keys, and no model weights.** Not in the base, not in

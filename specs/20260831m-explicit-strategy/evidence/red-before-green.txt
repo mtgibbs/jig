@@ -1,0 +1,15 @@
+  FAIL  ac1: V ac1_launched True 1
+  FAIL  ac2: V ac2_refused False
+  FAIL  ac3: the refusal poisoned the ledger — V ac3_ledger_clean False
+  FAIL  ac3: post-fix retry did not launch — V ac3_retry_launched False 1
+  PASS  ac2: a duplicate is not refused — the two states stay distinguishable
+  PASS  ac5: listed and unset render the identical Job (dict equality)
+  PASS  ac6: unset allowlist keeps today's behavior (control)
+  FAIL  ac4: expected 422, got 202 — {"event_id": "65707567-c036-449b-a460-1b6045087af4", "status": "launched", "exit_code": 0}
+  FAIL  ac4: body does not name strategy+variable: {"event_id": "65707567-c036-449b-a460-1b6045087af4", "status": "launched", "exit_code": 0}
+  PASS  ac4: a listed strategy still launches (202)
+  FAIL  ac7: docs/executors.md does not mention HARNESS_STRATEGIES
+  PASS  ac8: dispatcher.py and api.py compile
+
+VERIFY: failures above
+specs/20260831m-explicit-strategy/verify.sh: line 19: 79700 Terminated: 15          ( cd "$R/scripts/dispatch" && HARNESS_API_TOKEN="$TOK" HARNESS_LEDGER_PATH="$W/api-ledger.jsonl" HARNESS_REGISTRY_PATH="$W/api-registry.jsonl" HARNESS_KUBECTL="$KUBECTL" HARNESS_STRATEGIES="build-converge" DISPATCH_PORT="$PORT" python3 api.py > /dev/null 2>&1 )

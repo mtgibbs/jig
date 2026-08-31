@@ -101,6 +101,26 @@ def worker_secret(strategy: str, default: str) -> str:
     return os.environ.get(f"HARNESS_WORKER_SECRET_{suffix}") or default
 
 
+def allowed_strategies():
+    """The deployment's strategy allowlist, or None when it declines to enforce one.
+
+    HARNESS_STRATEGIES is a whitespace-separated list of the strategies this deployment
+    permits. Set, it is POLICY: dispatch() refuses anything unlisted before rendering,
+    launching, or recording a thing (issue #79 — a strategy nobody configured otherwise
+    rides the default image as a Job that looks entirely correct and cannot succeed).
+    Unset means no enforcement, today's behavior; an enforcing deployment sets it.
+
+    This is deliberately NOT folded into worker_image()/worker_secret(): those are maps,
+    and their unset->default endings are features. Permission is a separate question from
+    image binding — one image legitimately serves several strategies — and the allowlist
+    is the one place policy lives.
+    """
+    raw = os.environ.get("HARNESS_STRATEGIES", "")
+    if not raw.strip():
+        return None
+    return set(raw.split())
+
+
 def already_seen(ledger_path: str, event_id: str) -> bool:
     """Return True if event_id has been actioned before.
 
@@ -304,6 +324,19 @@ def dispatch(
     # another strategy's image carrying a third strategy's secret is the failure this placement
     # makes impossible, and every one of those three halves reads as correct in isolation.
     strategy = intent.get("strategy", "")
+    # The explicit-usage refusal (issue #79), at the one point strategy is read. It must
+    # sit BEFORE record_seen(): a refusal that wrote the ledger would dedupe the operator's
+    # post-fix retry of the same event into silence — no Job, no error, permanently. The
+    # 'refused' key is what distinguishes this from a duplicate in the result dict.
+    allowed = allowed_strategies()
+    if allowed is not None and strategy not in allowed:
+        return {
+            "intent": intent,
+            "launched": False,
+            "exit_code": None,
+            "refused": "strategy not configured",
+            "strategy": strategy,
+        }
     image = worker_image(strategy, image)
     secret = worker_secret(strategy, os.environ.get("HARNESS_WORKER_SECRET", ""))
     job = render_job(intent, image=image, namespace=namespace, run_id=run_id, secret=secret)
