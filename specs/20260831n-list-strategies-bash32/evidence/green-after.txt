@@ -1,0 +1,11 @@
+  PASS  ac1: --list exits 0 under /bin/bash
+  PASS  ac1: build-converge is listed
+  PASS  ac1: no declare noise
+  PASS  ac2: a shadowed name lists exactly once
+  PASS  ac2: the consumer copy wins the shadow
+  PASS  ac3: a consumer-only strategy is listed
+  PASS  ac3: built-ins still contribute alongside the consumer dir
+  PASS  ac4: every listed line keeps the output shape
+  PASS  ac5: run-loop.sh parses under /bin/bash
+
+VERIFY: all checks passed

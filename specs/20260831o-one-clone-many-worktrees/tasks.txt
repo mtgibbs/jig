@@ -1,0 +1,1 @@
+T1: author the gate that drives the real run-task.sh through two specs and a re-run against a local fixture remote, pinning one-clone-many-worktrees (clone count, .git file-vs-dir, worktree list inventory, re-runnability, real commits), with red evidence from a worktree-add→clone mutant
