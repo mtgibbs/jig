@@ -141,10 +141,13 @@ Both pass preflight; they are different statements.
 
 ### The gate layout — per task, since 20260828i
 
-**A multi-task spec carries one gate per task**: `tasks/T<NN>-<slug>/verify.sh`, one
+**Every spec carries one gate per task**: `tasks/T<NN>-<slug>/verify.sh`, one
 directory per `tasks.txt` line, in order (`specs/20260828i-per-task-gates`; enforced —
 `ralph-build.sh` refuses a multi-task spec without a `tasks/` directory — exit 3,
 no override exists; a legacy spec's gate still runs directly via `bash verify.sh`).
+**Scaffold the shape, never hand-lay it**: `scripts/new-spec.sh <spec-slug>
+<task-slug>...` emits the whole layout with red-by-construction stub gates, and
+`scripts/new-spec.sh --check <spec-dir>` validates it before a PR (20260831q).
 The rules:
 
   - After task N the loop runs the gates for tasks **1..N** — cumulative, so a later task
@@ -178,8 +181,11 @@ change in behavior. Declare a scope when a task's deliverables are exactly enume
 (most are); it is the guard that keeps `add -A` from attributing stray work to the wrong
 task.
 
-**A single-task spec** needs no `tasks/` directory: one spec-level `verify.sh`, no `pend`
-anywhere (with one task there is no later work to defer to).
+**A single-task spec still carries `tasks/`** — one `T01-<slug>/verify.sh` plus the
+convergence `verify.sh`; the shape does not change with the task count (directed
+2026-08-31: a lone task that "needs no layout" is exactly where monolithic costumes
+hide — `specs/20260831q-spec-scaffolder` §1). No `pend` anywhere, as ever: with one
+task there is no later work to defer to.
 
 **Legacy note:** specs written before 20260828i use a whole-spec three-verdict
 (`ok`/`no`/`pend`) gate run after every task, with `STRICT=1` promoting `pend` to FAIL at

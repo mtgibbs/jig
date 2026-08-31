@@ -1,0 +1,53 @@
+── T01-scaffold-create ──
+  PASS  ac1: scaffold created the spec dir (rc=0)
+  PASS  ac1: spec.md, tasks.txt, verify.sh, evidence/ all present
+  PASS  ac1: tasks.txt carries 3 T-lines
+  PASS  ac1: every task has an executable tasks/T<NN>-<slug>/verify.sh
+  PASS  ac1: the spec.md skeleton names its own id
+  PASS  ac2: a fresh stub gate fails (red until authored)
+  PASS  ac2: the convergence gate propagates the stub failures
+  PASS  ac3: a single-task spec is scaffolded WITH tasks/T01-only-task/
+  PASS  ac4: zero task slugs refused
+  PASS  ac4: the refused scaffold wrote nothing
+  PASS  ac4: an existing spec dir is refused
+  PASS  ac4: a bad slug is refused
+  PASS  ac5: the first auto id ends in 'a'
+  PASS  ac5: the second auto id ends in 'b'
+  PASS  ac6: the loop's up-front validation accepts the scaffolded shape (rc=2, not 3)
+  PASS  ac6: the attempt was judged by the red stub gate (rc=2, 'verify failed')
+  PASS  ac7: new-spec.sh passes bash -n
+
+VERIFY: all checks passed
+── T02-shape-check ──
+  PASS  ac1: --check is green on a fresh scaffold
+  PASS  ac1: --check is green on the real 20260831p spec
+  PASS  ac2: a multi-task spec without tasks/ is a shape violation
+  PASS  ac2: a SINGLE-task spec without tasks/ is refused too — check is stricter than the loop here, by design
+  PASS  ac3: a missing T02 dir is named
+  PASS  ac3: an orphan task dir (no tasks.txt line) is a violation
+  PASS  ac4: a task dir without verify.sh fails
+  PASS  ac4: a non-executable gate fails and is named
+  PASS  ac5: 'pend' as code in a task gate fails
+  PASS  ac5: 'pend' in a comment is NOT a violation (comments stripped — a gate may state the ban)
+  PASS  ac5: 'pend' as code in the spec-level gate fails
+  PASS  ac6: non-contiguous numbering fails and names the expected line
+  PASS  ac7: missing spec.md fails
+  PASS  ac7: a nonexistent dir fails
+  PASS  ac8: new-spec.sh passes bash -n
+
+VERIFY: all checks passed
+── T03-authoring-skill ──
+  PASS  ac1: SKILL.md exists
+  PASS  ac1: frontmatter names the skill author-spec
+  PASS  ac2: the skill names scripts/new-spec.sh
+  PASS  ac2: the skill teaches red-before-green evidence
+  PASS  ac2: the skill states the per-task layout, single-task included
+  PASS  ac2: the skill says there is no override
+  PASS  ac2: the skill requires --check before a PR
+  PASS  ac3: TEMPLATE names scripts/new-spec.sh
+  PASS  ac3: the single-task exemption sentence is gone
+  PASS  ac3: TEMPLATE states that a single-task spec still carries tasks/
+  PASS  ac3: the gate-layout heading sentence covers EVERY spec
+
+VERIFY: all checks passed
+VERIFY: all task gates passed
