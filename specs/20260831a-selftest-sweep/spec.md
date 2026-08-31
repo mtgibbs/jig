@@ -1,7 +1,11 @@
 # Spec: the selftest sweep — one command records every mutant corpus
 
-- **Status:** Planned v1.0 — handed to the local qwen loop 2026-08-30 (the deferred OQ2 of
-  issue #84: make the recorded sweep one command instead of a hand-typed for-loop)
+- **Status:** Done v1.0 — executed 2026-08-31 by the local qwen loop, coordinator-watched
+  (the deferred OQ2 of issue #84: make the recorded sweep one command). Two runs; the full
+  story, including the false pass the STRICT endgame caught and the T2 scope-overshoot, is
+  `docs/runs/2026-08-31-the-watched-run.md`. Note for the record: T2's README bullet landed
+  inside T1's commit (executor overshoot + `add -A`), so T2 finished as an unwinnable no-op
+  with the whole-spec gate already green.
 - **Owner:** Matt (spec by Claude; executor: qwen via opencode, watched by the coordinator)
 - **Constitution:** `specs/constitution.md` + `specs/amendments.md`
 - **Tools:** git, bash, python3, jq
