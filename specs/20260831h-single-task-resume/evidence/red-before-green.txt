@@ -1,0 +1,12 @@
+  FAIL  ac1: no skip — the finished single-task spec was re-dispatched (rc=2)
+  FAIL  ac1: the executor ran on a finished spec
+  FAIL  ac1: the resume still died as a no-op (issue #30's exact signature)
+  FAIL  ac1: expected exit 0, got 2
+  PASS  ac2: no false skip on an unfinished spec
+  PASS  ac2: the executor was dispatched and the run completed (rc=0)
+  PASS  ac3: the lenient-only gate did not skip (STRICT applied to the satisfied question)
+  PASS  ac3: the task was dispatched instead
+  PASS  ac4: multi-task monolithic never skips (green whole-spec gate says the SPEC is done, not task N)
+  PASS  ac5: ralph-build.sh passes bash -n
+
+VERIFY: failures above

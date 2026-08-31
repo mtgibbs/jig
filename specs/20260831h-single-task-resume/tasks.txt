@@ -1,0 +1,1 @@
+T1: in scripts/ralph-build.sh _task_satisfied, answer the satisfied question for single-task specs — no tasks/ dir plus exactly one task resolves the gate to the spec-level verify.sh run under STRICT=1 through the same bound path; multi-task monolithic stays unanswerable and never skips; a lenient-only green must not read as satisfied

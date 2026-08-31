@@ -151,4 +151,8 @@ None. The residuals and the legacy migration are issues, not questions.
 
 ## 14. Tuning log
 
-*(empty — first authoring)*
+- **2026-08-31 — ac2's single-task probe updated for 20260831h.** A single-task spec
+  with a green gate now SKIPS instead of dispatching, so "the marker exists" stopped
+  being the only proof the run was not refused; the probe now accepts the skip line as
+  the (stronger) proof. Fixture premise change only — the assertion's meaning is
+  unchanged.

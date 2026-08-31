@@ -91,8 +91,10 @@ printf '%s' "$out2" | grep -qi 'monolithic' \
   || no "ac2: no warning line under RALPH_ALLOW_MONOLITHIC=1"
 
 FX3="$(mk_fx 1 0)"
-run_fx "$FX3" >/dev/null 2>&1; rc3=$?
-[ "$rc3" -ne 3 ] && [ -f "$FX3.marker" ] \
+out3s="$(run_fx "$FX3" 2>&1)"; rc3=$?
+# Since 20260831h a single-task spec with a green gate SKIPS instead of dispatching —
+# either the marker (dispatched) or the skip line proves the run was not refused.
+{ [ "$rc3" -ne 3 ] && { [ -f "$FX3.marker" ] || printf '%s' "$out3s" | grep -q 'skipped (gate already passed)'; }; } \
   && ok "ac2: single-task monolithic spec is untouched (rc=$rc3)" \
   || no "ac2: single-task monolithic spec was refused (rc=$rc3)"
 
