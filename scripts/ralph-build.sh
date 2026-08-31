@@ -480,6 +480,11 @@ paths RELATIVE to the repo root (specs/... not /specs/...). Do the work this tim
         echo "  ✗ attempt $attempt touched files outside this task's scope — rejected before the gate" >&2
         printf '%s\n' "$_viol" | sed 's/^/      | /' >&2
         LOG_OUTCOME="scope"; LOG_ENDED="$(date +%s)"; LOG_RECORDED=1; log_meta "$HB_TASK" "$attempt"
+        # Capture the rejected work BEFORE the reset erases it, exactly as the verify-failure
+        # path does (issue #23: a reset with no artifact makes the attempt undiagnosable —
+        # and a scope violation is precisely the diff a human wants to read).
+        log_failure "$HB_TASK" "$attempt" "attempt rejected: out-of-scope changes
+$_viol"
         hb_write failed false
         feedback="
 A previous attempt changed files OUTSIDE this task's declared scope and was rejected
