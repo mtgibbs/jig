@@ -156,3 +156,9 @@ None. The residuals and the legacy migration are issues, not questions.
   being the only proof the run was not refused; the probe now accepts the skip line as
   the (stronger) proof. Fixture premise change only — the assertion's meaning is
   unchanged.
+
+- **2026-08-31 (spec 20260831p):** the `RALPH_ALLOW_MONOLITHIC=1` escape hatch this
+  spec shipped is REMOVED, by direction: a spec that does not match the convention is
+  refused, no override. ac2 flipped from "the hatch opens" to "the dead hatch stays
+  shut"; legacy specs' gates still run directly via `bash verify.sh`, which needs no
+  loop.

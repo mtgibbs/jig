@@ -1,0 +1,30 @@
+── T01-refuse-monolithic ──
+  PASS  ac1: multi-task monolithic refused with exit 3 DESPITE RALPH_ALLOW_MONOLITHIC=1
+  PASS  ac1: no executor ran
+  PASS  ac1: the refusal names the convention
+  PASS  ac2: an .evidence-dwelling deliverable passes (rc=0)
+  PASS  ac2: the deliverable is committed
+  PASS  ac2: no 'changed nothing' refusal
+  PASS  ac3: the no-op guard is deleted
+  PASS  ac3: the hatch variable is gone from the loop
+  PASS  ac4: an empty attempt still fails the run (exit 2)
+  PASS  ac4: the gate is what refused it
+  PASS  ac5: ralph-build.sh passes bash -n
+
+VERIFY: all checks passed
+── T02-template-states-the-rule ──
+  PASS  ac1: TEMPLATE.md states the refusal
+  PASS  ac1: TEMPLATE.md says there is no override
+  PASS  ac2: TEMPLATE.md names no escape
+
+VERIFY: all checks passed
+── T03-dependent-gates-updated ──
+  PASS  ac1: 20260831b-scrub-monolithic-gates's gate is green against the hatchless loop
+  PASS  ac2: 20260831b-scrub-monolithic-gates's Tuning log records the change
+  PASS  ac1: 20260831c-noop-defers-to-per-task-gates's gate is green against the hatchless loop
+  PASS  ac2: 20260831c-noop-defers-to-per-task-gates's Tuning log records the change
+  PASS  ac1: 20260831h-single-task-resume's gate is green against the hatchless loop
+  PASS  ac2: 20260831h-single-task-resume's Tuning log records the change
+
+VERIFY: all checks passed
+VERIFY: all checks passed

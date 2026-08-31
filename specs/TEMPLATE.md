@@ -143,8 +143,9 @@ Both pass preflight; they are different statements.
 
 **A multi-task spec carries one gate per task**: `tasks/T<NN>-<slug>/verify.sh`, one
 directory per `tasks.txt` line, in order (`specs/20260828i-per-task-gates`; enforced —
-`ralph-build.sh` refuses a multi-task spec without a `tasks/` directory unless
-`RALPH_ALLOW_MONOLITHIC=1` marks a legacy re-run). The rules:
+`ralph-build.sh` refuses a multi-task spec without a `tasks/` directory — exit 3,
+no override exists; a legacy spec's gate still runs directly via `bash verify.sh`).
+The rules:
 
   - After task N the loop runs the gates for tasks **1..N** — cumulative, so a later task
     that breaks an earlier one still fails, while nothing beyond N is ever consulted.

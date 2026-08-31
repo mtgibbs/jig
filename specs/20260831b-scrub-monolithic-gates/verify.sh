@@ -80,15 +80,16 @@ printf '%s' "$out1" | grep -qi 'per-task\|20260828i' \
   && ok "ac1: refused BEFORE any executor ran (no marker)" \
   || no "ac1: the stub executor ran despite the refusal"
 
-# ── ac2: the hatch, single-task monolithic, and per-task all pass the check ──
+# ── ac2: the hatch is DEAD (20260831p, by direction: a spec that does not match the
+# convention is kicked out, no override) — and single-task monolithic stays untouched ──
 FX2="$(mk_fx 2 0)"
 out2="$(run_fx "$FX2" RALPH_ALLOW_MONOLITHIC=1)"; rc2=$?
-[ -f "$FX2.marker" ] \
-  && ok "ac2: RALPH_ALLOW_MONOLITHIC=1 lets the legacy shape run (marker present — positive control for ac1's probe)" \
-  || no "ac2: hatch set but the executor never ran (rc=$rc2)"
-printf '%s' "$out2" | grep -qi 'monolithic' \
-  && ok "ac2: the hatch run warns that it is deliberate" \
-  || no "ac2: no warning line under RALPH_ALLOW_MONOLITHIC=1"
+[ "$rc2" -eq 3 ] \
+  && ok "ac2: RALPH_ALLOW_MONOLITHIC=1 no longer opens anything (still exit 3)" \
+  || no "ac2: the removed hatch still opens (rc=$rc2 with the env set)"
+[ ! -f "$FX2.marker" ] \
+  && ok "ac2: no executor ran under the dead hatch" \
+  || no "ac2: the executor ran — the hatch is back"
 
 FX3="$(mk_fx 1 0)"
 out3s="$(run_fx "$FX3" 2>&1)"; rc3=$?

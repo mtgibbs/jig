@@ -115,3 +115,10 @@ None.
   needs a DISPATCHED empty attempt, and a green single-task gate now skips before the
   executor runs; the fixture gate is red so dispatch still happens and the legacy no-op
   refusal stays observable. Fixture premise change only.
+
+- **2026-08-31 (spec 20260831p):** the no-op work guard this spec narrowed is now
+  DELETED — its only remaining audience was the monolithic legacy shape, which is
+  refused up front since the escape hatch was removed. ac3's positive control (the
+  guard's own message on a monolithic no-op) became unreachable; it now pins the
+  opposite: a single-task empty attempt fails via its STRICT gate, and the guard's
+  message appears nowhere.
