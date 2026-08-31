@@ -1,0 +1,1 @@
+T1: add allowed_strategies() (HARNESS_STRATEGIES allowlist; None when unset = no enforcement) to scripts/dispatch/dispatcher.py and refuse unlisted strategies in dispatch() before render/launch/record_seen with a refused-marked result; answer 422 with strategy + HARNESS_STRATEGIES in api.py's POST /runs; document the allowlist in docs/executors.md

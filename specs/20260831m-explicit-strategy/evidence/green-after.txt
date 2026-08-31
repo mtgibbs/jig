@@ -1,0 +1,15 @@
+  PASS  ac1: unlisted strategy launches nothing (runner never called)
+  PASS  ac2: the refusal is marked refused
+  PASS  ac3: the refusal wrote no ledger entry
+  PASS  ac3: the SAME event id launches after configuration
+  PASS  ac2: a duplicate is not refused — the two states stay distinguishable
+  PASS  ac5: listed and unset render the identical Job (dict equality)
+  PASS  ac6: unset allowlist keeps today's behavior (control)
+  PASS  ac4: an unlisted strategy answers 422
+  PASS  ac4: the body names the strategy and the enabling variable
+  PASS  ac4: a listed strategy still launches (202)
+  PASS  ac7: docs/executors.md documents the allowlist
+  PASS  ac8: dispatcher.py and api.py compile
+
+VERIFY: all checks passed
+specs/20260831m-explicit-strategy/verify.sh: line 19: 79949 Terminated: 15          ( cd "$R/scripts/dispatch" && HARNESS_API_TOKEN="$TOK" HARNESS_LEDGER_PATH="$W/api-ledger.jsonl" HARNESS_REGISTRY_PATH="$W/api-registry.jsonl" HARNESS_KUBECTL="$KUBECTL" HARNESS_STRATEGIES="build-converge" DISPATCH_PORT="$PORT" python3 api.py > /dev/null 2>&1 )
