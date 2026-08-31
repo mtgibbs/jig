@@ -6,7 +6,7 @@
 # commit (the loop commits after the full accept predicate) and must touch only the finding's
 # file (the loop rejects anything else as scope-violation).
 #
-# Runs via `oc run` (Keychain-first key resolution — see scripts/README.md; a fresh worktree
+# Runs via `oc run` (Keychain-first key resolution — see scripts/exec-opencode.sh; a fresh worktree
 # also needs the gitignored opencode.json copied in, or headless oc auto-rejects every tool).
 set -uo pipefail
 command -v oc >/dev/null 2>&1 || { echo "ralph-judge-exec-qwen: oc not on PATH" >&2; exit 1; }

@@ -12,7 +12,7 @@
 # thing, so the bonds can eventually be drawn from messages that actually happened.
 #
 # Contract — posts to #tasks, one thread per loop. Root message is "task: <slug>" per the
-# convention in docs/agent-bus.md; its event id is the correlation key every later post in
+# convention in pi-cluster/docs/agent-bus.md; its event id is the correlation key every later post in
 # the loop replies to. Transitions ONLY — start, task passed, stopped, done. Deliberately
 # NOT per attempt: a loop retrying three times on four tasks would otherwise put a dozen
 # near-identical lines in the room, and a channel nobody can skim is a channel nobody reads.

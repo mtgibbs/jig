@@ -4,7 +4,7 @@
 # Turns a freshly-deployed (Phase 0) Synapse into a usable bus: registers the agent
 # users, logs each in for a long-lived token, creates the #agents/#tasks rooms, joins
 # everyone, and stores every credential in 1Password (the canonical store `scripts/agent-bus`
-# reads from). Implements the "Bootstrap runbook" in docs/agent-bus.md as code.
+# reads from). Implements the "Bootstrap runbook" in pi-cluster/docs/agent-bus.md as code.
 #
 # WHERE THIS RUNS: your laptop (or any host with cluster + 1Password access). NOT inside a
 # harness container — registration needs `kubectl exec` into the Synapse pod (the shared
@@ -39,7 +39,7 @@ DOMAIN="matrix.lab.mtgibbs.dev"              # server_name → user/room suffix
 VAULT="pi-cluster"
 CS="$HS/_matrix/client/v3"
 
-# user  admin?   (one Matrix identity per agent + the human admin; see docs/agent-bus.md)
+# user  admin?   (one Matrix identity per agent + the human admin; see pi-cluster/docs/agent-bus.md)
 USERS=(
   "matt:admin"
   "laptop-claude:user"

@@ -6,7 +6,7 @@ and guides the tool so a literal operator produces precise output every time: *t
 carries the rigor, not the model.*
 
 Born as "harness", extracted from `mtgibbs/pi-cluster` on 2026-08-26 under the trigger set by
-that repo's `docs/adr/008-review-hub-framework-seam.md`:
+that repo's `pi-cluster/docs/adr/008-review-hub-framework-seam.md`:
 
 > Extract to its own repo when a **second repo or cluster** wants the harness.
 
@@ -44,7 +44,7 @@ scripts/run-loop.sh --list
 
 Run from a git worktree on a throwaway branch — the loop refuses `main`.
 
-A **strategy** is one `scripts/loops/<name>.env`: which phases run, plus the bindings they need.
+A **strategy** is one `scripts/loops/<name>.conf`: which phases run, plus the bindings they need.
 It may only declare `STRATEGY_DESC`/`STRATEGY_PHASES` and export knobs the loop already accepts.
 New behaviour belongs in a loop script, behind its own spec and gate.
 
@@ -56,10 +56,10 @@ gate, retries, evidence and the watchdog.
 
 | binding | executor |
 |---|---|
-| `scripts/exec-qwen.sh` | `oc run` — the default when `RALPH_EXEC_CMD` is unset |
+| `scripts/exec-opencode.sh` | `oc run` — the default when `RALPH_EXEC_CMD` is unset |
 | `scripts/exec-codex.sh` | `codex exec` |
 
-Adding an executor is a binding plus a `.env`. It used to be a 204-line copy of the whole loop
+Adding an executor is a binding plus a `.conf`. It used to be a 204-line copy of the whole loop
 that three specs had to police for drift — copies of the same machinery diverging, which is the
 only thing "drift" means in these docs (pi-cluster #199).
 
@@ -106,8 +106,9 @@ the bytes are stable across every task and retry and ride the prefix cache.
 - Generator: `scripts/gen-codesheet.mjs` (wraps `scripts/token-bench/gen-*.mjs`)
 - `RALPH_SHEET=off` disables it for a loop; `OC_SHEET=off` stops `oc` injecting it twice
 - `OC_SHEET_GEN` overrides generator resolution
-- Measured on 783 trials: **20–56% less context at equal-or-better accuracy**. Evidence lives in
-  pi-cluster at `docs/research/codemap-serena-token-efficiency.md`.
+- Measured on 783 trials: **20–56% less context at equal-or-better accuracy**. Evidence:
+  `docs/research/codemap-serena-token-efficiency.md` (research imported from pi-cluster, where
+  the trials ran).
 
 ## This repo is its own first subscriber
 

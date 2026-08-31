@@ -96,10 +96,11 @@ templates that make a requirement testable instead of vibey:
 - [`20260829a-executor-image-layer`](20260829a-executor-image-layer/spec.md) — the executor is an image layer, not a fork
 - [`20260829b-resume-bound`](20260829b-resume-bound/spec.md) — resume-bound: the question "is this already done?" must afford the answer
 - [`20260829c-hermetic-gate`](20260829c-hermetic-gate/spec.md) — a gate measures the work, not the environment it was launched from
-- [`20260830a-product-naming`](20260830a-product-naming/spec.md) — the product is named Jig: identity renames, the bones do not
 - [`20260830a-worker-credentials`](20260830a-worker-credentials/spec.md) — a worker gets exactly the credentials its strategy needs
 - [`20260830b-dispatcher-image`](20260830b-dispatcher-image/spec.md) — the dispatcher ships as an image, and the worker it launches can clone
 - [`20260830c-constitution-split`](20260830c-constitution-split/spec.md) — the constitution carries harness law only: consumers bring their own
+- [`20260830d-product-naming`](20260830d-product-naming/spec.md) — the product is named Jig: identity renames, the bones do not (renamed from `20260830a-` — the prefix collided with worker-credentials, which held first claim)
+- [`20260830e-stale-refs-and-debris`](20260830e-stale-refs-and-debris/spec.md) — stale references, root debris, LICENSE: the neglect-signal sweep, with the link resolver as the deliverable
 
 The gate for [`20260830c-constitution-split`](20260830c-constitution-split/spec.md) checks this
 index both ways: a spec directory that isn't listed here fails it, and so does an entry whose

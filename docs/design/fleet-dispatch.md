@@ -181,8 +181,9 @@ is least wanted.
 **Revisit when per-container permission sets exist** (item 8): a loop container should declare the
 narrow set it needs — and `specs/20260827a-spec-manifest`'s `Permissions:` field is the seam that was built
 for it, currently recorded-but-unenforced. Two smaller fixes stand on their own: grant `read` for
-`*.env` rather than everything, or stop naming secret-free strategy files `.env` at all
-(`run-loop.sh` resolves `scripts/loops/<name>.env`, so it is a contained change).
+strategy files rather than everything, or stop naming secret-free strategy files `.env` at all —
+since done: `specs/20260828c-strategy-file-extension` renamed them, and `run-loop.sh` now
+resolves `scripts/loops/<name>.conf`.
 
 Item 3 starts as an ADR because it crosses the framework/instance seam: the dispatcher
 *service* deploys in pi-cluster (GitOps), while its *contract* lives here.
