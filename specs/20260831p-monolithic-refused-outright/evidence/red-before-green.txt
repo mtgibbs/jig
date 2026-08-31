@@ -1,0 +1,30 @@
+── T01-refuse-monolithic ──
+  FAIL  ac1: expected exit 3 with the hatch set, got 2 — the hatch still opens
+  FAIL  ac1: the executor was dispatched before the refusal
+  FAIL  ac1: refusal does not name per-task gates
+  PASS  ac2: an .evidence-dwelling deliverable passes (rc=0)
+  PASS  ac2: the deliverable is committed
+  PASS  ac2: no 'changed nothing' refusal
+  FAIL  ac3: the no-op guard's text is still in ralph-build.sh
+  FAIL  ac3: ALLOW_MONOLITHIC is still consulted or mentioned in ralph-build.sh
+  PASS  ac4: an empty attempt still fails the run (exit 2)
+  PASS  ac4: the gate is what refused it
+  PASS  ac5: ralph-build.sh passes bash -n
+
+VERIFY: failures above
+── T02-template-states-the-rule ──
+  PASS  ac1: TEMPLATE.md states the refusal
+  FAIL  ac1: TEMPLATE.md does not state that no override exists
+  FAIL  ac2: TEMPLATE.md still offers the hatch
+
+VERIFY: failures above
+── T03-dependent-gates-updated ──
+  PASS  ac1: 20260831b-scrub-monolithic-gates's gate is green against the hatchless loop
+  FAIL  ac2: 20260831b-scrub-monolithic-gates's spec.md has no Tuning entry citing 20260831p
+  PASS  ac1: 20260831c-noop-defers-to-per-task-gates's gate is green against the hatchless loop
+  FAIL  ac2: 20260831c-noop-defers-to-per-task-gates's spec.md has no Tuning entry citing 20260831p
+  PASS  ac1: 20260831h-single-task-resume's gate is green against the hatchless loop
+  FAIL  ac2: 20260831h-single-task-resume's spec.md has no Tuning entry citing 20260831p
+
+VERIFY: failures above
+VERIFY: failures above

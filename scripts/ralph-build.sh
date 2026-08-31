@@ -216,18 +216,19 @@ _reset_tree() {
 # spec that is missing one.
 _validate_task_gates() {
   if [ ! -d "$SPEC_DIR/tasks" ]; then
-    # The monolithic pend-staged gate is DEPRECATED for multi-task specs (20260828i,
-    # defect 2: "the gate is the roadmap" — an executor reads a later task's pend as a
-    # to-do and overshoots; re-proved twice on 20260831a, 2026-08-31, after the TEMPLATE
-    # kept teaching the dead shape). One task needs no pend and is exempt; the ~30 legacy
-    # specs re-run under an explicit, announced escape hatch rather than silently.
+    # The monolithic pend-staged gate is DEAD for multi-task specs (20260828i, defect 2:
+    # "the gate is the roadmap" — an executor reads a later task's pend as a to-do and
+    # overshoots; re-proved twice on 20260831a, 2026-08-31). There is NO escape hatch:
+    # 20260831b shipped an allow-env for legacy re-runs and 20260831p removed it — a spec
+    # that does not match the convention is refused, full stop. The ~30 legacy specs are
+    # done; their gates still run directly (bash verify.sh), which needs no loop. One
+    # task needs no pend and is exempt.
     local _n; _n="$(_task_count)"
-    if [ "$_n" -gt 1 ] && [ "${RALPH_ALLOW_MONOLITHIC:-0}" != "1" ]; then
-      echo "ralph: $SPEC_DIR has $_n tasks and no tasks/ directory — the monolithic pend-staged gate is deprecated for multi-task specs (specs/20260828i-per-task-gates: the gate is the roadmap)." >&2
-      echo "ralph: give each task its own tasks/T<NN>-<slug>/verify.sh, or set RALPH_ALLOW_MONOLITHIC=1 to re-run a legacy spec deliberately." >&2
+    if [ "$_n" -gt 1 ]; then
+      echo "ralph: $SPEC_DIR has $_n tasks and no tasks/ directory — the monolithic pend-staged gate is dead for multi-task specs (specs/20260828i-per-task-gates: the gate is the roadmap)." >&2
+      echo "ralph: give each task its own tasks/T<NN>-<slug>/verify.sh (specs/TEMPLATE.md §gate layout). There is no override." >&2
       return 1
     fi
-    [ "$_n" -gt 1 ] && echo "ralph: RALPH_ALLOW_MONOLITHIC=1 — building a deprecated monolithic multi-task spec deliberately (legacy re-run)."
     return 0
   fi
   local i n _sf; n="$(_task_count)"
@@ -502,32 +503,14 @@ URLs/UIDs. When done, stop.${scope_note}${feedback}"
     fi
 
 
-    # A run that changed NOTHING is not a pass. The stillborn-log guard above catches an
-    # executor that never STARTED; this catches one that started, was blocked, and wrote
-    # nothing. It matters because a pend-staged gate (legacy shape) is satisfied
-    # by an empty tree — every check pends — so a no-op attempt sails through and the task
-    # after it inherits the work plus a spent retry budget. Observed 2026-08-12 on
-    # specs/model-watch: opencode asked to Read `/specs/model-watch/spec.md` (absolute,
-    # from filesystem root), opencode auto-rejected it as an external directory, the model
-    # produced no file, and the staged gate passed T1 with "nothing to commit".
-    #
-    # PER-TASK SPECS SKIP THIS GUARD (2026-08-31, issue #91 / the watched-run rerun). A
-    # per-task gate bans pend, so an empty tree FAILS it — the gate is no-op-proof and its
-    # feedback names the missing criteria, which beats the generic hint below. And the
-    # ':!.evidence' exclusion (kept so the indexer's writes don't count as work) blinded
-    # this check to a task whose DELIVERABLE lives under .evidence/ — 20260831a's T2 was
-    # refused as "changed nothing" in both watched runs even when done perfectly. Where
-    # the gate can decide, the gate decides.
-    if [ ! -d "$SPEC_DIR/tasks" ] \
-       && [ -z "$(git -C "$ROOT" status --porcelain -- . ':!.evidence' 2>/dev/null)" ]; then
-      echo "  ✗ attempt $attempt changed nothing — a no-op is a failure, not a pass" >&2
-      LOG_OUTCOME="noop"; LOG_ENDED="$(date +%s)"; LOG_RECORDED=1; log_meta "$HB_TASK" "$attempt"
-      hb_write failed false
-      feedback="
-A previous attempt produced NO file changes at all. If a tool call was rejected, use
-paths RELATIVE to the repo root (specs/... not /specs/...). Do the work this time."
-      continue
-    fi
+    # There is no separate no-op work guard here any more (20260831p). It existed
+    # for the pend-staged legacy shape, where an empty tree satisfied every lenient gate;
+    # that shape is refused up front now. Every runnable shape is gate-decided: a per-task
+    # gate bans pend, and a single-task spec's only gate run is STRICT (task 1 of 1 is the
+    # last task) — an empty tree fails an honest gate with feedback naming the missing
+    # criteria, which beats a generic hint. Deleting it also removed its ':!.evidence'
+    # blind spot, which refused a task whose DELIVERABLE lives under .evidence/ (issue #91,
+    # 20260831a's T2, both watched runs).
 
     # The scope guard (20260831d, issue #91): where a task declared its scope, any change
     # outside it fails the attempt BEFORE the gate. Reject WHOLESALE, never filter the

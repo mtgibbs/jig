@@ -91,7 +91,8 @@ printf '%s' "$out3" | grep -q 'skipped (gate already passed)' \
   && ok "ac3: the task was dispatched instead" \
   || no "ac3: the task was neither skipped nor dispatched (rc=$rc3)"
 
-# ── ac4: multi-task monolithic stays unanswerable — never skips ──
+# ── ac4: multi-task monolithic never reaches the skip question at all — it is refused
+# up front (20260831p removed the legacy allow-env this check used to ride) ──
 FX4="$(mk_single 'exit 0')"
 printf 'T1: thing one\nT2: thing two\n' > "$FX4/specs/fx/tasks.txt"
 git -C "$FX4" add -A && git -C "$FX4" commit -qm two >/dev/null
@@ -100,6 +101,9 @@ out4="$(run_fx "$FX4" "$S_MARK" MARK="$M4" RALPH_ALLOW_MONOLITHIC=1)"; rc4=$?
 printf '%s' "$out4" | grep -q 'skipped (gate already passed)' \
   && no "ac4: a multi-task monolithic spec skipped — the unanswerable rule broke" \
   || ok "ac4: multi-task monolithic never skips (green whole-spec gate says the SPEC is done, not task N)"
+[ "$rc4" -eq 3 ] && [ ! -f "$M4" ] \
+  && ok "ac4: it is refused before dispatch (exit 3, no executor)" \
+  || no "ac4: expected up-front refusal (exit 3, no marker), got rc=$rc4"
 
 # ── ac5 ──
 bash -n "$RB" \

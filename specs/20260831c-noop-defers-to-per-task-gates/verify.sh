@@ -82,14 +82,17 @@ printf '%s' "$out2" | grep -q "$NOOP_MSG" \
   && no "ac2: the blind-spot refusal fired on the deliverable" \
   || ok "ac2: no no-op refusal on the .evidence deliverable"
 
-# ── ac3: monolithic legacy path unchanged — refusal fires (positive control) ──
-# The fixture gate is RED: since 20260831h a green single-task gate skips before the
-# executor is ever dispatched, and this control needs a dispatched empty attempt.
+# ── ac3: a single-task empty attempt is refused by ITS GATE, and the old no-op
+# message never appears anywhere (20260831p deleted the guard: the legacy shape it
+# protected is refused up front now, and every runnable shape is gate-decided).
 FX3="$(mk_fx 0 'echo "  FAIL  fx: nothing built" >&2; exit 1')"
 out3="$(run_fx "$FX3" "$S_EMPTY")"; rc3=$?
+[ "$rc3" -eq 2 ] && printf '%s' "$out3" | grep -q 'verify failed' \
+  && ok "ac3: the single-task empty attempt fails via its STRICT gate (rc=2)" \
+  || no "ac3: expected the gate's refusal (rc=2, 'verify failed'), got rc=$rc3"
 printf '%s' "$out3" | grep -q "$NOOP_MSG" \
-  && ok "ac3: monolithic empty attempt still refused (positive control for the ac1/ac2 probe)" \
-  || no "ac3: legacy no-op refusal did not fire (rc=$rc3)"
+  && no "ac3: the deleted no-op guard spoke ('$NOOP_MSG') — it is back" \
+  || ok "ac3: the no-op guard stays deleted (its message appears nowhere)"
 
 # ── ac4 ──
 bash -n "$RB" \

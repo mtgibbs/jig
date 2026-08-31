@@ -98,3 +98,8 @@ None.
 ## 14. Tuning log
 
 - (none yet)
+
+- **2026-08-31 (spec 20260831p):** ac4 used `RALPH_ALLOW_MONOLITHIC=1` to reach the
+  multi-task-monolithic skip question; that hatch is removed, so the shape is refused
+  before dispatch. ac4 keeps the never-skips probe and now also pins the up-front
+  refusal (exit 3, no executor).

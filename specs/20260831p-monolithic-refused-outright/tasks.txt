@@ -1,0 +1,3 @@
+T1: remove the RALPH_ALLOW_MONOLITHIC hatch from scripts/ralph-build.sh (multi-task specs without tasks/ are refused unconditionally, exit 3) and delete the dead no-op work guard whose :!.evidence exclusion blinded it to evidence-dwelling deliverables
+T2: update specs/TEMPLATE.md so the gate-layout section states the unconditional refusal and names no escape
+T3: rework the 20260831b/c/h gates that pinned the hatch or the guard, with a Tuning log entry in each spec
