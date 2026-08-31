@@ -1,0 +1,1 @@
+T1: factor the three-step failure reset in scripts/ralph-build.sh into a _reset_tree helper whose git clean spares the fixed bookkeeping set (.evidence/status, .evidence/metrics.jsonl, .evidence/index-*, .evidence/runs) via -e excludes, call it from both the verify-failure and scope-violation paths, and keep litter removal intact

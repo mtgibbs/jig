@@ -1,0 +1,12 @@
+  FAIL  ac1: the reset ate .evidence/status/fx/other-host/other.json — the record is gone
+  FAIL  ac2: .evidence/index-fx.jsonl was deleted
+  FAIL  ac2: .evidence/metrics.jsonl was deleted
+  PASS  ac3: litter file removed
+  PASS  ac3: litter directory removed
+  FAIL  ac4: the clean announced 'Removing .evidence/…' — bookkeeping was cleaned
+  PASS  ac4: positive control — the clean announced removing the litter
+  PASS  ac5: the run exited 2 (stop-needs-human)
+  FAIL  ac6: 'clean -fd' appears 2 times — the reset is not single-sourced
+  PASS  ac7: ralph-build.sh passes bash -n
+
+VERIFY: failures above
