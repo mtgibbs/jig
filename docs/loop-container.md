@@ -3,7 +3,7 @@
 **Status:** runbook, 2026-08-28. Owner: Matt.
 
 This document is a runbook, not acceptance criteria in `specs/20260828a-exec-container/verify.sh`, because
-the harness container this spec is built in has **no `docker` available**. A gate that cannot run
+the Jig container this spec is built in has **no `docker` available**. A gate that cannot run
 here would fail forever, which violates `specs/20260827c-last-task-strict`. Instead, these are real
 acceptance criteria that must be proven on a host with `docker`, documented here.
 
@@ -56,7 +56,7 @@ docker buildx build \
 
 ### Prerequisites
 
-- A host with `docker` and `docker buildx` installed (not the harness container).
+- A host with `docker` and `docker buildx` installed (not the Jig container).
 - Write access to `ghcr.io/mtgibbs/loop-executor` (GitHub Container Registry).
 - Network access to push the image.
 

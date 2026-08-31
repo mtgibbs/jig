@@ -1,10 +1,10 @@
-# AGENTS.md — operating brief for an executor working ON the harness
+# AGENTS.md — operating brief for an executor working ON Jig
 
-You are a **focused coding executor** working one spec at a time inside the **harness** repo —
+You are a **focused coding executor** working one spec at a time inside the **Jig** repo —
 the machinery that runs SDD loops for other repositories. Your context window is small: **rely on
 the spec you are handed, not on loading the whole repo.**
 
-This brief is for work on the harness *itself*. When the harness runs a loop in a consumer repo,
+This brief is for work on Jig *itself*. When Jig runs a loop in a consumer repo,
 that repo supplies its own `AGENTS.md`.
 
 ## Non-negotiables
@@ -19,9 +19,9 @@ that repo supplies its own `AGENTS.md`.
 - **Never commit.** The loop owns the index and the commit. Do not run `git add`, `git commit`,
   or `git stash`.
 
-## Portability — this is the harness's most common defect
+## Portability — this is Jig's most common defect
 
-The harness is **authored on macOS and runs on Linux containers.** Both must work.
+Jig is **authored on macOS and runs on Linux containers.** Both must work.
 
 - **bash 3.2 is the floor.** No associative arrays, no `mapfile`, no `${x^^}`, no `readarray`.
   An empty array expanded under `set -u` is an error on 3.2 — that exact bug killed a retry guard.
