@@ -83,7 +83,9 @@ printf '%s' "$out2" | grep -q "$NOOP_MSG" \
   || ok "ac2: no no-op refusal on the .evidence deliverable"
 
 # ── ac3: monolithic legacy path unchanged — refusal fires (positive control) ──
-FX3="$(mk_fx 0 'exit 0')"
+# The fixture gate is RED: since 20260831h a green single-task gate skips before the
+# executor is ever dispatched, and this control needs a dispatched empty attempt.
+FX3="$(mk_fx 0 'echo "  FAIL  fx: nothing built" >&2; exit 1')"
 out3="$(run_fx "$FX3" "$S_EMPTY")"; rc3=$?
 printf '%s' "$out3" | grep -q "$NOOP_MSG" \
   && ok "ac3: monolithic empty attempt still refused (positive control for the ac1/ac2 probe)" \

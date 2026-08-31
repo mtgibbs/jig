@@ -208,20 +208,30 @@ _validate_task_gates() {
 _validate_task_gates || exit 3   # 3, not 1: the spec needs attention, not another retry.
 
 # _task_satisfied <n> <task-name> — return 0 if task n's gate already passes, 1 otherwise.
-# Answers false immediately when tasks/ does not exist (monolithic spec — question unanswerable).
+# Answers false immediately for a MULTI-task spec without tasks/ (monolithic — unanswerable);
+# a single-task spec's question is answered by its spec gate under STRICT (issue #30).
 # Answers false when the task has no gate or the gate cannot run (fail-closed).
 # Runs ONLY that task's gate, never the cumulative group.
 # Times out after RALPH_SATISFIED_TIMEOUT (default RALPH_EXEC_TIMEOUT) and treats timeout as false (gate hangs -> task runs).
 _task_satisfied() {
-  local n="$1" task="$2"
-  # Monolithic spec: unanswerable. Fail-closed.
-  [ -d "$SPEC_DIR/tasks" ] || { return 1; }
+  local n="$1" task="$2" g="" _strict=""
+  if [ ! -d "$SPEC_DIR/tasks" ]; then
+    # Multi-task monolithic (the legacy escape hatch): unanswerable — a green whole-spec
+    # gate says the SPEC is done, not that task N is. Fail-closed.
+    [ "$(_task_count)" = 1 ] || return 1
+    # Single-task spec (the 20260828i exemption has no tasks/ dir): the spec gate IS the
+    # task's gate, so the question is answerable after all — under STRICT, because a
+    # legacy pend-staged gate is green on an empty tree and must not read as satisfied.
+    # This is what lets an operator interrupt and resume a finished single-task spec
+    # instead of watching it die as a no-op ×3 (issue #30).
+    g="$VERIFY"; _strict=1
+  fi
   # Force-all: skip never. Fail-closed.
   [ "${RALPH_FORCE_ALL:-0}" = "1" ] && { return 1; }
   # Force-from: re-run task n and everything after. Fail-closed for this task.
   [ -n "${RALPH_FORCE_FROM:-}" ] && [ "$n" -ge "${RALPH_FORCE_FROM:-0}" ] && { return 1; }
   # Task has no gate. Fail-closed.
-  local g; g="$(_gate_for "$n")" || { return 1; }
+  if [ -z "$g" ]; then g="$(_gate_for "$n")" || { return 1; }; fi
   # Bound the gate: a hanging gate must not wedge a resume.
   # Default to RALPH_EXEC_TIMEOUT if unset, empty, or non-positive-integer.
   local _bound="${RALPH_SATISFIED_TIMEOUT:-$EXEC_TIMEOUT}"
@@ -233,7 +243,13 @@ _task_satisfied() {
   # satisfied task and skips it — worse than never skipping, because not skipping costs time and
   # this costs correctness in silence. `out` is captured for the announcements, not consulted for
   # the answer.
-  local out; out="$(bound "$_bound" bash "$g" 2>&1)"
+  # STRICT reaches only the single-task path; per-task gates ban pend and never read it.
+  local out
+  if [ -n "$_strict" ]; then
+    out="$(STRICT=1 bound "$_bound" bash "$g" 2>&1)"
+  else
+    out="$(bound "$_bound" bash "$g" 2>&1)"
+  fi
   local _rc=$?
   # The two refusals are different facts and read differently: one is a bound to raise or a gate
   # to make cheaper, the other is work still to do. Neither says "skipped" — on both of these

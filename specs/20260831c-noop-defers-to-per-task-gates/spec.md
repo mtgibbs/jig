@@ -108,3 +108,10 @@ still fires), and one that writes only `.evidence/note.md` with a task gate that
 ## 12. Open questions
 
 None.
+
+## 14. Tuning log
+
+- **2026-08-31 — ac3's fixture gate turned red for 20260831h.** The positive control
+  needs a DISPATCHED empty attempt, and a green single-task gate now skips before the
+  executor runs; the fixture gate is red so dispatch still happens and the legacy no-op
+  refusal stays observable. Fixture premise change only.
