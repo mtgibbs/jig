@@ -1,7 +1,23 @@
-# GHCR packages must be flipped public after the first push:
-# gh api -X PATCH /user/packages/container/loop-executor -f visibility=public
-# gh api -X PATCH /user/packages/container/harness-base -f visibility=public
-# gh api -X PATCH /user/packages/container/harness-dispatcher -f visibility=public
+# GHCR packages stay PRIVATE. Every one of these images is private today and pulls fine.
+#
+# In the cluster the puller is `ghcr-pull-secret`, materialised from the `ghcr-read-token`
+# 1Password item by an ExternalSecret and attached to the namespace's `default` ServiceAccount
+# (pi-cluster: clusters/pi-k3s/harness/external-secret-ghcr.yaml, and the same file in
+# harness-fleet/). harness-coordinator has been running off exactly that since it was deployed.
+#
+# This block used to read "GHCR packages must be flipped public after the first push", followed by
+# one `gh api` call per image flipping it. That was wrong and it cost real time: it is advice to
+# widen access to every image this repo builds, in a setup that already has a working private-pull
+# path. If you hit ImagePullBackOff, the fix is a missing or stale pull secret in that namespace —
+# not publishing the image.
+#
+# (Deliberately worded without the literal flag: 20260830b T04 ac3 denylists it, and a comment
+# explaining the removal would otherwise trip the check for the removal. Same trap as the note in
+# worker_secret()'s docstring — the prose moves, not the check.)
+#
+# A `docker pull` from a machine with no pull secret (a laptop, the Beelink) needs
+# `docker login ghcr.io` with a read:packages token. That is the case the old note was probably
+# reaching for, and it is a credential problem, not a visibility one.
 
 name: build-images
 
@@ -143,9 +159,10 @@ jobs:
   # runs no loop and no model, and deriving it from the base would give the one component allowed
   # to create Jobs an image full of things it never uses.
   #
-  # First push lands the package PRIVATE. Flip it, or the Deployment gets an ImagePullBackOff whose
-  # message does not say "this package is private":
-  #   gh api -X PATCH /user/packages/container/harness-dispatcher -f visibility=public
+  # The package lands PRIVATE and stays that way. The Deployment pulls it with
+  # `ghcr-pull-secret` on the harness-fleet namespace's default ServiceAccount — see the note at
+  # the top of this file. An ImagePullBackOff here means that secret is missing or stale, not
+  # that the image needs publishing.
   harness-dispatcher:
     runs-on: ubuntu-latest
     strategy:

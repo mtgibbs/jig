@@ -39,11 +39,18 @@ else
   ok "ac2: the image is built for amd64 and arm64"
 fi
 
-# ── ac3: the private-package trap is written down where it bites ─────────────────────────────
-if ! grep -q 'packages/container/harness-dispatcher' "$WF"; then
-  no "ac3: nothing records that the first push lands the package PRIVATE. The symptom is an ImagePullBackOff whose message does not say 'this package is private', and this repo has hit it before"
+# ── ac3: how a PRIVATE image is pulled is written down where it bites ────────────────────────
+# This assertion originally required the opposite: that the workflow tell the reader to run
+# `gh api ... -f visibility=public`. Every image here is private and pulls fine via
+# ghcr-pull-secret, so the check was enforcing advice to widen access to every image the repo
+# builds. A gate can enshrine a wrong belief as effectively as it can catch a bug — this one did,
+# and it went green the whole time.
+if grep -q 'visibility=public' "$WF"; then
+  no "ac3: the workflow still advises making a package public. These images are private and pull with ghcr-pull-secret; publishing them is a widening of access dressed up as a fix for ImagePullBackOff"
+elif ! grep -qi 'ghcr-pull-secret' "$WF"; then
+  no "ac3: nothing records HOW a private image gets pulled. An ImagePullBackOff sends the next reader looking for a visibility setting unless the pull secret is named where the image is built"
 else
-  ok "ac3: the visibility flip is recorded where the image is built"
+  ok "ac3: the workflow names the pull secret rather than telling anyone to publish the image"
 fi
 
 # ── ac4: it does not depend on harness-base ──────────────────────────────────────────────────
