@@ -1,0 +1,17 @@
+── T01-scaffold-create ──
+  FAIL  ac0: scripts/new-spec.sh does not exist
+
+VERIFY: failures above
+── T02-shape-check ──
+  FAIL  ac0: scripts/new-spec.sh does not exist
+
+VERIFY: failures above
+── T03-authoring-skill ──
+  FAIL  ac1: .claude/skills/author-spec/SKILL.md does not exist
+  FAIL  ac3: TEMPLATE does not name the scaffolder
+  FAIL  ac3: the single-task exemption sentence is still in the TEMPLATE
+  FAIL  ac3: TEMPLATE lacks the replacement rule for single-task specs
+  FAIL  ac3: the gate-layout opener still scopes the rule to multi-task specs
+
+VERIFY: failures above
+VERIFY: task-gate failures above

@@ -1,0 +1,3 @@
+T1: write scripts/new-spec.sh create mode — arg parsing, auto id allocation, and the emitted per-task shape: tasks/T<NN>-<slug>/verify.sh stubs red by construction, a convergence-only spec verify.sh, spec.md skeleton, evidence/
+T2: write scripts/new-spec.sh --check mode — deterministic shape validation for a spec dir: core files present, tasks/ required for EVERY spec, T-dirs contiguous and 1:1 with tasks.txt, gates executable, the staging verb banned as code
+T3: write .claude/skills/author-spec/SKILL.md teaching scaffold-first authoring, and update specs/TEMPLATE.md — name the scaffolder, drop the single-task tasks/ exemption
