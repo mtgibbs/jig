@@ -1,101 +1,119 @@
-# Constitution — house rules for any agent working this repo
+# Constitution — Jig's founding law
 
-> Tier-1 context: prepend this to **every** agent handoff. It's the non-negotiable
-> architectural DNA, kept deliberately short so it always fits the budget. The full
-> reference is `ARCHITECTURE.md` (~2,500 lines — read on demand, never ship wholesale).
+> Tier-1 context: the judge anchors this file and `specs/amendments.md` on every review,
+> and any agent working a spec in this repo inherits both. Kept deliberately short so it
+> always fits the budget. Deep reference is on demand: `specs/README.md` (the method and
+> the index of this repo's specs), `specs/TEMPLATE.md` (the spec skeleton), `docs/`
+> (runbooks), `AGENTS.md` (the executor's own lean Tier-1 — same law, sized to a small
+> context window).
 
-## How we build (non-negotiable)
+## The convention (non-negotiable)
 
-- **GitOps via Flux.** Every change is committed YAML reconciled by Flux. **Never** edit
-  live cluster state, web UIs, or run imperative `kubectl apply` as the solution. The
-  deliverable is a diff, not a running change.
-- **Secrets via 1Password + ExternalSecrets.** Never inline a secret value. Reference an
-  `ExternalSecret` that pulls from the `pi-cluster` 1Password vault. `op://` *paths* are
-  fine to write; values never.
-- **PR-gated.** Your output is reviewed before it reaches the cluster. Optimize for a
-  diff a human can verify against the spec's acceptance criteria.
+- **A repo participates by shipping spec directories** — `spec.md`, `tasks.txt`,
+  `verify.sh` — and nothing else. Jig never asks the repo for machinery.
+- **The gate decides done, never the model.** `verify.sh` is the only voice that can say
+  a task is complete. Editing a gate to make work pass is the one unrecoverable move.
+- **PR to publish, always.** Output is reviewed before it lands anywhere live — the
+  checkpoint is the point. Optimize for a diff a human can verify against the spec's
+  acceptance criteria.
+- **Evidence is the record.** Everything a run leaves behind is keyed by spec slug under
+  `.evidence/` and committed. `null` and `0` are different values. Every classification
+  cites the literal marker it matched; a verdict that cannot cite is `unknown`, never a
+  guess.
 
 ## Git discipline — one worktree per agent (non-negotiable)
 
-This is forward-looking: today there is one ralph loop, but qwen will fan out to a **set
-of parallel agents** (and Claude runs alongside). Shared-checkout work races on
-`git switch`/`git checkout`. The rule that lets us fan out safely:
+Parallel agents race on a shared checkout. The rule that lets loops fan out safely:
 
 - **Each agent loop runs from its OWN `git worktree` on its own throwaway branch.** The
-  operator launches `scripts/ralph-build.sh` from inside that worktree — the script's
-  usage already states this. Don't run a loop from the primary checkout.
-- **Before any commit, verify the branch:** `git branch --show-current`. If it's not
-  the branch your task was opened on, STOP and ask. Committing default-branch work onto
-  a feature branch (or feature-branch work onto `main`) is just as wrong as committing
-  straight to `main`.
+  loop refuses `main`; don't run one from the primary checkout.
+- **Before any commit, verify the branch:** `git branch --show-current`. If it's not the
+  branch your task was opened on, STOP and ask. Committing default-branch work onto a
+  feature branch is just as wrong as committing straight to `main`.
 - **Operator setup, the pattern:**
   ```bash
-  git worktree add ../pi-cluster-<task> -b ralph/<task>   # isolated dir + branch
-  cd ../pi-cluster-<task>
-  scripts/ralph-build.sh <spec-dir>
+  git worktree add ../<repo>-<task> -b <agent>/<task>   # isolated dir + branch
+  cd ../<repo>-<task>
+  scripts/run-loop.sh <strategy> specs/<feature>
   ```
-- **Cherry-pick or PR back to `main` deliberately** (`PR-gated` rule above). Never push
-  the throwaway branch straight to `main`.
-- **Teardown when the task lands:** `git worktree remove --force ../pi-cluster-<task>`.
-- **Landing other work onto `main` while a worktree is in flight** (e.g. an unrelated
-  doc fix): use a *second* temporary worktree (`git worktree add /tmp/<name> main`); do
-  not `git switch main` in the primary checkout (that disturbs whoever is working there).
+- **PR back deliberately** ("PR to publish" above); teardown when the task lands:
+  `git worktree remove --force ../<repo>-<task>`.
 
-## House conventions (match these — do not invent your own)
+## Gates — the three-verdict contract
 
-- **In-cluster service URLs** for service-to-service / widget calls
-  (`<svc>.<namespace>.svc.cluster.local:<port>`), **not** public ingress.
-- **Public ingress** is `https://<name>.lab.mtgibbs.dev` (Let's Encrypt via cert-manager/Caddy).
-- **Public-by-default.** Topology and config are not secret (Kerckhoffs); only secrets are
-  secret. Don't add obscurity; don't over-engineer caution.
-- File layout mirrors the live tree: `clusters/pi-k3s/<service>/{deployment,service,ingress,
-  kustomization,external-secret,...}.yaml`, wired into `flux-system/infrastructure.yaml`.
+- Three verdicts: `PASS` · `FAIL` (the artifact exists and is wrong) · `pend` (it does
+  not exist yet); `STRICT=1` promotes every pend, and the final task always runs strict.
+  Presence-gate on the **artifact**, never on a task number.
+- **Gates must prove they can fail** (`specs/amendments.md`): red-before / green-after,
+  recorded in the spec's `evidence/`.
+- **Name the states a check must tell apart** (`specs/amendments.md`): a check that can
+  only ever report the benign verdict is not a check at all.
+- Read `specs/TEMPLATE.md` §11 before writing one — the traps in there were each paid
+  for.
+
+## Portability (non-negotiable)
+
+- Jig is **authored on macOS and runs in Linux containers**, and which rules bind a file
+  follows from **who invokes it** (`specs/amendments.md`, "Portability follows the
+  invoker"). Anything a human reaches for while authoring runs on both: bash 3.2 is the
+  floor, `bound` never `timeout`, GNU before BSD in any `stat` fallback, `pwd -P` before
+  computing a path prefix.
+- **Neither authoring nor runtime may require private infrastructure.** A clone, a
+  shell, and a model endpoint are the whole dependency list.
 
 ## Anti-novelty directives (READ THIS)
 
-This is a **conventional, mature homelab — not a greenfield**. Your job is to fit in, not
-to innovate.
+This is a **conventional, mature codebase — not a greenfield**. Your job is to fit in,
+not to innovate.
 
-- **Reuse the existing pattern. Cite the file you copied from.** If a similar service or
-  widget already exists, mirror it.
-- **Do not invent URLs, UIDs, ports, or API shapes.** If a value isn't given in the spec,
-  it's an open question — flag it, don't guess. (Guessed links are usually broken.)
-- **Beware the *similar-but-different* trap.** When two existing patterns look alike, the
-  spec will tell you which to follow and how they differ — honor that over your instinct
-  to copy the nearest one.
-- **Stay in scope.** Do exactly what the spec's §3 says; don't "helpfully" refactor or
+- **Reuse the existing pattern. Cite the file you copied from.** If similar machinery
+  already exists, mirror it.
+- **Do not invent URLs, paths, ports, or API shapes.** If a value isn't given in the
+  spec, it's an open question — flag it, don't guess.
+- **Beware the *similar-but-different* trap.** When two existing patterns look alike,
+  the spec says which to follow and how they differ — honor that over your instinct to
+  copy the nearest one.
+- **Stay in scope.** Do exactly what the spec's tasks say; don't "helpfully" refactor or
   touch adjacent things.
 
-## Specs & verification (for whoever authors a spec for an agent)
+## Specs & verification (for whoever authors a spec)
 
-- **Worked examples must be tested before handoff.** A local model executes your example
-  *faithfully* — bugs and all. An untested example is a bug you've outsourced. (We once
-  shipped a `round(100 * …)` + `format: percent` example that renders "6100%"; the model
-  copied it verbatim. Verify examples against reality first.)
-- **Verification is external and mandatory.** Every spec handed to an agent ships a
-  `verify.sh` — the §7 acceptance criteria compiled into a deterministic gate (exit 0 =
-  acceptable). The loop runs it; **the model never self-certifies "done".**
-- **One task per loop iteration, fresh context.** Decompose; never hand the model the whole
-  repo or whole spec at once. Small scope = small context = reliable, fast, cheap. The
-  fixture (loop) carries the rigor, not the model. See `scripts/ralph-build.sh`.
-- **Verify the exact thing a criterion depends on — not a proxy.** An ExternalSecret needs a
-  *field*; checking the *item* exists isn't enough (the prowlarr/lidarr lesson: the items
-  existed, the `api-key` field didn't). Resolve at the right granularity in the Plan phase —
-  and don't let tooling friction (e.g. a flaky `op` biometric) silently downgrade your check
-  from field-level to item-level. If you can't verify it now, it's an open question, not a fact.
-- **Research the idiomatic, *tasteful* pattern before specifying** — not just the first correct
-  one. The Plan phase resolves design unknowns too, per `design-principles.md`. Taste needs an
-  eye on the rendered artifact; static gates can't see "this looks dumb".
+- **Worked examples must be tested before handoff.** A literal executor copies your
+  example faithfully — bugs and all. An untested example is a bug you've outsourced.
+- **Verification is external and mandatory.** Every spec ships a `verify.sh` — the
+  acceptance criteria compiled into a deterministic gate. The loop runs it; **the model
+  never self-certifies "done".**
+- **One task per loop iteration, fresh context.** Decompose; never hand the model the
+  whole repo or whole spec at once. Small scope = small context = reliable, fast, cheap.
+  The fixture (loop) carries the rigor, not the model.
+- **Verify the exact thing a criterion depends on — not a proxy.** An item existing is
+  not its field existing; resolve at the right granularity, and don't let tooling
+  friction silently downgrade a field-level check to an item-level one. If you can't
+  verify it now, it's an open question, not a fact.
+- **Research the idiomatic, *tasteful* pattern before specifying** — not just the first
+  correct one (`specs/design-principles.md`). Taste needs an eye on the rendered
+  artifact; static gates can't see "this looks dumb".
 
-## The stack in one breath
+## The consumer overlay — where a repo's own law lives
 
-Pi 5 K3s cluster (Flux GitOps, 1Password/ESO, Pi-hole+Unbound DNS, ingress-nginx +
-cert-manager, kube-prometheus + Grafana + Uptime Kuma, Jellyfin/Immich + *arr media in
-`media` ns). Separate **Beelink** box runs the AI stack (Ollama/LiteLLM/Open WebUI, Docker
-Compose, NOT in K3s) — reached at `ai.lab.mtgibbs.dev`. Cluster scrapes the Beelink over the LAN.
+This file is **harness law only**: it binds every repo Jig runs against, so nothing
+consumer-specific belongs here — no deploy stack, no secret tooling, no hostnames, no
+one repo's file layout. A consumer repo brings that as its own overlay: its
+`specs/constitution.md` and `specs/amendments.md`.
 
-## Where to read more (on demand)
+- **Assembly order: generic first, overlay second.** The judge anchors Jig's
+  constitution and amendments, then the target repo's own pair — the order is load-
+  bearing and gated (`scripts/ralph-judge-codex.sh`). Inside a consumer repo, the
+  `Constitution:` line in a spec's header points at that repo's overlay.
+- **An absent overlay declares nothing, and the loop proceeds** — the same rule as an
+  absent manifest key. A missing *harness* constitution is fatal: a judge with no
+  principles to cite must refuse, not report "nothing found".
+- When Jig runs its own specs, law and overlay are the same file reached two ways; the
+  judge dedupes on identity.
 
-- `ARCHITECTURE.md` — full topology + design decisions (large; read the relevant section).
-- `.claude/skills/<area>/SKILL.md` — operational runbooks (dns-ops, monitoring-ops, media-services, …).
-- `specs/README.md` — the SDD method; `specs/TEMPLATE.md` — the spec skeleton.
+## Amendments
+
+`specs/amendments.md` rides with this file as Tier-1 context and is **append-only**.
+The constitution is founding intent — it does not morph. Change arrives as an amendment,
+ratified by a human via the PR that adds it; judges cite an amendment by its heading,
+same as a constitution principle.

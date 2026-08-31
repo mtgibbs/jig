@@ -1,6 +1,6 @@
 # Amendments — ratified changes to the constitution
 
-> Version: 1.4.0 · rides with `constitution.md` as Tier-1 context.
+> Version: 2.0.0 · rides with `constitution.md` as Tier-1 context.
 >
 > The constitution is founding intent. **It does not morph.** Change arrives here:
 > proposed from the memory notes (`memory-amend propose`), ratified by a human via
@@ -148,3 +148,26 @@ took 41s per gate run — over `gate-selftest`'s own 30s bound, so every mutant 
 that corpus came back `HUNG`. The most rigorous version made the corpus unrunnable,
 which here means it quietly stops being run: the same end state as a false green,
 reached from the opposite direction.
+
+## The constitution carries harness law only; a consumer brings its own
+
+Status: Accepted · 2026-08-30 · Source: issue #71 / the extraction that copied a consumer's law wholesale
+
+The constitution binds every repo Jig runs against, so it may contain no
+consumer-specific law — no deploy stack, no secret tooling, no hostnames, no
+one repo's file layout. A consumer carries that as its own overlay: its
+`specs/constitution.md` and `specs/amendments.md`, assembled **after** the
+generic law (the judge anchors the harness pair first). An absent overlay
+declares nothing and the loop proceeds; a missing harness constitution is
+fatal.
+
+**Rationale:** at extraction this repo shipped pi-cluster's constitution
+unedited, so for four days every judge review anchored GitOps-via-Flux,
+1Password paths and homelab hostnames as "non-negotiable architectural DNA"
+for a repo that has none of them — and cited an `ARCHITECTURE.md` that does
+not exist here. Founding law that describes someone else's house is worse
+than none: it teaches the reader to discount the parts that are real. The
+split was executed by `specs/20260830c-constitution-split/` and this
+amendment ratifies the rewrite, which is why the version above goes MAJOR:
+redefining the constitution's scope is exactly the change that "should make
+you pause."
