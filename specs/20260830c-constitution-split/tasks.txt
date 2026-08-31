@@ -1,0 +1,3 @@
+T1: rewrite specs/constitution.md as harness-generic law — the convention, worktree discipline, three-verdict gate contract, portability, anti-novelty, spec authoring, the consumer-overlay section stating assembly order and absent semantics, the amendment procedure; zero consumer tokens
+T2: rewrite specs/README.md — the SDD method freed of the other repo, plus a complete two-way-checked index of every specs/2026* directory with one-line descriptions
+T3: qualify specs/TEMPLATE.md's two pi-cluster citations as pi-cluster paths; append the ratifying amendment to specs/amendments.md with Status: Accepted and bump the version line to 2.0.0, touching nothing above it

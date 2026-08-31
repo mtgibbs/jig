@@ -16,11 +16,11 @@
 > *constraints-before-work* (best for a literal executor like qwen), not in canvas
 > letter-order; all seven dimensions are present. Norms (§7) + Safeguards (§8) are the
 > SPDD additions vs our old template — the cross-cutting + non-negotiable layers where
-> an executor otherwise guesses badly. Rationale: `docs/research/local-coding-agent-sdd.md` §11.
+> an executor otherwise guesses badly. Rationale: `pi-cluster/docs/research/local-coding-agent-sdd.md` §11.
 
 - **Status:** Draft v0.1   <!-- Draft -> Planned (OQs resolved) -> In progress -> Done; bump version on tuning -->
 - **Owner:** <name>
-- **Constitution:** `specs/constitution.md` (+ `/CLAUDE.md` Core Mandates)
+- **Constitution:** `specs/constitution.md` + `specs/amendments.md`
 - **Touches:** <the files/paths this will change>
 - **Tools:** <comma-separated executables needed on PATH>   <!-- e.g. git, jq, swift -->
 - **MCP:** <comma-separated MCP server names>   <!-- e.g. homelab, memory; none if none required -->
