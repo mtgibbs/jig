@@ -85,13 +85,19 @@ phases or CI; running the real sweep (a human runs it after review).
   also makes the sweep exit 1.
 - Portability floor (constitution): bash 3.2 — no arrays needed here, no `mapfile`, no
   `timeout` (bounds live inside `gate-selftest.sh` already).
-- The `.evidence/README.md` bullet, verbatim, appended to the "What lives where" list after
-  the `mutant-ledger.{md,html}` bullet:
 
-  ```
-  - `scripts/selftest-sweep.sh` (run from anywhere) records every corpus above in one
-    command and regenerates the ledger; `--dry-run` lists what it would run
-  ```
+§6 carries T1's deliverable only. T2's payload deliberately lives in §6b — a task's anchor
+section holds nothing but that task's own work (Tuning log, and the run doc's lesson 6).
+
+## 6b. T2's anchor — the README bullet · [S — Structure]
+
+Referenced by T2 and only T2. The `.evidence/README.md` bullet, verbatim, appended to the
+"What lives where" list after the `mutant-ledger.{md,html}` bullet:
+
+```
+- `scripts/selftest-sweep.sh` (run from anywhere) records every corpus above in one
+  command and regenerates the ledger; `--dry-run` lists what it would run
+```
 
 ## 7. Norms · [N — Norms]
 
@@ -109,7 +115,7 @@ truthful (Outcome 3's sentence is fine to adapt). No color, no spinner, no cleve
 - T1: write `scripts/selftest-sweep.sh` per §6 — the `_SD`/`R` resolution, the find-based
   enumeration, `--dry-run`, the per-corpus banner + tool invocation with `SELFTEST_EVID`,
   worst-exit tracking, the unconditional ledger step, truthful exit. `chmod +x`.
-- T2: append the §6 bullet to `.evidence/README.md`, verbatim, in the stated position.
+- T2: append the §6b bullet to `.evidence/README.md`, verbatim, in the stated position.
 
 ## 10. Acceptance criteria (EARS) · [O — Operations made testable]
 
@@ -122,7 +128,7 @@ truthful (Outcome 3's sentence is fine to adapt). No color, no spinner, no cleve
   that repo's `.evidence/`, and exit 0. (ac3)
 - If a corpus contains a surviving mutant, the script shall still regenerate the ledger and
   shall exit non-zero. (ac4)
-- `.evidence/README.md` shall contain the §6 bullet. (ac5)
+- `.evidence/README.md` shall contain the §6b bullet. (ac5)
 
 ## 11. Verification — `verify.sh`
 
@@ -134,3 +140,16 @@ positive control that the sweep's exit code and the tool's verdicts can actually
 ## 12. Open questions
 
 None.
+
+## 14. Tuning log
+
+- **2026-08-31 — T1 implemented T2's payload.** As authored, the README bullet lived in §6,
+  the very section T1's task line anchored to ("per spec §6"), so the executor — reading the
+  whole spec by design — implemented everything its anchor contained: script *and* bullet.
+  `add -A` swept the bullet into T1's commit, T2 arrived with nothing left to do, and the
+  no-op protection correctly refused an empty diff until the loop stopped fail-closed over an
+  already-green tree (`docs/runs/2026-08-31-the-watched-run.md`, lesson 6). Fix applied here:
+  the bullet moved to §6b, referenced by T2 and only T2, and §6 now states the rule — **a
+  task's anchor section holds nothing but that task's own deliverables.** The task line
+  anchors harder than the spec (TEMPLATE §11 corollary); this is the authoring-side half of
+  the guard until diff-scoping exists on the build loop.
