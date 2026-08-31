@@ -46,9 +46,24 @@ narrowest in the fleet, not the widest.
 | **outcome PAT** | a worker that lands work | push a branch, open a PR — **never** launch compute |
 
 Separating the last two is the point. Today one PAT does both, which means a worker that only ever
-needed to read is holding the credential that can write. It is also why `.github/workflows/*`
-pushes fail from this container: one identity, one scope, and the scope is wrong for half its
-uses.
+needed to read is holding the credential that can write.
+
+> **Correction, 2026-08-31.** This paragraph originally continued: *"It is also why
+> `.github/workflows/*` pushes fail from this container: one identity, one scope, and the scope is
+> wrong for half its uses."* The symptom is real — such a push is rejected with `refusing to allow
+> a Personal Access Token to create or update workflow ... without 'workflow' scope` — but the
+> diagnosis was wrong, and it cost a day's worth of workarounds before anyone checked. There are
+> **two** identities in that container, not one: `gh`'s token carries `workflow`, and a separate
+> narrower PAT sits in `credential.helper store`, which is the one `git` asks first and therefore
+> the one that gets refused. Resetting the chain for a single push
+> (`git -c credential.helper= -c credential.helper='!gh auth git-credential' push`) succeeds with
+> no scope change anywhere; `mtgibbs/harness#76` landed that way.
+>
+> The argument above is untouched by this — clone and outcome should be separate identities on
+> their own merits. What is retracted is only the supporting anecdote. Left as a correction rather
+> than an edit because the wrong version is the more instructive artifact: a plausible
+> single-identity story explained the error perfectly, and being explicable is not the same as
+> being true.
 
 **The credential contract is a set of NAMES, not a mechanism.** `exec-opencode.sh` acquires
 nothing — it takes provider configuration from the environment and execs. So every context
