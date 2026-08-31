@@ -90,3 +90,32 @@ were read from the live files before teardown.
    into a section holding two tasks' payloads. Spec-authoring rule: a task's anchor
    section carries only that task's deliverables. Enforcement candidate: same as
    lesson 3 — nothing in the build loop scopes what a task's diff may touch.
+
+## Postscript — the rerun (2026-08-31): the fix held, and the overshoot came back anyway
+
+After PR #88 moved the bullet to §6b, a rerun from a stripped tree
+(branch `qwen/selftest-sweep-rerun`, coordinator-watched) tested whether T2 could now
+complete clean. It could not — **for a new reason**.
+
+- **The §6b split worked on its own terms.** T1's attempts 1 and 2 touched only
+  `scripts/selftest-sweep.sh`; the spec no longer leaked T2's payload through the anchor.
+- **The gate leaked it instead.** On attempt 3 the executor ran `verify.sh` itself, saw
+  the pend-staged line `pend ac5: the .evidence/README.md bullet (not built yet)`, and
+  wrote — verbatim in the transcript — *"All ac1-ac4 pass. Now I need to implement T2 -
+  add the README bullet"*. It knew it was crossing the task boundary and crossed it,
+  because a pending criterion reads as a to-do to a completionist executor. `add -A`
+  swept the bullet into T1's commit (`04ce95b`), T2 no-oped three times, and the loop
+  stopped fail-closed over a STRICT-green tree — byte-for-byte the run-2 ending.
+- **T1's own arc repeated run 2 exactly**: attempt 1 real work with real bugs (6 FAILs),
+  attempt 2 close (2 FAILs, both the red-corpus safeguard), attempt 3 green with 14 PASS.
+  Retry-with-feedback converged twice out of twice.
+
+**Lesson 6, sharpened:** spec authoring cannot close the atomicity hole. A pend-staged
+whole-spec gate *advertises* every later task's pending criteria to any executor that
+runs it — and executors run the gate because we tell them to. Two runs, two different
+leak paths (spec anchor, then gate pend), one destination. The guard has to live in the
+harness: task-scoped staging or a diff-scope check on the build loop. Until then,
+per-task accounting on multi-task specs is best-effort.
+
+This run's raw records were exported before teardown (lesson 5, applied) to
+`.evidence/runs/20260831a-selftest-sweep-rerun/`.
