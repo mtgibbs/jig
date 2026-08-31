@@ -18,5 +18,10 @@ treats `~/.harness/` only as a fallback for what a run has not yet committed.
 - `.evidence/status/` — one JSON per executor process: task, attempt, phase, verdict
 - `.evidence/runs/` — per-attempt `.log` / `.diff` (gitignored; bulky)
 - `index-<slug>.{md,jsonl}` — the joined, re-derivable index per spec
+- `selftest-<slug>.jsonl` — mutant kill/survivor rows from `scripts/gate-selftest.sh`
+  (written when `SELFTEST_EVID` is set; one row per mutant with the install-time diff,
+  plus a `run_complete` marker per corpus run — spec `20260830f-mutant-observability`)
+- `mutant-ledger.{md,html}` — the rendered Mutant Ledger; regenerate with
+  `scripts/mutant-ledger.py`, never edit
 - a spec's narrative evidence (red-before-green records, findings) lives with the spec,
   in `specs/<slug>/evidence/`

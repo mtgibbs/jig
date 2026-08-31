@@ -147,6 +147,61 @@ fi
 # indistinguishable, which is the one thing this step exists to prevent.
 GATE_TIMEOUT="${GATE_SELFTEST_TIMEOUT:-30}"
 
+# ── Observability seam (specs/20260830f-mutant-observability) ───────────────────────────────
+#
+# SELFTEST_EVID=<dir> appends one JSONL row per mutant — verdict, the assertions that fired
+# instead on a WRONG-REASON, and the mutant-vs-target diff captured AT INSTALL TIME (the
+# target keeps moving; the diff is recorded when it is true) — plus a run_complete marker
+# carrying the counts, so a partial run can never pass for a finished one.
+#
+# UNSET means not one byte is written. That is load-bearing twice over: 20260828k's end-1
+# holds a bare selftest run to a byte-identical tree, and the harness rule is that an
+# unconfigured channel is not a degraded mode (HARNESS_REPORT_URL, docs/coordinator.md).
+EVID="${SELFTEST_EVID:-}"
+if [ -n "$EVID" ]; then
+  mkdir -p "$EVID" || { echo "error: cannot create SELFTEST_EVID dir: $EVID" >&2; exit 1; }
+  case "$TASK_DIR" in
+    */specs/*/tasks/*)
+      _rest="${TASK_DIR##*/specs/}"
+      EVID_SPEC="${_rest%%/*}"
+      EVID_TASK="${_rest##*/}"
+      ;;
+    *) EVID_SPEC="$(basename "$TASK_DIR")"; EVID_TASK="$(basename "$TASK_DIR")";;
+  esac
+  EVID_RUN="$(date -u +%Y%m%dT%H%M%SZ).$$"
+  EVID_FILE="$EVID/selftest-$EVID_SPEC.jsonl"
+fi
+
+emit_row() { # <name> <assertion-id> <target> <verdict> <gate-rc> <diff-file> <gate-out-file>
+  [ -n "$EVID" ] || return 0
+  python3 - "$EVID_FILE" "$EVID_RUN" "$EVID_SPEC" "$EVID_TASK" "$MUTANT_DIR/$1" \
+              "$1" "$2" "$3" "$4" "$5" "$6" "$7" <<'PY'
+import sys, json, re, time
+(f, run, spec, task, mpath, name, aid, tgt, verdict, rc, dfile, ofile) = sys.argv[1:13]
+# Full WHY from the mutant file itself (the shell parse keeps only the last WHY line).
+why = []
+for line in open(mpath, encoding="utf-8", errors="replace"):
+    m = re.match(r"\s*#\s*WHY:\s*(.*)", line)
+    if m: why.append(m.group(1).strip())
+try: diff = open(dfile, encoding="utf-8", errors="replace").read()
+except OSError: diff = ""
+instead = []
+if verdict == "WRONG-REASON":
+    try: out = open(ofile, encoding="utf-8", errors="replace").read()
+    except OSError: out = ""
+    for l in out.splitlines():
+        if re.match(r"\s*FAIL\b", l):
+            instead += re.findall(r"\b(ac\d+)\b", l)
+    instead = sorted(set(instead))
+row = dict(ts=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), run_id=run, spec=spec,
+           task=task, mutant=name, assertion=aid, target=tgt, why=" ".join(why),
+           verdict=verdict, gate_rc=int(rc), diff=diff,
+           diff_lines=sum(1 for l in diff.splitlines() if l[:1] in "+-"), instead=instead)
+with open(f, "a", encoding="utf-8") as fh:
+    fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+PY
+}
+
 restore_target() {                      # restore_target <repo-relative-path>
   if [ -e "$CWD/$1" ]; then cp -a "$CWD/$1" "$T/worktree/$1" 2>/dev/null || true
   else rm -f "$T/worktree/$1" 2>/dev/null || true; fi
@@ -163,6 +218,16 @@ for i in "${!M_NAME[@]}"; do
   # this repo: two of six doc mutants survived that way, and both looked like weak assertions
   # when the assertions were correct. Trap A, with the needle planted by the harness itself.
   grep -vE '^[[:space:]]*#[[:space:]]*(MUTANT|TARGET|WHY):' "$MUTANT_DIR/$name" > "$T/worktree/$tgt"
+
+  # Capture the diff as installed — metadata already stripped, against the target as it is
+  # RIGHT NOW, which is the thing the gate is about to be asked to catch.
+  if [ -n "$EVID" ]; then
+    if [ -e "$CWD/$tgt" ]; then
+      diff -u --label "target/$tgt" --label "mutant/$name" "$CWD/$tgt" "$T/worktree/$tgt" > "$T/diff-$i" || true
+    else
+      diff -u --label "target/$tgt" --label "mutant/$name" /dev/null "$T/worktree/$tgt" > "$T/diff-$i" || true
+    fi
+  fi
 
   gate_out="$( cd "$T/worktree" && bound "$GATE_TIMEOUT" bash "$TASK_PATH/verify.sh" 2>&1 )"
   gate_rc=$?
@@ -185,17 +250,18 @@ for i in "${!M_NAME[@]}"; do
   gate_out="$(cat "$T/gate-$i.out")"
   gate_rc="$(cat "$T/gate-$i.rc" 2>/dev/null || echo 1)"
 
+  verdict=""
   if [ "$gate_rc" = 124 ]; then
     echo "$name: HUNG"
-    HUNG=$((HUNG + 1))
+    HUNG=$((HUNG + 1)); verdict="HUNG"
   elif [ "$gate_rc" = 0 ]; then
     echo "$name: SURVIVOR — gate accepted the mutant (target=$tgt, why=$why)"
-    SURVIVOR=$((SURVIVOR + 1))
+    SURVIVOR=$((SURVIVOR + 1)); verdict="SURVIVOR"
   else
     # Gate exited non-zero — check if FAIL line contains the mutant's declared id
     if echo "$gate_out" | grep -q "FAIL.*$id"; then
       echo "$name: KILLED"
-      KILLED=$((KILLED + 1))
+      KILLED=$((KILLED + 1)); verdict="KILLED"
     else
       # Name the assertions that DID fail. "not for ac7" tells the reader the mutant missed and
       # nothing about where it landed instead, which is the one fact needed to fix it — the same
@@ -204,10 +270,18 @@ for i in "${!M_NAME[@]}"; do
       # neighbour's name is what says so.
       echo "$name: WRONG-REASON — gate failed but not for $id (target=$tgt)"
       echo "$gate_out" | grep -E '^\s*FAIL' | sed 's/^/    instead: /' | head -4
-      WRONG_REASON=$((WRONG_REASON + 1))
+      WRONG_REASON=$((WRONG_REASON + 1)); verdict="WRONG-REASON"
     fi
   fi
+  emit_row "$name" "$id" "$tgt" "$verdict" "$gate_rc" "$T/diff-$i" "$T/gate-$i.out"
 done
+
+# The marker is what makes an interrupted run distinguishable from a finished one: rows with
+# no marker are a partial record, and the ledger generator refuses to prefer them.
+if [ -n "$EVID" ]; then
+  printf '{"run_complete":true,"run_id":"%s","spec":"%s","task":"%s","killed":%d,"survivor":%d,"wrong_reason":%d,"hung":%d}\n' \
+    "$EVID_RUN" "$EVID_SPEC" "$EVID_TASK" "$KILLED" "$SURVIVOR" "$WRONG_REASON" "$HUNG" >> "$EVID_FILE"
+fi
 
 echo ""
 echo "summary: killed=$KILLED survivor=$SURVIVOR wrong-reason=$WRONG_REASON hung=$HUNG"
