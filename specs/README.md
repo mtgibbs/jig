@@ -102,6 +102,7 @@ templates that make a requirement testable instead of vibey:
 - [`20260830d-product-naming`](20260830d-product-naming/spec.md) — the product is named Jig: identity renames, the bones do not (renamed from `20260830a-` — the prefix collided with worker-credentials, which held first claim)
 - [`20260830e-stale-refs-and-debris`](20260830e-stale-refs-and-debris/spec.md) — stale references, root debris, LICENSE: the neglect-signal sweep, with the link resolver as the deliverable
 - [`20260830f-mutant-observability`](20260830f-mutant-observability/spec.md) — mutant observability: the kill/survivor record, and the diff that shows what got through
+- [`20260831a-selftest-sweep`](20260831a-selftest-sweep/spec.md) — the selftest sweep: one command records every mutant corpus
 
 The gate for [`20260830c-constitution-split`](20260830c-constitution-split/spec.md) checks this
 index both ways: a spec directory that isn't listed here fails it, and so does an entry whose
