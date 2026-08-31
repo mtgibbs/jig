@@ -1,0 +1,1 @@
+T1: in scripts/dispatch/coordinator.py do_POST, validate the sub-route against the four known shapes BEFORE _touch runs — an authed POST to an unknown sub-route returns 404 and leaves /api/runs byte-identical; known routes, the 401 path, and the control-route auth relaxation unchanged

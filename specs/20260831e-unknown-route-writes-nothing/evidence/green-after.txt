@@ -1,0 +1,9 @@
+  PASS  ac1: the unknown sub-route 404s
+  PASS  ac1: /api/runs is byte-identical after the 404'd POST — no ghost row, no eviction
+  PASS  ac2: control — POST /status returns 200
+  PASS  ac2: control — the row appears on the board (ac1's probe can see a created row)
+  PASS  ac3: an unauthed run-data write still 401s
+  PASS  ac3: the 401'd POST wrote nothing
+  PASS  ac4: coordinator.py compiles
+
+VERIFY: all checks passed

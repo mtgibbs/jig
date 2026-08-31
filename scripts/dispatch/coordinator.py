@@ -139,6 +139,14 @@ class H(BaseHTTPRequestHandler):
             return self._json(404, {"error": "no such route"})
         key = parts[1] + "/" + parts[2]
         rest = parts[3:]
+        # Route validation FIRST, _touch second (issue #46). _touch creates the row AND runs
+        # oldest-first eviction, so a POST that is about to 404 could both put a ghost row on
+        # the board and evict a real run's record to make room for it. A route that 404s must
+        # not be able to change what the board says.
+        known = (rest in (["status"], ["attempts"], ["control"])
+                 or (len(rest) == 5 and rest[0] == "attempts" and rest[3] == "artifacts"))
+        if not known:
+            return self._json(404, {"error": "no such route", "path": self.path})
         with _lock:
             r = _touch(key)
             if rest == ["status"]:
