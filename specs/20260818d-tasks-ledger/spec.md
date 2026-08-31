@@ -354,3 +354,13 @@ in a running script, so the executing copy must not be the one being edited. Not
   entirely. Deferred until something asks for it twice.
 - **OQ3** — the ledger is per `(project, spec)`. A spec that gets renamed loses its history
   silently. Acceptable, or worth a `migrate` subcommand?
+
+## Tuning log
+
+- **2026-08-31 (spec 20260831k, issue #33):** the scope guard's diff base changed from
+  `origin/main` to `HEAD`. Against origin/main it compared the WHOLE BRANCH's committed
+  history, so it fired on any branch that legitimately edits an out-of-scope file for a
+  different spec — a conflated-states defect. HEAD compares the working tree, which is
+  what a gate running pre-commit is actually blessing; the env override still buys a
+  deliberate history audit, and the loop-level per-task scope guard (20260831d) is the
+  enforcement for in-loop edits.

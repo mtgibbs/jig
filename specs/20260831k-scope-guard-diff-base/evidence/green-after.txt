@@ -1,0 +1,13 @@
+  PASS  ac1: 20260818a-ralph-retry-contract clears a committed edit on a clean tree
+  PASS  ac1: 20260818b-loop-doctor clears a committed edit on a clean tree
+  PASS  ac1: 20260818c-run-regression-guard clears a committed edit on a clean tree
+  PASS  ac1: 20260818d-tasks-ledger clears a committed edit on a clean tree
+  PASS  ac2: 20260818a-ralph-retry-contract fires on a dirty out-of-scope tree
+  PASS  ac2: 20260818b-loop-doctor fires on a dirty out-of-scope tree
+  PASS  ac2: 20260818c-run-regression-guard fires on a dirty out-of-scope tree
+  PASS  ac2: 20260818d-tasks-ledger fires on a dirty out-of-scope tree
+  PASS  ac3: LOOP_DOCTOR_BASE=origin/main still audits committed history
+  PASS  ac4: no gate defaults its diff base to origin/main
+  PASS  ac5: all four gates pass bash -n
+
+VERIFY: all checks passed
