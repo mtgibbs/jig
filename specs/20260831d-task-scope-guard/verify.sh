@@ -28,6 +28,8 @@ mk_fx() {
   echo '# fx spec' > "$d/specs/fx/spec.md"
   echo 'T1: write done into ok.txt' > "$d/specs/fx/tasks.txt"
   echo placeholder > "$d/.evidence/keep.txt"
+  # As in the real repo: run evidence is IGNORED, so the loop's `git clean -fd` spares it.
+  printf '.evidence/runs/\n' > "$d/.gitignore"
   local gate='grep -q done "$(git rev-parse --show-toplevel)/ok.txt" 2>/dev/null || { echo "  FAIL  fx: ok.txt missing" >&2; exit 1; }; echo "  PASS  fx: ok.txt present"; exit 0'
   printf '#!/usr/bin/env bash\n%s\n' "$gate" > "$d/specs/fx/tasks/T01-thing/verify.sh"
   printf '#!/usr/bin/env bash\n%s\n' "$gate" > "$d/specs/fx/verify.sh"
@@ -88,6 +90,12 @@ _n2="$(git -C "$FX2" rev-list --count HEAD)"
 [ "$_n2" -eq 1 ] \
   && ok "ac2: nothing was committed (fixture commit only)" \
   || no "ac2: $_n2 commits — the violating attempt was committed"
+_d2="$(find "$FX2/.evidence/runs" -name '*.diff' 2>/dev/null | head -1)"
+if [ -n "$_d2" ] && grep -q 'stray' "$_d2"; then
+  ok "ac2: the rejected work was captured to evidence BEFORE the reset (issue #23's rule)"
+else
+  no "ac2: no diff artifact for the rejected attempt — the work vanished unrecorded"
+fi
 
 # ── ac3: in-scope AND out-of-scope in one attempt → rejected WHOLESALE, never filtered ──
 FX3="$(mk_fx "$SCOPE")"

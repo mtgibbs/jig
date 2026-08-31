@@ -137,3 +137,10 @@ smaller than inference and honest about being opt-in.)
   Fix: the `${1+"$@"}` idiom, both expansion sites. Lesson kept: a guard's gate must
   probe the guard's own voice, not just the state it leaves behind — the state can be
   right by coincidence.
+- **2026-08-31 — the violation path captures the work before the reset.** As shipped,
+  the scope rejection reset the tree with no artifact — reintroducing issue #23's shape
+  (a reset with nothing captured makes the attempt undiagnosable) on the one path where
+  the diff is exactly what a human wants to read. `log_failure` now runs before the
+  reset, same as the verify-failure path; ac2 pins it, and the gate's fixtures gained
+  the real repo's `.evidence/runs/` gitignore so `git clean` spares the artifact as it
+  does in production.
