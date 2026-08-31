@@ -135,7 +135,21 @@ _gate_for() {
 # output and a human reading the run sees a model that could not satisfy a gate rather than a
 # spec that is missing one.
 _validate_task_gates() {
-  [ -d "$SPEC_DIR/tasks" ] || return 0
+  if [ ! -d "$SPEC_DIR/tasks" ]; then
+    # The monolithic pend-staged gate is DEPRECATED for multi-task specs (20260828i,
+    # defect 2: "the gate is the roadmap" — an executor reads a later task's pend as a
+    # to-do and overshoots; re-proved twice on 20260831a, 2026-08-31, after the TEMPLATE
+    # kept teaching the dead shape). One task needs no pend and is exempt; the ~30 legacy
+    # specs re-run under an explicit, announced escape hatch rather than silently.
+    local _n; _n="$(_task_count)"
+    if [ "$_n" -gt 1 ] && [ "${RALPH_ALLOW_MONOLITHIC:-0}" != "1" ]; then
+      echo "ralph: $SPEC_DIR has $_n tasks and no tasks/ directory — the monolithic pend-staged gate is deprecated for multi-task specs (specs/20260828i-per-task-gates: the gate is the roadmap)." >&2
+      echo "ralph: give each task its own tasks/T<NN>-<slug>/verify.sh, or set RALPH_ALLOW_MONOLITHIC=1 to re-run a legacy spec deliberately." >&2
+      return 1
+    fi
+    [ "$_n" -gt 1 ] && echo "ralph: RALPH_ALLOW_MONOLITHIC=1 — building a deprecated monolithic multi-task spec deliberately (legacy re-run)."
+    return 0
+  fi
   local i n; n="$(_task_count)"
   for i in $(seq 1 "$n"); do
     _gate_for "$i" >/dev/null && continue
