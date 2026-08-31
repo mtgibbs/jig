@@ -130,12 +130,17 @@ truthful (Outcome 3's sentence is fine to adapt). No color, no spinner, no cleve
   shall exit non-zero. (ac4)
 - `.evidence/README.md` shall contain the §6b bullet. (ac5)
 
-## 11. Verification — `verify.sh`
+## 11. Verification — per-task gates (converted 2026-08-31)
 
-Shipped in this directory, pend-staged for the loop (T1 arms ac1–ac4, T2 arms ac5). The
-behavioral checks run against mktemp fixture repos carrying the REAL tools (copied in) and
-one-mutant corpora — a clean one for ac3, a surviving one for ac4 (which doubles as the
-positive control that the sweep's exit code and the tool's verdicts can actually go red).
+`tasks/T01-sweep-script/verify.sh` carries ac1–ac4 (as ac01–ac04) and
+`tasks/T02-readme-bullet/verify.sh` carries ac5 (as ac05); no `pend` anywhere. The
+spec-level `verify.sh` is convergence-only (integration: dry-run agrees with an
+independent find; end state: the README documents the command). Each task gate ships a
+mutant corpus — T01's five mutants are qwen's actual observed bugs from the watched runs
+(the stripped `specs/` prefix, the never-invoked tool, abort-on-red, exit-0-over-a-
+survivor, plus a syntax break), T02's two are the dropped and mispositioned bullet. All
+seven KILLED at conversion. The original monolithic pend-staged gate this replaced lives
+in git history (see Tuning log).
 
 ## 12. Open questions
 
@@ -153,6 +158,13 @@ None.
   task's anchor section holds nothing but that task's own deliverables.** The task line
   anchors harder than the spec (TEMPLATE §11 corollary); this is the authoring-side half of
   the guard until diff-scoping exists on the build loop.
+- **2026-08-31 — converted to the per-task layout (20260828i).** This spec was authored in
+  the monolithic pend-staged shape three days after the house deprecated it, because the
+  TEMPLATE still taught the old shape — the full forensics are
+  `specs/20260831b-scrub-monolithic-gates/`. The conversion gives each task its own gate
+  and mutant corpus (seven mutants, all KILLED, five of them qwen's real observed bugs),
+  slims the spec gate to convergence-only, and rides 20260831c (the no-op guard defers to
+  per-task gates) so T2's `.evidence/` deliverable finally counts as work.
 - **2026-08-31 — the rerun: authoring can't close the hole.** With the §6b split in place,
   a stripped-tree rerun overshot anyway: the executor ran the gate mid-task, read
   `pend ac5 … (not built yet)` as a to-do, and implemented T2's bullet during T1 — naming
