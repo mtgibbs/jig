@@ -130,6 +130,39 @@ _gate_for() {
   printf '%s' "$d/verify.sh"
 }
 
+# _scope_for <n> — print the nth task's scope file, or return 1. Opt-in: a task with no
+# scope file is unscoped and the loop behaves exactly as before (superset, not migration).
+_scope_for() {
+  local d
+  d="$(ls -d "$SPEC_DIR"/tasks/T"$(printf '%02d' "$1")"-* 2>/dev/null | head -1)"
+  [ -n "$d" ] && [ -f "$d/scope" ] || return 1
+  printf '%s' "$d/scope"
+}
+
+# _scope_lines <scope-file> — the effective globs: comments and blanks dropped.
+_scope_lines() { sed -e '/^[[:space:]]*#/d' -e '/^[[:space:]]*$/d' "$1"; }
+
+# _scope_violations <scope-file> — every changed path OUTSIDE the scope's globs.
+# Pure git, no hand-rolled matching: one `:(exclude)` pathspec per scope line, plus the
+# fixed excludes for the loop's own bookkeeping (heartbeats, metrics, indexes, run logs
+# are written DURING the attempt and are never the executor's doing). `set --` keeps the
+# built-up exclude list function-local (bash 3.2 floor — no arrays).
+_scope_violations() {
+  local g _sf="$1"
+  set --
+  # ${1+"$@"}, not "$@": under `set -u`, bash before 4.4 (macOS ships 3.2) treats an
+  # EMPTY "$@" as an unbound variable and aborts the function mid-substitution.
+  while IFS= read -r g; do
+    set -- ${1+"$@"} ":(exclude)$g"
+  done <<EOF
+$(_scope_lines "$_sf")
+EOF
+  git -C "$ROOT" status --porcelain -- . \
+    ':(exclude).evidence/status' ':(exclude).evidence/metrics.jsonl' \
+    ':(exclude).evidence/index-*' ':(exclude).evidence/runs' ${1+"$@"} 2>/dev/null \
+    | cut -c4-
+}
+
 # Validate UP FRONT, before any task runs. A missing gate discovered mid-loop is folded into that
 # attempt's verify feedback and retried three times, so the message never reaches the loop's own
 # output and a human reading the run sees a model that could not satisfy a gate rather than a
@@ -150,12 +183,19 @@ _validate_task_gates() {
     [ "$_n" -gt 1 ] && echo "ralph: RALPH_ALLOW_MONOLITHIC=1 — building a deprecated monolithic multi-task spec deliberately (legacy re-run)."
     return 0
   fi
-  local i n; n="$(_task_count)"
+  local i n _sf; n="$(_task_count)"
   for i in $(seq 1 "$n"); do
-    _gate_for "$i" >/dev/null && continue
-    echo "ralph: task $i has no gate ($SPEC_DIR/tasks/T$(printf '%02d' "$i")-*/verify.sh)" >&2
-    echo "ralph: a task running with no criteria at all is worse than the monolithic gate this replaces" >&2
-    return 1
+    if ! _gate_for "$i" >/dev/null; then
+      echo "ralph: task $i has no gate ($SPEC_DIR/tasks/T$(printf '%02d' "$i")-*/verify.sh)" >&2
+      echo "ralph: a task running with no criteria at all is worse than the monolithic gate this replaces" >&2
+      return 1
+    fi
+    # A scope file with zero effective globs matches nothing, which makes EVERY attempt a
+    # violation — that is a spec authoring error, refused up front like a missing gate.
+    if _sf="$(_scope_for "$i")" && [ -z "$(_scope_lines "$_sf")" ]; then
+      echo "ralph: task $i has a scope file with no globs ($_sf) — a scope that matches nothing makes every attempt a violation" >&2
+      return 1
+    fi
   done
   return 0   # EXPLICIT. Without it this function inherits the exit status of its last
              # construct, which for a loop is its terminating condition — reliably non-zero.
@@ -332,6 +372,17 @@ while IFS= read -r task || [ -n "$task" ]; do
     continue
   fi
   feedback=""; passed=0; retry_init
+  # The task's declared scope, if any (tasks/T<NN>-*/scope). Stated in the prompt first —
+  # prevention before punishment — and enforced before the gate below.
+  scope_file=""; scope_note=""
+  if scope_file="$(_scope_for "$HB_TIDX")"; then
+    scope_note="
+This task may change ONLY paths matching these globs (repo-relative):
+$(_scope_lines "$scope_file")
+Any change outside them fails the attempt outright."
+  else
+    scope_file=""
+  fi
   for attempt in $(seq 1 $((RETRIES + 1))); do
     _check_cancel
     HB_ATTEMPT="$attempt"; LOG_STARTED="$(date +%s)"; LOG_RECORDED=""; hb_write running
@@ -341,7 +392,7 @@ while IFS= read -r task || [ -n "$task" ]; do
 Follow the spec's section 10 acceptance criteria and section 7 norms EXACTLY.
 Do not run git add, git commit, or git stash — the loop owns the index.
 Do not touch anything outside this task's scope. Reuse existing patterns; never invent
-URLs/UIDs. When done, stop.${feedback}"
+URLs/UIDs. When done, stop.${scope_note}${feedback}"
 
     # Fresh session each attempt (no continuation) = no context bloat. The executor is a
     # BINDING, not a hardcoded command: whoever the loop drives, it is invoked the same way,
@@ -411,6 +462,33 @@ URLs/UIDs. When done, stop.${feedback}"
 A previous attempt produced NO file changes at all. If a tool call was rejected, use
 paths RELATIVE to the repo root (specs/... not /specs/...). Do the work this time."
       continue
+    fi
+
+    # The scope guard (20260831d, issue #91): where a task declared its scope, any change
+    # outside it fails the attempt BEFORE the gate. Reject WHOLESALE, never filter the
+    # commit — stripping the out-of-scope files could commit a task whose gate went green
+    # BECAUSE of them, which is a lie in the history worse than a lost attempt. The reset
+    # below is the same three steps as the verify-failure path.
+    if [ -n "$scope_file" ]; then
+      _viol="$(_scope_violations "$scope_file")"
+      if [ -n "$_viol" ]; then
+        echo "  ✗ attempt $attempt touched files outside this task's scope — rejected before the gate" >&2
+        printf '%s\n' "$_viol" | sed 's/^/      | /' >&2
+        LOG_OUTCOME="scope"; LOG_ENDED="$(date +%s)"; LOG_RECORDED=1; log_meta "$HB_TASK" "$attempt"
+        hb_write failed false
+        feedback="
+A previous attempt changed files OUTSIDE this task's declared scope and was rejected
+before the gate ran; NOTHING was kept, including any in-scope work it also did.
+This task may change ONLY paths matching:
+$(_scope_lines "$scope_file")
+Out-of-scope paths it touched:
+$_viol
+Redo the work touching only in-scope paths."
+        git -C "$ROOT" reset -q -- . 2>/dev/null || true
+        git -C "$ROOT" checkout -- . 2>/dev/null || true
+        git -C "$ROOT" clean -fd -- . 2>/dev/null || true
+        continue
+      fi
     fi
 
     # The gate: deterministic, external. The model does NOT get to say "done".

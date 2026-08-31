@@ -167,6 +167,16 @@ A bonus the layout buys: skip-satisfied (`ralph-build.sh`, 20260828l) runs task 
 gate before dispatching it — so if an earlier task overshot and already did the work, task
 N is skipped gracefully instead of dying as an unwinnable no-op.
 
+**A task may declare its scope** (20260831d, opt-in): `tasks/T<NN>-<slug>/scope`, one git
+pathspec glob per line, repo-relative (`#` comments and blanks ignored). The loop states
+the globs in the executor's prompt, and an attempt that changes any path outside them is
+rejected before the gate runs — wholesale, with the tree reset; in-scope work in the same
+attempt is discarded too, because filtering the commit could bless a gate that went green
+on out-of-scope files. A scope file with no globs is refused up front. No scope file, no
+change in behavior. Declare a scope when a task's deliverables are exactly enumerable
+(most are); it is the guard that keeps `add -A` from attributing stray work to the wrong
+task.
+
 **A single-task spec** needs no `tasks/` directory: one spec-level `verify.sh`, no `pend`
 anywhere (with one task there is no later work to defer to).
 

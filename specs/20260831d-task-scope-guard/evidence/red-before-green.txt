@@ -1,0 +1,20 @@
+  PASS  ac1: a scoped in-scope attempt passes (rc=0)
+  PASS  ac1: no scope rejection for in-scope work
+  FAIL  ac2: no scope rejection in loop output (rc=2)
+  PASS  ac2: the rejection names the offending path
+  PASS  ac2: the gate never blessed the violating attempt
+  PASS  ac2: the run still fails overall (exit 2)
+  PASS  ac2: the tree was reset (stray.txt gone)
+  PASS  ac2: nothing was committed (fixture commit only)
+  FAIL  ac3: no scope rejection for the mixed attempt (rc=0)
+  FAIL  ac3: ok.txt survived — the loop filtered instead of rejecting wholesale
+  FAIL  ac3: 2 commits — filtered work reached the history
+  PASS  ac4: control — the unscoped run passes exactly as today (rc=0)
+  PASS  ac4: control — no scope rejection without a scope file
+  PASS  ac4: control — add -A still sweeps the stray in when unscoped (superset, not migration)
+  FAIL  ac5: the prompt does not carry the scope (rc=0)
+  FAIL  ac6: expected exit 3 for a globless scope, got 0
+  FAIL  ac6: the refusal does not mention the scope
+  PASS  ac7: ralph-build.sh passes bash -n
+
+VERIFY: failures above
