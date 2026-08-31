@@ -2,7 +2,7 @@
 
 **Status:** user guide, 2026-08-28. Owner: Matt.
 
-A harness loop runs as a containerized worker that **cannot receive external signals**. A loop in a
+A Jig loop runs as a containerized worker that **cannot receive external signals**. A loop in a
 k8s Job or a standalone container has no published port, and a loop in a Job ceases to exist when
 it finishes. So a control cannot be *sent* to a worker; the worker must **notice** it by polling.
 

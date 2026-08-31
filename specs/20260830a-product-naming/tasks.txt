@@ -1,0 +1,3 @@
+T1: README.md — retitle to Jig, open with "a repo brings a spec and a gate; Jig owns everything else", sweep identity prose, note the rename in the extraction history, define "drift" at its first use
+T2: board titles — scripts/dispatch/board.html <title> and <h1>, scripts/runboard.py <title> and <h1>, scripts/dispatch/coordinator.py fallback page title, all to Jig
+T3: AGENTS.md and docs/{coordinator,run-control,loop-container}.md — introduce the project as Jig in prose; leave every ralph-*.sh and RALPH_* reference exactly as-is

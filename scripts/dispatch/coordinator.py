@@ -224,7 +224,7 @@ def _page():
         with open(tpl, encoding="utf-8") as f:
             return f.read()
     except Exception:
-        return "<title>Harness</title><p>board.html missing next to coordinator.py</p>"
+        return "<title>Jig</title><p>board.html missing next to coordinator.py</p>"
 
 
 def serve(port=None):

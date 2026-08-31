@@ -306,12 +306,12 @@ def build(specs, root):
     cost = round(tot_a / tot_r, 2) if tot_r else 0
     payload = json.dumps(data, separators=(",", ":"))
     gen = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())
-    return f"""<title>Harness Run Board</title>
+    return f"""<title>Jig Run Board</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>{CSS}</style>
 <header><div class="wrap">
-  <h1>Harness Run Board</h1>
+  <h1>Jig Run Board</h1>
   <p class="sub">Every spec the ralph loop has built, task by task, with what each task cost in
   attempts. Read straight from <span class="mono">.evidence/index-*.jsonl</span> — the run
   records the loop commits to git, so this needs no coordinator and no connection into a worker.

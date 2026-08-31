@@ -1,16 +1,21 @@
-# harness
+# Jig
 
-A convention-driven SDD harness. **A repo brings a spec and a gate; the harness owns everything
-else** — the loop, the judge, the retry contract, the evidence, and the telemetry.
+**A repo brings a spec and a gate; Jig owns everything else** — the loop, the judge, the retry
+contract, the evidence, and the telemetry. A jig is the machine-shop fixture that holds the work
+and guides the tool so a literal operator produces precise output every time: *the fixture
+carries the rigor, not the model.*
 
-Extracted from `mtgibbs/pi-cluster` on 2026-08-26 under the trigger set by that repo's
-`docs/adr/008-review-hub-framework-seam.md`:
+Born as "harness", extracted from `mtgibbs/pi-cluster` on 2026-08-26 under the trigger set by
+that repo's `docs/adr/008-review-hub-framework-seam.md`:
 
 > Extract to its own repo when a **second repo or cluster** wants the harness.
 
 `notes-from-hearing` became that second consumer, followed the convention (pi-cluster #195 —
 *"a project brings specs and gates; the harness owns the rest"*), deleted its harness copy, and
-consequently could not be dispatched to at all. This repo is the fix.
+consequently could not be dispatched to at all. This repo is the fix. Renamed **Jig** on
+2026-08-30 (#75): "harness" has come to mean the scaffolding *inside* an agent product, which
+this is not — quotes and run records keep the old name, and so does the runtime surface
+(`ralph-*.sh`, `RALPH_*`) until its own migration spec lands.
 
 ## The convention
 
@@ -22,10 +27,10 @@ A repo participates by shipping spec directories. Nothing else.
 │   ├── spec.md          the generative expectation — rebuildable-from, not a changelog
 │   ├── tasks.txt        one task per line: "T1: do the thing"
 │   └── verify.sh        the eval. Deterministic. The ONLY voice that can say "done"
-└── .evidence/           the harness writes here; commit it, it is the record
+└── .evidence/           Jig writes here; commit it, it is the record
 ```
 
-The harness never asks the repo for machinery. If a spec dir has those three files, the loop can
+Jig never asks the repo for machinery. If a spec dir has those three files, the loop can
 run it.
 
 ## Running it
@@ -55,7 +60,8 @@ gate, retries, evidence and the watchdog.
 | `scripts/exec-codex.sh` | `codex exec` |
 
 Adding an executor is a binding plus a `.env`. It used to be a 204-line copy of the whole loop
-that three specs had to police for drift (pi-cluster #199).
+that three specs had to police for drift — copies of the same machinery diverging, which is the
+only thing "drift" means in these docs (pi-cluster #199).
 
 ## Evidence
 
@@ -105,8 +111,8 @@ the bytes are stable across every task and retry and ride the prefix cache.
 
 ## This repo is its own first subscriber
 
-`specs/` here holds the harness's own specs and gates, so a harness change is gated exactly the
-way a consumer's is. That is not decoration. Before extraction the harness was gated **by
+`specs/` here holds Jig's own specs and gates, so a change to Jig is gated exactly the way a
+consumer's is. That is not decoration. Before extraction the harness was gated **by
 accident of address** — it happened to sit next to pi-cluster's `specs/`. `loop-metrics.sh` is
 what that was worth: it used `stat -f %z`, which on Linux **succeeds** and prints filesystem
 status instead of a size, so it failed on every task in every container and nothing noticed.
@@ -123,7 +129,7 @@ Portability rules that follow from that, and are not optional here:
 - **`pwd -P` before computing a path prefix.** `pwd` is logical and `git rev-parse
   --show-toplevel` is physical, so under a macOS temp dir one says `/var/…` and the other
   `/private/var/…` and a `${path#$root}` strip silently does nothing.
-- The harness is **authored on macOS and runs on Linux**. Which rules apply to a given file
+- Jig is **authored on macOS and runs on Linux**. Which rules apply to a given file
   follows from **who invokes it** — see the amendment *"Portability follows the invoker, not the
   tool"*. Anything a human reaches for while authoring runs on both. Anything only the runtime
   invokes may assume its declared container. Neither may require the homelab.
