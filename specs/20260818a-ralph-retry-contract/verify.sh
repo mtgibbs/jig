@@ -35,7 +35,7 @@ stray="$(find specs/20260818a-ralph-retry-contract -type f \
 [ -z "$stray" ] && ok "scope:no-litter-in-spec-dir" \
   || { no "scope:no-litter-in-spec-dir"; echo "$stray" | sed 's/^/          /' >&2; }
 
-BASE="${RETRY_BASE:-origin/main}"
+BASE="${RETRY_BASE:-HEAD}"   # HEAD, not origin/main: the guard asks what THIS gate run is blessing (the working tree), not what the whole branch did — issue #33/spec 20260831k
 if git rev-parse --verify --quiet "$BASE" >/dev/null 2>&1; then
   git diff --quiet "$BASE" -- scripts/ralph-judge.sh scripts/ralph-status.sh scripts/ralph-log.sh \
       scripts/ralph-bus.sh scripts/gate-score.sh scripts/loop-report.sh scripts/run-loop.sh \

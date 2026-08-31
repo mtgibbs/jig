@@ -1,0 +1,1 @@
+T1: change the scope-guard diff base default from origin/main to HEAD in specs/20260818a-ralph-retry-contract/verify.sh, specs/20260818b-loop-doctor/verify.sh, specs/20260818c-run-regression-guard/verify.sh, and specs/20260818d-tasks-ledger/verify.sh (env overrides kept), update the adjacent comments, and add a Tuning log entry to each of the four spec.mds

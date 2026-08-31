@@ -40,9 +40,13 @@ stray="$(find specs/20260818b-loop-doctor -type f \
 [ -z "$stray" ] && ok "scope:no-litter-in-spec-dir" \
   || { no "scope:no-litter-in-spec-dir"; echo "$stray" | sed 's/^/          /' >&2; }
 
-# Scope: the out-of-scope scripts (spec §5) must be untouched. Needs a base ref; when none
-# resolves we PEND rather than skip silently — under STRICT that becomes a FAIL (fail-closed).
-BASE="${LOOP_DOCTOR_BASE:-origin/main}"
+# Scope: the out-of-scope scripts (spec §5) must be untouched. Base HEAD, not origin/main:
+# the guard asks what THIS gate run is blessing (the working tree — gates run before the
+# task commit), not what the whole branch did. Against origin/main it fired on any branch
+# that legitimately edits these files for another spec (issue #33; spec 20260831k). Set
+# LOOP_DOCTOR_BASE for a deliberate history audit. When no base resolves we PEND rather
+# than skip silently — under STRICT that becomes a FAIL (fail-closed).
+BASE="${LOOP_DOCTOR_BASE:-HEAD}"
 if git rev-parse --verify --quiet "$BASE" >/dev/null 2>&1; then
   if git diff --quiet "$BASE" -- \
        scripts/ralph-build.sh scripts/ralph-judge.sh \

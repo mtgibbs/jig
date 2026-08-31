@@ -1,0 +1,13 @@
+  FAIL  ac1: 20260818a-ralph-retry-contract fired on another branch's committed work — line:   FAIL  scope:out-of-scope-files-untouched — spec §5 forbids editing these
+  FAIL  ac1: 20260818b-loop-doctor fired on another branch's committed work — line:   FAIL  scope:out-of-scope-files-untouched — spec §5 forbids editing these
+  FAIL  ac1: 20260818c-run-regression-guard fired on another branch's committed work — line:   FAIL  scope:out-of-scope-files-untouched — spec §5 forbids editing these
+  FAIL  ac1: 20260818d-tasks-ledger fired on another branch's committed work — line:   FAIL  scope:out-of-scope-files-untouched — spec §5 forbids editing these
+  PASS  ac2: 20260818a-ralph-retry-contract fires on a dirty out-of-scope tree
+  PASS  ac2: 20260818b-loop-doctor fires on a dirty out-of-scope tree
+  PASS  ac2: 20260818c-run-regression-guard fires on a dirty out-of-scope tree
+  PASS  ac2: 20260818d-tasks-ledger fires on a dirty out-of-scope tree
+  PASS  ac3: LOOP_DOCTOR_BASE=origin/main still audits committed history
+  FAIL  ac4: an origin/main default remains: /Users/mtgibbs/dev/harness/specs/20260818a-ralph-retry-contract/verify.sh /Users/mtgibbs/dev/harness/specs/20260818b-loop-doctor/verify.sh /Users/mtgibbs/dev/harness/specs/20260818c-run-regression-guard/verify.sh /Users/mtgibbs/dev/harness/specs/20260818d-tasks-ledger/verify.sh 
+  PASS  ac5: all four gates pass bash -n
+
+VERIFY: failures above
