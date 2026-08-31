@@ -415,8 +415,11 @@ def read_runs(registry_path: str) -> list:
 
 
 def get_run(registry_path: str, event_id: str) -> dict | None:
-    """Return the single record with the given event_id, or None if not found.
+    """Return the NEWEST record with the given event_id, or None if not found.
 
+    Last-wins: the registry is append-only, so a run's current state is its latest
+    record — a reap appends a superseding terminal record, and returning an earlier
+    one would report a dead run as launched.
     Tolerates unreadable paths and missing files without raising.
     """
     if not registry_path or not event_id:
@@ -424,6 +427,7 @@ def get_run(registry_path: str, event_id: str) -> dict | None:
     try:
         if not os.path.exists(registry_path):
             return None
+        found = None
         with open(registry_path, "r") as f:
             for line in f:
                 line = line.strip()
@@ -434,10 +438,10 @@ def get_run(registry_path: str, event_id: str) -> dict | None:
 
                     record = json.loads(line)
                     if record.get("event_id") == event_id:
-                        return record
+                        found = record
                 except Exception:
                     continue
-        return None
+        return found
     except Exception:
         return None
 
@@ -482,3 +486,66 @@ def launch_run(repo, spec, strategy, event_id, *, ledger_path, image, namespace,
         image=image,
         namespace=namespace,
     )
+
+
+def reap_runs(registry_path: str, namespace: str) -> dict:
+    """Reconcile 'launched' registry records against their Jobs; settle the orphans.
+
+    ADR-001 D6: a run that exits still tagged started crashed before classifying
+    itself, and is therefore failed. D8 makes the Job the liveness source of truth,
+    so this reads the Job rather than inventing a second signal (issue #22).
+
+    For each event_id whose LATEST record says 'launched':
+      - Job absent            -> append a superseding 'failed' record (reaped: job absent)
+      - Job .status.failed    -> 'failed'   (reaped: job failed)
+      - Job .status.succeeded -> 'succeeded' (reaped: job succeeded)
+      - Job active, status indeterminate, or kubectl error -> untouched.
+        No signal is not a verdict: a broken kubectl must never mark anything.
+
+    Append-only: superseding records go through record_run; nothing is rewritten.
+    Returns {'checked': <launched records examined>, 'reaped': [<summaries>]}.
+    """
+    import json
+    import subprocess
+
+    effective = {}
+    for record in read_runs(registry_path):
+        event_id = record.get("event_id")
+        if event_id:
+            effective[event_id] = record
+
+    kubectl = os.environ.get("HARNESS_KUBECTL", "kubectl")
+    checked = 0
+    reaped = []
+    for event_id, record in effective.items():
+        if record.get("status") != "launched":
+            continue
+        checked += 1
+        job_name = record.get("job_name", f"run-{event_id}")
+        try:
+            proc = subprocess.run(
+                [kubectl, "get", "job", job_name, "-n", namespace, "-o", "json"],
+                capture_output=True,
+                timeout=30,
+            )
+            if proc.returncode != 0:
+                outcome, reason = "failed", "reaped: job absent"
+            else:
+                status = json.loads(proc.stdout.decode("utf-8", "replace")).get("status", {})
+                if status.get("active"):
+                    continue
+                if status.get("succeeded"):
+                    outcome, reason = "succeeded", "reaped: job succeeded"
+                elif status.get("failed"):
+                    outcome, reason = "failed", "reaped: job failed"
+                else:
+                    # Just-created Jobs report no counters yet; the next pass decides.
+                    continue
+        except Exception:
+            continue
+        superseding = dict(record)
+        superseding["status"] = outcome
+        superseding["reason"] = reason
+        record_run(registry_path, superseding)
+        reaped.append({"event_id": event_id, "status": outcome, "reason": reason})
+    return {"checked": checked, "reaped": reaped}

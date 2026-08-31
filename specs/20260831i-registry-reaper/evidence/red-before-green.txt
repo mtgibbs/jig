@@ -1,0 +1,8 @@
+  FAIL  ac1..ac7: reap_runs does not exist in dispatcher.py
+  PASS  ac6: /reap without the token 401s
+  FAIL  ac6: /reap body: {"error": "not found"}
+  FAIL  ac6: no reaped record in the registry after POST /reap
+  PASS  ac8: dispatcher.py and api.py compile
+
+VERIFY: failures above
+specs/20260831i-registry-reaper/verify.sh: line 18: 97572 Terminated: 15          ( cd "$R/scripts/dispatch" && HARNESS_API_TOKEN="$TOK" HARNESS_REGISTRY_PATH="$REG" HARNESS_KUBECTL="$KUBECTL" DISPATCH_PORT="$PORT" python3 api.py > /dev/null 2>&1 )
