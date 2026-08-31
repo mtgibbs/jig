@@ -71,12 +71,31 @@ out4="$( cd "$FX" && env -u FX_REQUIRED_KEY bash "$RL" fxplain specs/20990101a-f
   && ok "ac4: undeclared strategy runs as before (rc=0)" \
   || no "ac4: undeclared strategy broke (rc=$rc4)"
 
-# ── ac5: build-then-judge declares the executor key ──
-grep -q 'STRATEGY_ENV_REQUIRED=.*OPENCODE_QWEN_KEY' "$R/scripts/loops/build-then-judge.conf" \
-  && ok "ac5: build-then-judge.conf declares OPENCODE_QWEN_KEY required" \
-  || no "ac5: build-then-judge.conf does not declare its executor key"
+# ── ac5: built-in confs NEVER declare required env — operator knowledge stays out
+# of shared files (a qwen key here would be one laptop's world baked into everyone's) ──
+if grep -l 'STRATEGY_ENV_REQUIRED=' "$R"/scripts/loops/*.conf >/dev/null 2>&1; then
+  no "ac5: a built-in conf hardcodes STRATEGY_ENV_REQUIRED — which env an executor needs is the operator's, not the harness's"
+else
+  ok "ac5: no built-in conf declares required env"
+fi
 
-bash -n "$RL" && ok "ac6: run-loop.sh passes bash -n" || no "ac6: run-loop.sh fails bash -n"
+# ── ac6: an operator's exported STRATEGY_ENV_REQUIRED flows through an undeclaring conf ──
+out6="$( cd "$FX" && env -u FX_REQUIRED_KEY STRATEGY_ENV_REQUIRED="FX_REQUIRED_KEY" bash "$RL" fxplain specs/20990101a-fx 2>&1 )"; rc6=$?
+[ "$rc6" -eq 3 ] && printf '%s' "$out6" | grep -q 'FX_REQUIRED_KEY' \
+  && ok "ac6: operator-exported requirement is enforced when the conf declares none" \
+  || no "ac6: exported STRATEGY_ENV_REQUIRED was not honored (rc=$rc6)"
+out7="$( cd "$FX" && STRATEGY_ENV_REQUIRED="FX_REQUIRED_KEY" FX_REQUIRED_KEY=x bash "$RL" fxplain specs/20990101a-fx 2>&1 )"; rc7=$?
+[ "$rc7" -eq 0 ] \
+  && ok "ac6: satisfied operator-exported requirement proceeds (rc=0)" \
+  || no "ac6: satisfied exported requirement still refused (rc=$rc7)"
+
+# ── ac7: the contract is documented where strategy authors read ──
+grep -q 'STRATEGY_ENV_REQUIRED' "$R/scripts/loops/README.md" \
+  && grep -qi 'operator' "$R/scripts/loops/README.md" \
+  && ok "ac7: loops/README.md documents the knob as operator-declared" \
+  || no "ac7: loops/README.md does not document STRATEGY_ENV_REQUIRED"
+
+bash -n "$RL" && ok "ac8: run-loop.sh passes bash -n" || no "ac8: run-loop.sh fails bash -n"
 
 echo
 [ "$fail" -eq 0 ] && { echo "VERIFY: T02 all checks passed"; exit 0; }

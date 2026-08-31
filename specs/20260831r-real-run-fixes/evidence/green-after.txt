@@ -15,8 +15,11 @@ VERIFY: T01 all checks passed
   PASS  ac3: satisfied env reaches the build phase and exits 0 (rc=0)
   PASS  ac3: the value never appears in output
   PASS  ac4: undeclared strategy runs as before (rc=0)
-  PASS  ac5: build-then-judge.conf declares OPENCODE_QWEN_KEY required
-  PASS  ac6: run-loop.sh passes bash -n
+  PASS  ac5: no built-in conf declares required env
+  PASS  ac6: operator-exported requirement is enforced when the conf declares none
+  PASS  ac6: satisfied operator-exported requirement proceeds (rc=0)
+  PASS  ac7: loops/README.md documents the knob as operator-declared
+  PASS  ac8: run-loop.sh passes bash -n
 
 VERIFY: T02 all checks passed
 ── T03-judge-prompt-logged ──

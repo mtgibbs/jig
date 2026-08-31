@@ -3,7 +3,7 @@
 - **Status:** In progress v1.0
 - **Owner:** mtgibbs
 - **Constitution:** `specs/constitution.md` + `specs/amendments.md`
-- **Touches:** `scripts/ralph-build.sh`, `scripts/run-loop.sh`, `scripts/ralph-judge.sh`, `scripts/loops/build-then-judge.conf`
+- **Touches:** `scripts/ralph-build.sh`, `scripts/run-loop.sh`, `scripts/ralph-judge.sh`, `scripts/loops/README.md`
 - **Tools:** git, bash
 - **MCP:** none
 
@@ -20,9 +20,10 @@ behavior that actually exists. H4 (scaffolder retrofit mode) is deferred as issu
 
 ## 2. Outcomes (Definition of Done) · [R — Requirements]
 
-1. A strategy conf can declare `STRATEGY_ENV_REQUIRED`; `run-loop.sh` refuses early
-   (exit 3, variables named, values never printed) before any phase; `build-then-judge`
-   declares `OPENCODE_QWEN_KEY`.
+1. `STRATEGY_ENV_REQUIRED` refuses early (exit 3, variables named, values never
+   printed) before any phase. Built-in confs never declare it — which env an executor
+   needs is operator knowledge; operators declare it in a `.harness/loops/` overlay conf
+   or export it at launch (an environment value flows through an undeclaring conf).
 2. `ralph-judge.sh` sources `ralph-log.sh` guarded (with no-op fallbacks) and initializes
    logging, so judge prompts are recorded and "command not found" is gone.
 3. The index-row guard probes with the bare task label (`T1`), matching what
@@ -43,7 +44,10 @@ attempt and the gate, alongside the scope guard it mirrors.
 ## 4. Approach · [A — Approach]
 
 Smallest change at each diagnosed site, in the file's own idiom: the env preflight sits
-beside the existing tools/MCP preflight; the judge's sourcing block mirrors
+beside the existing tools/MCP preflight, and the requirement itself lives with the
+OPERATOR (overlay conf or export) because the built-ins cannot know any executor's
+credential names — v1.0 hardcoded `OPENCODE_QWEN_KEY` into `build-then-judge.conf` and
+was corrected on review; the judge's sourcing block mirrors
 `ralph-build.sh`'s guarded pattern for the same file; the label fix adopts the expansion
 the adjacent `loop-metrics.sh` call already uses; the spec-dir guard is the scope guard's
 reject-wholesale/log/reset/feedback shape with a different predicate. Rejected: acquiring
@@ -93,7 +97,7 @@ paths stay warn (the index guard must not become fatal).
   the REAL `ralph-build.sh` — red convergence stops nonzero, green converges, exactly one
   convergence run, legacy path unchanged.
 - **T2 — env preflight** (`tasks/T02-strategy-env-preflight`): `STRATEGY_ENV_REQUIRED`
-  refusal semantics + `build-then-judge.conf` declaration.
+  refusal semantics; built-ins provably declare nothing; operator export flows through.
 - **T3 — judge logs its prompt** (`tasks/T03-judge-prompt-logged`): guarded source +
   fallback + source-before-call ordering.
 - **T4 — index guard label** (`tasks/T04-index-guard-label`): bare-label expansion in the
@@ -109,8 +113,10 @@ paths stay warn (the index guard must not become fatal).
   two-task run (ac3); a no-tasks-dir spec SHALL still be judged by its spec verify (ac4).
 - **T2** — IF a declared variable is unset or empty THEN run-loop SHALL exit 3 naming it
   before any phase (ac1–ac2); WHEN satisfied it SHALL proceed with the value absent from
-  all output (ac3); undeclared strategies SHALL behave as before (ac4);
-  `build-then-judge.conf` SHALL declare `OPENCODE_QWEN_KEY` (ac5).
+  all output (ac3); undeclared strategies SHALL behave as before (ac4); NO built-in conf
+  SHALL set `STRATEGY_ENV_REQUIRED` (ac5); an operator-exported value SHALL be enforced
+  through an undeclaring conf (ac6); `loops/README.md` SHALL document the operator
+  contract (ac7).
 - **T3** — `ralph-judge.sh` SHALL source `ralph-log.sh` guarded (ac1) with a no-op
   fallback (ac2); `ralph-log.sh` SHALL define `log_prompt` (ac3); the source SHALL
   precede the call (ac4).
@@ -135,6 +141,12 @@ already covers it and the run proved it on Swift comments.
 
 ## 14. Tuning log
 
+- **v1.1 (2026-08-31)** — T2 corrected on Matt's review ("generalization, convention,
+  and portability"): v1.0 hardcoded `OPENCODE_QWEN_KEY` into the built-in
+  `build-then-judge.conf` — one laptop's opencode config baked into a shared file the
+  same way `exec-qwen.sh`'s rename warned about. Reverted; built-ins now provably
+  declare nothing (T02 ac5 refuses it), operators declare via overlay conf or export
+  (ac6), README carries the contract (ac7).
 - **v1.0 (2026-08-31)** — Authored from the notes-from-hearing run findings the same day.
   T1 began as a fix for "the loop never runs convergence" and its red-first gate came back
   GREEN — the convergence block at ~661-679 already does it. The task was rewritten as a

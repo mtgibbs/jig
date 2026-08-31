@@ -29,6 +29,16 @@ the executable is named twice — once in `STRATEGY_TOOLS` and once in the bindi
 closed this as acceptable duplication rather than deriving one from the other, because deriving it
 would mean parsing the binding.
 
+`STRATEGY_ENV_REQUIRED` is the same declaration idea for environment variables (space-separated
+NAMES): each must be set and non-empty or the run stops at preflight with exit 3 naming it —
+values are never read into output. **Built-in confs never set it.** Which variables an executor
+needs is OPERATOR knowledge, not the harness's: the bindings take credentials from the environment
+by contract (20260825c) and the operator's own executor config decides the names — a qwen lane, a
+Gemini key, a local socket needing nothing are all valid worlds this repo cannot see. Declare it
+where operator things live: a consumer conf in `.harness/loops/` (which shadows the built-in of
+the same name), or a plain `export STRATEGY_ENV_REQUIRED="MY_KEY"` at launch — an environment
+value passes through whenever the conf does not assign one.
+
 ## Where a strategy is resolved from
 
 Two search paths, first match wins:
