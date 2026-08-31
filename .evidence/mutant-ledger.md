@@ -6,82 +6,25 @@ Sweep dates: 2026-08-31 · **6 corpora · 31 mutants**
 
 | verdict | count | meaning |
 |---|---:|---|
-| ✗ SURVIVOR | 0 | gate accepted the mutant — the defect walks |
-| ↯ WRONG-REASON | 0 | gate failed, but not where the mutant aimed |
+| ✗ SURVIVOR | 16 | gate accepted the mutant — the defect walks |
+| ↯ WRONG-REASON | 12 | gate failed, but not where the mutant aimed |
 | ⏱ HUNG | 0 | gate never returned inside the bound |
-| ✓ KILLED | 31 | gate failed naming the declared assertion |
+| ✓ KILLED | 3 | gate failed naming the declared assertion |
 
 | corpus | run | mutants | killed | survived | wrong-reason | hung |
 |---|---|---:|---:|---:|---:|---:|
-| [`20260829a-executor-image-layer · T01-image-split`](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants) | `20260831T032201Z.27722` | 12 | 12 | 0 | 0 | 0 |
-| [`20260829a-executor-image-layer · T06-docs`](../specs/20260829a-executor-image-layer/tasks/T06-docs/mutants) | `20260831T032212Z.38560` | 5 | 5 | 0 | 0 | 0 |
-| [`20260829c-hermetic-gate · T01-reset`](../specs/20260829c-hermetic-gate/tasks/T01-reset/mutants) | `20260831T032219Z.39751` | 5 | 5 | 0 | 0 | 0 |
-| [`20260829c-hermetic-gate · T02-migration`](../specs/20260829c-hermetic-gate/tasks/T02-migration/mutants) | `20260831T032228Z.45649` | 3 | 3 | 0 | 0 | 0 |
-| [`20260829c-hermetic-gate · T03-workspace`](../specs/20260829c-hermetic-gate/tasks/T03-workspace/mutants) | `20260831T032233Z.51413` | 3 | 3 | 0 | 0 | 0 |
-| [`20260829c-hermetic-gate · T04-durability`](../specs/20260829c-hermetic-gate/tasks/T04-durability/mutants) | `20260831T032239Z.53286` | 3 | 3 | 0 | 0 | 0 |
+| [`20260829a-executor-image-layer · T01-image-split`](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants) | `20260831T040404Z.46807` | 12 | 2 | 0 | 10 | 0 |
+| [`20260829a-executor-image-layer · T06-docs`](../specs/20260829a-executor-image-layer/tasks/T06-docs/mutants) | `20260831T040414Z.57734` | 5 | 0 | 5 | 0 | 0 |
+| [`20260829c-hermetic-gate · T01-reset`](../specs/20260829c-hermetic-gate/tasks/T01-reset/mutants) | `20260831T040421Z.58923` | 5 | 0 | 5 | 0 | 0 |
+| [`20260829c-hermetic-gate · T02-migration`](../specs/20260829c-hermetic-gate/tasks/T02-migration/mutants) | `20260831T040430Z.64819` | 3 | 1 | 0 | 2 | 0 |
+| [`20260829c-hermetic-gate · T03-workspace`](../specs/20260829c-hermetic-gate/tasks/T03-workspace/mutants) | `20260831T040435Z.70639` | 3 | 0 | 3 | 0 | 0 |
+| [`20260829c-hermetic-gate · T04-durability`](../specs/20260829c-hermetic-gate/tasks/T04-durability/mutants) | `20260831T040440Z.72523` | 3 | 0 | 3 | 0 | 0 |
 
 ## 20260829a-executor-image-layer · T01-image-split
-[mutants/](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants) · [gate](../specs/20260829a-executor-image-layer/tasks/T01-image-split/verify.sh) · run `20260831T032201Z.27722`
+[mutants/](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants) · [gate](../specs/20260829a-executor-image-layer/tasks/T01-image-split/verify.sh) · run `20260831T040404Z.46807`
 
-### ✓ `base-entrypoint-run-loop.Dockerfile` — KILLED
-breaks `ac04` · ±36 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants/base-entrypoint-run-loop.Dockerfile) · target [`docker/harness-base.Dockerfile`](../docker/harness-base.Dockerfile)
-
-> sets ENTRYPOINT to run-loop.sh instead of run-task.sh. Plausible — run-loop.sh IS the engine — and wrong: run-loop.sh needs a checked-out repo on a throwaway branch, which is what run-task.sh exists to produce. A Job on this image dies in preflight on `main`.
-
-<details><summary>diff</summary>
-
-````diff
---- target/docker/harness-base.Dockerfile
-+++ mutant/base-entrypoint-run-loop.Dockerfile
-@@ -1,37 +1,15 @@
--# harness-base.Dockerfile — the common harness image (no model CLI).
--#
--# Contains only harness scripts and environment. Third parties can write
--# `FROM ghcr.io/mtgibbs/harness-base` and add their own CLI (opencode, codex, claude).
--#
--# Key contracts:
--# - ENV LOOP=/harness/scripts/run-loop.sh
--# - ENTRYPOINT ["/usr/bin/tini", "--", "/harness/scripts/entrypoint.sh"]
--#   entrypoint.sh installs the clone credential from HARNESS_CLONE_PAT when it is set, is a no-op
--#   when it is not, and then execs run-task.sh BY NAME with "$@". The arguments a caller passes
--#   still go to run-task.sh exactly as before — `docker run <image> specs/fx --repo proj` is
--#   unchanged. It must stay `exec run-task.sh "$@"` rather than `exec "$@"` plus a CMD: the latter
--#   would make that same command try to execute `specs/fx`.
--# - PATH includes /harness/scripts so run-task.sh and run-loop.sh are reachable by name.
- FROM node:22-bookworm-slim
- 
--# Install harness prerequisites — same set as the original loop-executor.Dockerfile.
-+ENV HARNESS_HOME=/harness
-+ENV PATH="/harness/scripts:${PATH}"
-+
- RUN apt-get update && \
--    apt-get install --no-install-recommends -y git ripgrep ca-certificates curl tini && \
-+    apt-get install --no-install-recommends -y git ripgrep ca-certificates curl python3 tini && \
-     apt-get clean && \
-     rm -rf /var/lib/apt/lists/*
- 
--# Working directory for the harness.
--WORKDIR /harness
--
--# Copy only the harness scripts and shared library — no CLI installation.
- COPY scripts/ /harness/scripts/
- COPY specs/lib/ /harness/specs/lib/
- 
--# The harness scripts directory must be on PATH.
--ENV PATH="/harness/scripts:$PATH"
--
--# The LOOP environment variable points to the loop script.
--ENV LOOP=/harness/scripts/run-loop.sh
--
--# Remote entry point: the credential entrypoint under tini, which execs run-task.sh.
--ENTRYPOINT ["/usr/bin/tini", "--", "/harness/scripts/entrypoint.sh"]
-+WORKDIR /home/agent
-+ENTRYPOINT ["/usr/bin/tini", "--", "run-loop.sh"]
-````
-</details>
-
-### ✓ `base-installs-opencode.Dockerfile` — KILLED
-breaks `ac02` · ±38 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants/base-installs-opencode.Dockerfile) · target [`docker/harness-base.Dockerfile`](../docker/harness-base.Dockerfile)
+### ↯ `base-installs-opencode.Dockerfile` — WRONG-REASON
+breaks `ac02` · ±38 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants/base-installs-opencode.Dockerfile) · target [`docker/harness-base.Dockerfile`](../docker/harness-base.Dockerfile) · fired instead: `ac04`, `ac11`
 
 > bakes opencode into the BASE "so the common case is one image". That is the fork: every derived image now ships a CLI it may not use, and a Claude image inherits a competitor's runtime. The base having no CLI is the entire extension point.
 
@@ -140,8 +83,8 @@ breaks `ac02` · ±38 lines · [mutant](../specs/20260829a-executor-image-layer/
 ````
 </details>
 
-### ✓ `base-no-copy.Dockerfile` — KILLED
-breaks `ac01` · ±40 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants/base-no-copy.Dockerfile) · target [`docker/harness-base.Dockerfile`](../docker/harness-base.Dockerfile)
+### ↯ `base-no-copy.Dockerfile` — WRONG-REASON
+breaks `ac01` · ±40 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants/base-no-copy.Dockerfile) · target [`docker/harness-base.Dockerfile`](../docker/harness-base.Dockerfile) · fired instead: `ac04`, `ac11`
 
 > describes copying scripts/ and specs/lib/ in a comment but issues no COPY, so the image has an ENTRYPOINT pointing at a run-task.sh that is not in it. A gate that greps the file for the word "scripts" instead of for a COPY instruction reads this as correct.
 
@@ -198,8 +141,8 @@ breaks `ac01` · ±40 lines · [mutant](../specs/20260829a-executor-image-layer/
 ````
 </details>
 
-### ✓ `binding-opencode-but-fetches-key.sh` — KILLED
-breaks `ac08` · ±30 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants/binding-opencode-but-fetches-key.sh) · target [`scripts/exec-opencode.sh`](../scripts/exec-opencode.sh)
+### ↯ `binding-opencode-but-fetches-key.sh` — WRONG-REASON
+breaks `ac08` · ±30 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants/binding-opencode-but-fetches-key.sh) · target [`scripts/exec-opencode.sh`](../scripts/exec-opencode.sh) · fired instead: `ac04`, `ac11`
 
 > does the obvious half — execs opencode instead of oc, so the "still calls oc" check passes — and keeps the credential fetch. The binding now works on exactly one machine: the one with that Keychain entry and that 1Password vault. A container has neither, and the failure arrives as an empty key rather than as a missing tool.
 
@@ -242,8 +185,8 @@ breaks `ac08` · ±30 lines · [mutant](../specs/20260829a-executor-image-layer/
 ````
 </details>
 
-### ✓ `derived-still-standalone.Dockerfile` — KILLED
-breaks `ac03` · ±9 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants/derived-still-standalone.Dockerfile) · target [`docker/loop-executor-opencode.Dockerfile`](../docker/loop-executor-opencode.Dockerfile)
+### ↯ `derived-still-standalone.Dockerfile` — WRONG-REASON
+breaks `ac03` · ±9 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants/derived-still-standalone.Dockerfile) · target [`docker/loop-executor-opencode.Dockerfile`](../docker/loop-executor-opencode.Dockerfile) · fired instead: `ac04`, `ac11`
 
 > is FROM harness-base — so a grep for the FROM line is satisfied — but re-installs the apt set and re-COPYs the harness on top of it. Two copies of the loop in one image, and the next executor image will copy this file and make a third.
 
@@ -267,8 +210,8 @@ breaks `ac03` · ±9 lines · [mutant](../specs/20260829a-executor-image-layer/t
 ````
 </details>
 
-### ✓ `exec-container-keeps-latest.sh` — KILLED
-breaks `ac06` · ±10 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants/exec-container-keeps-latest.sh) · target [`scripts/exec-container.sh`](../scripts/exec-container.sh)
+### ↯ `exec-container-keeps-latest.sh` — WRONG-REASON
+breaks `ac06` · ±10 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants/exec-container-keeps-latest.sh) · target [`scripts/exec-container.sh`](../scripts/exec-container.sh) · fired instead: `ac04`, `ac11`
 
 > keeps the :latest default while adding LOOP_TAG, so the file gains a version knob and still resolves, by default, to a tag CI has never pushed. The knob makes it LOOK fixed.
 
@@ -293,8 +236,8 @@ breaks `ac06` · ±10 lines · [mutant](../specs/20260829a-executor-image-layer/
 ````
 </details>
 
-### ✓ `exec-container-keeps-old-name.sh` — KILLED
-breaks `ac06` · ±9 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants/exec-container-keeps-old-name.sh) · target [`scripts/exec-container.sh`](../scripts/exec-container.sh)
+### ↯ `exec-container-keeps-old-name.sh` — WRONG-REASON
+breaks `ac06` · ±9 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants/exec-container-keeps-old-name.sh) · target [`scripts/exec-container.sh`](../scripts/exec-container.sh) · fired instead: `ac04`, `ac11`
 
 > fixes the :latest half and misses the rename half — it pins a REAL tag on the image name CI no longer publishes. The obvious check, "is the default still :latest", passes; the default resolves to a repository that stops receiving tags the day this lands.
 
@@ -318,8 +261,8 @@ breaks `ac06` · ±9 lines · [mutant](../specs/20260829a-executor-image-layer/t
 ````
 </details>
 
-### ✓ `sheet-announced-on-the-flag-not-node.sh` — KILLED
-breaks `ac10` · ±65 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants/sheet-announced-on-the-flag-not-node.sh) · target [`scripts/ralph-build.sh`](../scripts/ralph-build.sh)
+### ↯ `sheet-announced-on-the-flag-not-node.sh` — WRONG-REASON
+breaks `ac10` · ±65 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants/sheet-announced-on-the-flag-not-node.sh) · target [`scripts/ralph-build.sh`](../scripts/ralph-build.sh) · fired instead: `ac04`, `ac11`
 
 > adds the announcement and hangs it on the FLAG rather than on node. It fires when a human passed RALPH_SHEET=off — the case nobody needed telling about — and stays silent in the only case that matters: the sheet is wanted, node is absent, and the run quietly loses 20-56% of its measured context saving with nothing in the log to say so.
 
@@ -437,8 +380,8 @@ breaks `ac10` · ±65 lines · [mutant](../specs/20260829a-executor-image-layer/
 ````
 </details>
 
-### ✓ `smoke-job-that-runs-no-task.yml` — KILLED
-breaks `ac09` · ±299 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants/smoke-job-that-runs-no-task.yml) · target [`.github/workflows/build-images.yml`](../.github/workflows/build-images.yml)
+### ↯ `smoke-job-that-runs-no-task.yml` — WRONG-REASON
+breaks `ac09` · ±299 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants/smoke-job-that-runs-no-task.yml) · target [`.github/workflows/build-images.yml`](../.github/workflows/build-images.yml) · fired instead: `ac04`, `ac11`
 
 > adds the paths: entries ac07 wants and a job literally named smoke — which pulls the image and prints its version. It proves the registry has bytes, not that the image can run a task. "It built" and "it works" are the two states this job exists to separate.
 
@@ -795,30 +738,8 @@ breaks `ac09` · ±299 lines · [mutant](../specs/20260829a-executor-image-layer
 ````
 </details>
 
-### ✓ `supervise-keeps-the-old-pattern.sh` — KILLED
-breaks `ac11` · ±4 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants/supervise-keeps-the-old-pattern.sh) · target [`scripts/supervise.sh`](../scripts/supervise.sh)
-
-> the one file a renamer forgets. The binding moved, ralph-build.sh's default moved, the three landed gates moved — and the supervisor's process-pattern list still matches the old basename, so it stops recognising a running loop. Nothing errors: it reports no loop running, which is also what it reports when no loop is running.
-
-<details><summary>diff</summary>
-
-````diff
---- target/scripts/supervise.sh
-+++ mutant/supervise-keeps-the-old-pattern.sh
-@@ -74,7 +74,7 @@
-   # and a detached or re-parented executor survives the group kill. This WILL take out any other
-   # ralph loop on this host — acceptable because the supervisor is meant to own the machine's
-   # loop, and a survivor holds the GPU lane the relaunch needs.
--  for pat in 'run-loop.sh' 'ralph-build.sh' 'ralph-judge.sh' 'exec-opencode.sh' 'exec-codex.sh'; do
-+  for pat in 'run-loop.sh' 'ralph-build.sh' 'ralph-judge.sh' 'exec-qwen.sh' 'exec-codex.sh'; do
-     pgrep -f "$pat" 2>/dev/null | while read -r p; do kill -9 "$p" 2>/dev/null; done
-   done
-   pgrep -x opencode 2>/dev/null | while read -r p; do kill -9 "$p" 2>/dev/null; done
-````
-</details>
-
-### ✓ `workflow-needs-without-paths.yml` — KILLED
-breaks `ac07` · ±301 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants/workflow-needs-without-paths.yml) · target [`.github/workflows/build-images.yml`](../.github/workflows/build-images.yml)
+### ↯ `workflow-needs-without-paths.yml` — WRONG-REASON
+breaks `ac07` · ±301 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants/workflow-needs-without-paths.yml) · target [`.github/workflows/build-images.yml`](../.github/workflows/build-images.yml) · fired instead: `ac04`, `ac11`
 
 > gets the base/derived ORDERING right — the needs: edge is there, so ac05 passes — and leaves the paths: list at docker/** only. The base bakes scripts/ and specs/lib/, so a harness change ships to laptops and never to the image. Nothing announces the skew.
 
@@ -1175,8 +1096,8 @@ breaks `ac07` · ±301 lines · [mutant](../specs/20260829a-executor-image-layer
 ````
 </details>
 
-### ✓ `workflow-third-matrix-row.yml` — KILLED
-breaks `ac05` · ±268 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants/workflow-third-matrix-row.yml) · target [`.github/workflows/build-images.yml`](../.github/workflows/build-images.yml)
+### ↯ `workflow-third-matrix-row.yml` — WRONG-REASON
+breaks `ac05` · ±268 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants/workflow-third-matrix-row.yml) · target [`.github/workflows/build-images.yml`](../.github/workflows/build-images.yml) · fired instead: `ac04`, `ac11`
 
 > adds harness-base as a THIRD MATRIX ROW. Every grep for "harness-base" passes. But a matrix runs in parallel, so loop-executor's `FROM harness-base:0.1.0` pulls a tag that is still building — and only when both versions change in the same push, so it fails intermittently and looks like a registry flake.
 
@@ -1487,10 +1408,89 @@ breaks `ac05` · ±268 lines · [mutant](../specs/20260829a-executor-image-layer
 ````
 </details>
 
-## 20260829a-executor-image-layer · T06-docs
-[mutants/](../specs/20260829a-executor-image-layer/tasks/T06-docs/mutants) · [gate](../specs/20260829a-executor-image-layer/tasks/T06-docs/verify.sh) · run `20260831T032212Z.38560`
+### ✓ `base-entrypoint-run-loop.Dockerfile` — KILLED
+breaks `ac04` · ±36 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants/base-entrypoint-run-loop.Dockerfile) · target [`docker/harness-base.Dockerfile`](../docker/harness-base.Dockerfile)
 
-### ✓ `doc-names-container-no-contrast.md` — KILLED
+> sets ENTRYPOINT to run-loop.sh instead of run-task.sh. Plausible — run-loop.sh IS the engine — and wrong: run-loop.sh needs a checked-out repo on a throwaway branch, which is what run-task.sh exists to produce. A Job on this image dies in preflight on `main`.
+
+<details><summary>diff</summary>
+
+````diff
+--- target/docker/harness-base.Dockerfile
++++ mutant/base-entrypoint-run-loop.Dockerfile
+@@ -1,37 +1,15 @@
+-# harness-base.Dockerfile — the common harness image (no model CLI).
+-#
+-# Contains only harness scripts and environment. Third parties can write
+-# `FROM ghcr.io/mtgibbs/harness-base` and add their own CLI (opencode, codex, claude).
+-#
+-# Key contracts:
+-# - ENV LOOP=/harness/scripts/run-loop.sh
+-# - ENTRYPOINT ["/usr/bin/tini", "--", "/harness/scripts/entrypoint.sh"]
+-#   entrypoint.sh installs the clone credential from HARNESS_CLONE_PAT when it is set, is a no-op
+-#   when it is not, and then execs run-task.sh BY NAME with "$@". The arguments a caller passes
+-#   still go to run-task.sh exactly as before — `docker run <image> specs/fx --repo proj` is
+-#   unchanged. It must stay `exec run-task.sh "$@"` rather than `exec "$@"` plus a CMD: the latter
+-#   would make that same command try to execute `specs/fx`.
+-# - PATH includes /harness/scripts so run-task.sh and run-loop.sh are reachable by name.
+ FROM node:22-bookworm-slim
+ 
+-# Install harness prerequisites — same set as the original loop-executor.Dockerfile.
++ENV HARNESS_HOME=/harness
++ENV PATH="/harness/scripts:${PATH}"
++
+ RUN apt-get update && \
+-    apt-get install --no-install-recommends -y git ripgrep ca-certificates curl tini && \
++    apt-get install --no-install-recommends -y git ripgrep ca-certificates curl python3 tini && \
+     apt-get clean && \
+     rm -rf /var/lib/apt/lists/*
+ 
+-# Working directory for the harness.
+-WORKDIR /harness
+-
+-# Copy only the harness scripts and shared library — no CLI installation.
+ COPY scripts/ /harness/scripts/
+ COPY specs/lib/ /harness/specs/lib/
+ 
+-# The harness scripts directory must be on PATH.
+-ENV PATH="/harness/scripts:$PATH"
+-
+-# The LOOP environment variable points to the loop script.
+-ENV LOOP=/harness/scripts/run-loop.sh
+-
+-# Remote entry point: the credential entrypoint under tini, which execs run-task.sh.
+-ENTRYPOINT ["/usr/bin/tini", "--", "/harness/scripts/entrypoint.sh"]
++WORKDIR /home/agent
++ENTRYPOINT ["/usr/bin/tini", "--", "run-loop.sh"]
+````
+</details>
+
+### ✓ `supervise-keeps-the-old-pattern.sh` — KILLED
+breaks `ac11` · ±4 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T01-image-split/mutants/supervise-keeps-the-old-pattern.sh) · target [`scripts/supervise.sh`](../scripts/supervise.sh)
+
+> the one file a renamer forgets. The binding moved, ralph-build.sh's default moved, the three landed gates moved — and the supervisor's process-pattern list still matches the old basename, so it stops recognising a running loop. Nothing errors: it reports no loop running, which is also what it reports when no loop is running.
+
+<details><summary>diff</summary>
+
+````diff
+--- target/scripts/supervise.sh
++++ mutant/supervise-keeps-the-old-pattern.sh
+@@ -74,7 +74,7 @@
+   # and a detached or re-parented executor survives the group kill. This WILL take out any other
+   # ralph loop on this host — acceptable because the supervisor is meant to own the machine's
+   # loop, and a survivor holds the GPU lane the relaunch needs.
+-  for pat in 'run-loop.sh' 'ralph-build.sh' 'ralph-judge.sh' 'exec-opencode.sh' 'exec-codex.sh'; do
++  for pat in 'run-loop.sh' 'ralph-build.sh' 'ralph-judge.sh' 'exec-qwen.sh' 'exec-codex.sh'; do
+     pgrep -f "$pat" 2>/dev/null | while read -r p; do kill -9 "$p" 2>/dev/null; done
+   done
+   pgrep -x opencode 2>/dev/null | while read -r p; do kill -9 "$p" 2>/dev/null; done
+````
+</details>
+
+## 20260829a-executor-image-layer · T06-docs
+[mutants/](../specs/20260829a-executor-image-layer/tasks/T06-docs/mutants) · [gate](../specs/20260829a-executor-image-layer/tasks/T06-docs/verify.sh) · run `20260831T040414Z.57734`
+
+### ✗ `doc-names-container-no-contrast.md` — SURVIVOR
 breaks `ac3` · ±190 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T06-docs/mutants/doc-names-container-no-contrast.md) · target [`docs/executors.md`](../docs/executors.md)
 
 > mentions exec-container.sh in a list of available bindings but never says how it differs from an in-pod one. Naming both is not contrasting them, and the reader who needs this paragraph is precisely the one who cannot tell them apart.
@@ -1703,7 +1703,7 @@ breaks `ac3` · ±190 lines · [mutant](../specs/20260829a-executor-image-layer/
 ````
 </details>
 
-### ✓ `doc-omits-the-boundary.md` — KILLED
+### ✗ `doc-omits-the-boundary.md` — SURVIVOR
 breaks `ac4` · ±191 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T06-docs/mutants/doc-omits-the-boundary.md) · target [`docs/executors.md`](../docs/executors.md)
 
 > is a complete and accurate guide that simply stops before saying what it does NOT do. A reader finishes it believing the image is a working fleet worker, and discovers otherwise inside a pod that ttlSecondsAfterFinished is already deleting.
@@ -1916,7 +1916,7 @@ breaks `ac4` · ±191 lines · [mutant](../specs/20260829a-executor-image-layer/
 ````
 </details>
 
-### ✓ `doc-prose-no-example.md` — KILLED
+### ✗ `doc-prose-no-example.md` — SURVIVOR
 breaks `ac1` · ±196 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T06-docs/mutants/doc-prose-no-example.md) · target [`docs/executors.md`](../docs/executors.md)
 
 > describes the FROM harness-base pattern in prose and in a table, but ships no actual Dockerfile block. Every keyword grep passes. A reader has nothing to copy, which is the one thing a worked example is for — and an untested example is a bug handed to the reader, so "we described it carefully" is exactly the failure mode.
@@ -2133,7 +2133,7 @@ breaks `ac1` · ±196 lines · [mutant](../specs/20260829a-executor-image-layer/
 ````
 </details>
 
-### ✓ `doc-silent-on-credentials.md` — KILLED
+### ✗ `doc-silent-on-credentials.md` — SURVIVOR
 breaks `ac2` · ±191 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T06-docs/mutants/doc-silent-on-credentials.md) · target [`docs/executors.md`](../docs/executors.md)
 
 > never states who owns auth. Harmless-looking on a private base; actively misleading now that harness-base is public, because the obvious assumption for a "base image" is that the platform provides the key.
@@ -2346,7 +2346,7 @@ breaks `ac2` · ±191 lines · [mutant](../specs/20260829a-executor-image-layer/
 ````
 </details>
 
-### ✓ `loops-readme-tools-only.md` — KILLED
+### ✗ `loops-readme-tools-only.md` — SURVIVOR
 breaks `ac5` · ±69 lines · [mutant](../specs/20260829a-executor-image-layer/tasks/T06-docs/mutants/loops-readme-tools-only.md) · target [`scripts/loops/README.md`](../scripts/loops/README.md)
 
 > documents STRATEGY_TOOLS but never mentions the .harness search path. A strategy author reading only this file learns the new key and still believes a strategy can only live in the harness repo — which is the half of T2 that makes a consumer repo possible.
@@ -2440,9 +2440,9 @@ breaks `ac5` · ±69 lines · [mutant](../specs/20260829a-executor-image-layer/t
 </details>
 
 ## 20260829c-hermetic-gate · T01-reset
-[mutants/](../specs/20260829c-hermetic-gate/tasks/T01-reset/mutants) · [gate](../specs/20260829c-hermetic-gate/tasks/T01-reset/verify.sh) · run `20260831T032219Z.39751`
+[mutants/](../specs/20260829c-hermetic-gate/tasks/T01-reset/mutants) · [gate](../specs/20260829c-hermetic-gate/tasks/T01-reset/verify.sh) · run `20260831T040421Z.58923`
 
-### ✓ `boundary-reset-after-the-gate.sh` — KILLED
+### ✗ `boundary-reset-after-the-gate.sh` — SURVIVOR
 breaks `ac05` · ±36 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/T01-reset/mutants/boundary-reset-after-the-gate.sh) · target [`scripts/ralph-build.sh`](../scripts/ralph-build.sh)
 
 > clears the set in run_gates AFTER the gate has been invoked. The construct is present and a grep for it passes; the gate ran with the launching shell environment intact, which is the only moment that mattered.
@@ -2518,7 +2518,7 @@ breaks `ac05` · ±36 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/T
 ````
 </details>
 
-### ✓ `reset-announces-itself.sh` — KILLED
+### ✗ `reset-announces-itself.sh` — SURVIVOR
 breaks `ac03` · ±101 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/T01-reset/mutants/reset-announces-itself.sh) · target [`specs/lib/assert.sh`](../specs/lib/assert.sh)
 
 > announces the reset on load. Helpful-looking, and it breaks every assertion in other specs that compares a gate stdout — assert.sh header says it must not run anything on load for exactly this reason.
@@ -2664,7 +2664,7 @@ breaks `ac03` · ±101 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/
 ````
 </details>
 
-### ✓ `reset-defined-never-called.sh` — KILLED
+### ✗ `reset-defined-never-called.sh` — SURVIVOR
 breaks `ac02` · ±99 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/T01-reset/mutants/reset-defined-never-called.sh) · target [`specs/lib/assert.sh`](../specs/lib/assert.sh)
 
 > defines gate_env_reset and never calls it. The function is there, greppable, correct — and every gate still inherits everything, which is the shape of both local patches this spec replaces: a rule that has to be invoked.
@@ -2808,7 +2808,7 @@ breaks `ac02` · ±99 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/T
 ````
 </details>
 
-### ✓ `reset-drops-one-variable.sh` — KILLED
+### ✗ `reset-drops-one-variable.sh` — SURVIVOR
 breaks `ac01` · ±100 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/T01-reset/mutants/reset-drops-one-variable.sh) · target [`specs/lib/assert.sh`](../specs/lib/assert.sh)
 
 > quarantines four of the five and drops RALPH_SATISFIED_TIMEOUT — the one whose damage is invisible, because a gate that sets it per case is overridden without any error at all.
@@ -2953,7 +2953,7 @@ breaks `ac01` · ±100 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/
 ````
 </details>
 
-### ✓ `reset-freezes-the-variables.sh` — KILLED
+### ✗ `reset-freezes-the-variables.sh` — SURVIVOR
 breaks `ac04` · ±102 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/T01-reset/mutants/reset-freezes-the-variables.sh) · target [`specs/lib/assert.sh`](../specs/lib/assert.sh)
 
 > makes the variables readonly so "nothing can set them" — which also stops a GATE setting one deliberately for the case it is testing. This spec own T01 ac02 could not be written against it: the reset must bound the launching shell, not the gate.
@@ -3101,10 +3101,10 @@ breaks `ac04` · ±102 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/
 </details>
 
 ## 20260829c-hermetic-gate · T02-migration
-[mutants/](../specs/20260829c-hermetic-gate/tasks/T02-migration/mutants) · [gate](../specs/20260829c-hermetic-gate/tasks/T02-migration/verify.sh) · run `20260831T032228Z.45649`
+[mutants/](../specs/20260829c-hermetic-gate/tasks/T02-migration/mutants) · [gate](../specs/20260829c-hermetic-gate/tasks/T02-migration/verify.sh) · run `20260831T040430Z.64819`
 
-### ✓ `boundary-covers-only-the-loop-vars.sh` — KILLED
-breaks `ac03` · ±38 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/T02-migration/mutants/boundary-covers-only-the-loop-vars.sh) · target [`scripts/ralph-build.sh`](../scripts/ralph-build.sh)
+### ↯ `boundary-covers-only-the-loop-vars.sh` — WRONG-REASON
+breaks `ac03` · ±38 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/T02-migration/mutants/boundary-covers-only-the-loop-vars.sh) · target [`scripts/ralph-build.sh`](../scripts/ralph-build.sh) · fired instead: `ac02`
 
 > clears the loop control variables at the boundary and not the reporting ones — the skipping bug fixed, the coordinator leak left. 23 gates source nothing, so for them this is the only reset there is.
 
@@ -3175,6 +3175,46 @@ breaks `ac03` · ±38 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/T
  fi
  
  hb_init; log_init; hb_write starting
+````
+</details>
+
+### ↯ `fixture-keeps-its-local-copy.sh` — WRONG-REASON
+breaks `ac01` · ±22 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/T02-migration/mutants/fixture-keeps-its-local-copy.sh) · target [`specs/20260829a-executor-image-layer/lib/fixtures.sh`](../specs/20260829a-executor-image-layer/lib/fixtures.sh) · fired instead: `ac02`
+
+> keeps its local unset while the central reset also exists. Every gate passes, nothing is broken, and the class stays open: two mechanisms for one rule, which is the state this spec was written to end.
+
+<details><summary>diff</summary>
+
+````diff
+--- target/specs/20260829a-executor-image-layer/lib/fixtures.sh
++++ mutant/fixture-keeps-its-local-copy.sh
+@@ -7,11 +7,21 @@
+ # small git fixtures for run-task.sh's clone paths. Sourcing that file would drag a whole
+ # executor stub in for nothing.
+ 
+-# The quarantined environment (HARNESS_REPORT_URL/_TOKEN, RALPH_FORCE_ALL/_FROM,
+-# RALPH_SATISFIED_TIMEOUT) is cleared by specs/lib/assert.sh, which every gate that loads this
+-# file sources first, and again by ralph-build.sh's run_gates. It used to be reset HERE, and the
+-# incidents that earned each variable now live beside the unsets in assert.sh — one place, so
+-# there is no second list to keep in sync and no rule a new gate's author has to know.
++# The harness's OWN configuration is unset for every gate sourcing this file, and it is not
++# housekeeping. T02 and T03 drive the real run-loop.sh; HARNESS_REPORT_URL is set in every harness
++# container, so a gate run inherits it and the fixture loops POST TO THE PRODUCTION COORDINATOR.
++# Measured 2026-08-29: one pass over this spec's six gates put eight rows keyed `spec=fx` on the
++# live fleet board, where they are indistinguishable from real runs and share the oldest-first
++# eviction in harness#46 — so fixture rows can evict the record of an actual run.
++#
++# RALPH_FORCE_ALL/_FROM go too: a gate that inherits them from the shell that launched it cannot
++# skip anything inside its fixtures, which on 2026-08-29 made four assertions in another spec
++# unable to pass whatever the executor wrote and one pass for the wrong reason. Unset, never a
++# sentinel — a sentinel URL is still a URL and something eventually POSTs to it.
++#
++# 20260829a-hermetic-gate moves this into specs/lib/assert.sh so it holds for every gate in the
++# repo rather than for the ones whose author remembered.
++unset HARNESS_REPORT_URL HARNESS_REPORT_TOKEN RALPH_FORCE_ALL RALPH_FORCE_FROM RALPH_SATISFIED_TIMEOUT
+ 
+ # strip_comments <file> — the file's instruction lines only, comments and blanks removed.
+ #
 ````
 </details>
 
@@ -3327,50 +3367,10 @@ breaks `ac02` · ±102 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/
 ````
 </details>
 
-### ✓ `fixture-keeps-its-local-copy.sh` — KILLED
-breaks `ac01` · ±22 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/T02-migration/mutants/fixture-keeps-its-local-copy.sh) · target [`specs/20260829a-executor-image-layer/lib/fixtures.sh`](../specs/20260829a-executor-image-layer/lib/fixtures.sh)
-
-> keeps its local unset while the central reset also exists. Every gate passes, nothing is broken, and the class stays open: two mechanisms for one rule, which is the state this spec was written to end.
-
-<details><summary>diff</summary>
-
-````diff
---- target/specs/20260829a-executor-image-layer/lib/fixtures.sh
-+++ mutant/fixture-keeps-its-local-copy.sh
-@@ -7,11 +7,21 @@
- # small git fixtures for run-task.sh's clone paths. Sourcing that file would drag a whole
- # executor stub in for nothing.
- 
--# The quarantined environment (HARNESS_REPORT_URL/_TOKEN, RALPH_FORCE_ALL/_FROM,
--# RALPH_SATISFIED_TIMEOUT) is cleared by specs/lib/assert.sh, which every gate that loads this
--# file sources first, and again by ralph-build.sh's run_gates. It used to be reset HERE, and the
--# incidents that earned each variable now live beside the unsets in assert.sh — one place, so
--# there is no second list to keep in sync and no rule a new gate's author has to know.
-+# The harness's OWN configuration is unset for every gate sourcing this file, and it is not
-+# housekeeping. T02 and T03 drive the real run-loop.sh; HARNESS_REPORT_URL is set in every harness
-+# container, so a gate run inherits it and the fixture loops POST TO THE PRODUCTION COORDINATOR.
-+# Measured 2026-08-29: one pass over this spec's six gates put eight rows keyed `spec=fx` on the
-+# live fleet board, where they are indistinguishable from real runs and share the oldest-first
-+# eviction in harness#46 — so fixture rows can evict the record of an actual run.
-+#
-+# RALPH_FORCE_ALL/_FROM go too: a gate that inherits them from the shell that launched it cannot
-+# skip anything inside its fixtures, which on 2026-08-29 made four assertions in another spec
-+# unable to pass whatever the executor wrote and one pass for the wrong reason. Unset, never a
-+# sentinel — a sentinel URL is still a URL and something eventually POSTs to it.
-+#
-+# 20260829a-hermetic-gate moves this into specs/lib/assert.sh so it holds for every gate in the
-+# repo rather than for the ones whose author remembered.
-+unset HARNESS_REPORT_URL HARNESS_REPORT_TOKEN RALPH_FORCE_ALL RALPH_FORCE_FROM RALPH_SATISFIED_TIMEOUT
- 
- # strip_comments <file> — the file's instruction lines only, comments and blanks removed.
- #
-````
-</details>
-
 ## 20260829c-hermetic-gate · T03-workspace
-[mutants/](../specs/20260829c-hermetic-gate/tasks/T03-workspace/mutants) · [gate](../specs/20260829c-hermetic-gate/tasks/T03-workspace/verify.sh) · run `20260831T032233Z.51413`
+[mutants/](../specs/20260829c-hermetic-gate/tasks/T03-workspace/mutants) · [gate](../specs/20260829c-hermetic-gate/tasks/T03-workspace/verify.sh) · run `20260831T040435Z.70639`
 
-### ✓ `advice-still-prints-the-hostname.sh` — KILLED
+### ✗ `advice-still-prints-the-hostname.sh` — SURVIVOR
 breaks `ac02` · ±100 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/T03-workspace/mutants/advice-still-prints-the-hostname.sh) · target [`specs/lib/assert.sh`](../specs/lib/assert.sh)
 
 > factors the diagnostic into a function, as asked, and has it print the hostname — the same fact about the machine the old inline echo printed, now behind a nicer seam.
@@ -3517,7 +3517,7 @@ breaks `ac02` · ±100 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/
 ````
 </details>
 
-### ✓ `gate-tmpdir-ignores-the-variable.sh` — KILLED
+### ✗ `gate-tmpdir-ignores-the-variable.sh` — SURVIVOR
 breaks `ac01` · ±103 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/T03-workspace/mutants/gate-tmpdir-ignores-the-variable.sh) · target [`specs/lib/assert.sh`](../specs/lib/assert.sh)
 
 > reads GATE_TMPDIR into a variable and then calls bare mktemp -d anyway. The variable is documented, greppable and inert — an operator sets it, nothing moves, and the only remaining option is relaxing the container.
@@ -3667,7 +3667,7 @@ breaks `ac01` · ±103 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/
 ````
 </details>
 
-### ✓ `workspace-fault-exits-one.sh` — KILLED
+### ✗ `workspace-fault-exits-one.sh` — SURVIVOR
 breaks `ac03` · ±104 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/T03-workspace/mutants/workspace-fault-exits-one.sh) · target [`specs/lib/assert.sh`](../specs/lib/assert.sh)
 
 > turns a workspace fault into exit 1. Callers read 2 as "could not run" and 1 as "the work is wrong", so an unusable mount is filed in the run evidence as a failed assertion and the loop spends its retries on a container problem.
@@ -3819,9 +3819,9 @@ breaks `ac03` · ±104 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/
 </details>
 
 ## 20260829c-hermetic-gate · T04-durability
-[mutants/](../specs/20260829c-hermetic-gate/tasks/T04-durability/mutants) · [gate](../specs/20260829c-hermetic-gate/tasks/T04-durability/verify.sh) · run `20260831T032239Z.53286`
+[mutants/](../specs/20260829c-hermetic-gate/tasks/T04-durability/mutants) · [gate](../specs/20260829c-hermetic-gate/tasks/T04-durability/verify.sh) · run `20260831T040440Z.72523`
 
-### ✓ `list-without-the-incidents.sh` — KILLED
+### ✗ `list-without-the-incidents.sh` — SURVIVOR
 breaks `ac03` · ±95 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/T04-durability/mutants/list-without-the-incidents.sh) · target [`specs/lib/assert.sh`](../specs/lib/assert.sh)
 
 > keeps the reset and strips the incidents to a bare list. Correct, and it teaches the next person nothing about what earns a slot — so the quarantine grows on suspicion until it unsets something a gate needed.
@@ -3961,7 +3961,7 @@ breaks `ac03` · ±95 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/T
 ````
 </details>
 
-### ✓ `local-copy-returns.sh` — KILLED
+### ✗ `local-copy-returns.sh` — SURVIVOR
 breaks `ac02` · ±9 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/T04-durability/mutants/local-copy-returns.sh) · target [`specs/20260828o-evidence-egress/lib/fixtures.sh`](../specs/20260828o-evidence-egress/lib/fixtures.sh)
 
 > the third local copy comes back — this time as an inline `env -u` list at the call site, not the wrapper it used to be. Nothing fails, so nothing announces it; the set now lives in two places under two different shapes and the next reader cannot tell which is authoritative. Derived from the live target so the ONLY difference is the copy itself.
@@ -3991,7 +3991,7 @@ breaks `ac02` · ±9 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/T0
 ````
 </details>
 
-### ✓ `reset-only-when-a-workspace-is-made.sh` — KILLED
+### ✗ `reset-only-when-a-workspace-is-made.sh` — SURVIVOR
 breaks `ac01` · ±103 lines · [mutant](../specs/20260829c-hermetic-gate/tasks/T04-durability/mutants/reset-only-when-a-workspace-is-made.sh) · target [`specs/lib/assert.sh`](../specs/lib/assert.sh)
 
 > moves the call inside gate_tmpdir, so a gate is protected only if it makes a workspace. Gates that assert on file text never call gate_tmpdir and inherit everything, and the rule is back to being one you have to know.

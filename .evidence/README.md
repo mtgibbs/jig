@@ -23,5 +23,7 @@ treats `~/.harness/` only as a fallback for what a run has not yet committed.
   plus a `run_complete` marker per corpus run — spec `20260830f-mutant-observability`)
 - `mutant-ledger.{md,html}` — the rendered Mutant Ledger; regenerate with
   `scripts/mutant-ledger.py`, never edit
+- `scripts/selftest-sweep.sh` (run from anywhere) records every corpus above in one
+  command and regenerates the ledger; `--dry-run` lists what it would run
 - a spec's narrative evidence (red-before-green records, findings) lives with the spec,
   in `specs/<slug>/evidence/`
