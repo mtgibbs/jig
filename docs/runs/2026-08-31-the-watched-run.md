@@ -117,5 +117,18 @@ leak paths (spec anchor, then gate pend), one destination. The guard has to live
 harness: task-scoped staging or a diff-scope check on the build loop. Until then,
 per-task accounting on multi-task specs is best-effort.
 
+**Correction (2026-08-31, same day, prompted by the owner):** the paragraph above
+overstates the discovery. The gate-pend leak was not an open problem — it is defect 2 of
+`specs/20260828i-per-task-gates` ("the gate is the roadmap"), structurally closed three
+days earlier by the per-task layout, which bans `pend` from task gates and consults
+nothing beyond task N. Both watched runs failed because **20260831a was authored in the
+deprecated monolithic shape**, which `specs/TEMPLATE.md` still taught at length while
+never mentioning the per-task layout at all. The doctrine document lost to the convention
+it contradicted. The scrub is `specs/20260831b-scrub-monolithic-gates/`: the TEMPLATE now
+teaches the layout, an amendment makes it law, and the loop refuses the dead shape
+(`RALPH_ALLOW_MONOLITHIC=1` for legacy re-runs). What genuinely remains open — the
+`.evidence/` no-op blind spot and `add -A` commit attribution — is issue-tracked, not a
+lesson about spec authoring.
+
 This run's raw records were exported before teardown (lesson 5, applied) to
 `.evidence/runs/20260831a-selftest-sweep-rerun/`.

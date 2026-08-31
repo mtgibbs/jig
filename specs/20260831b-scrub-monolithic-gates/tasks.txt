@@ -1,0 +1,1 @@
+T1: per spec §2 — rewrite specs/TEMPLATE.md §11 to teach the per-task layout and demote pend to a legacy note, add the refusal (with RALPH_ALLOW_MONOLITHIC=1 escape hatch) to _validate_task_gates in scripts/ralph-build.sh, add the deprecation amendment to specs/amendments.md, and correct the rerun postscript in docs/runs/2026-08-31-the-watched-run.md

@@ -171,3 +171,26 @@ split was executed by `specs/20260830c-constitution-split/` and this
 amendment ratifies the rewrite, which is why the version above goes MAJOR:
 redefining the constitution's scope is exactly the change that "should make
 you pause."
+
+## The monolithic pend-staged gate is deprecated for multi-task specs
+
+Status: Accepted · 2026-08-31 · Source: 20260831b-scrub-monolithic-gates / the watched-run rerun
+
+A multi-task spec carries one gate per task (`tasks/T<NN>-<slug>/verify.sh`,
+per 20260828i): cumulative 1..N, no `pend` in task gates, convergence-only
+spec-level gate. A new multi-task spec with a single whole-spec pend-staged
+`verify.sh` is a defect, not a style choice, and the build loop refuses to
+run one (`RALPH_ALLOW_MONOLITHIC=1` marks a deliberate legacy re-run). A
+single-task spec keeps the single gate — with one task there is nothing to
+defer, so `pend` has no reason to exist there either.
+
+**Rationale:** 20260828i named the defect precisely — the whole-spec gate is
+the roadmap: an executor that runs it reads a later task's `pend` as a to-do
+and does that work early. Three days after ratification, a spec was authored
+in the old shape anyway because `specs/TEMPLATE.md` still taught it, and the
+defect recurred on schedule, twice, across both watched runs of
+`20260831a-selftest-sweep` (`docs/runs/2026-08-31-the-watched-run.md`). A
+convention that lives only in the spec that ratified it loses to the
+template every author copies from. Now it lives in the template, in this
+law, and in the loop's refusal — the three places an author, a reader, and a
+machine respectively actually look.

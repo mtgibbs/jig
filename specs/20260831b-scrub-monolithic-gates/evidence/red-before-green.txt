@@ -1,0 +1,20 @@
+  FAIL  ac1: expected exit 3, got 0 — logs: /private/var/folders/67/jbvc_vl129gb2030cgd5bwl40000gn/T/tmp.EQgxO0KetB/.evidence/runs/fx/Matts-MacBook-Pro.local/qwen-98178 bus: narration off (no MATRIX_TOKEN / AGENT_BUS_IDENTITY) ════════ TASK: T1: do thing 1 ════════ 
+  FAIL  ac1: refusal message does not name per-task gates / 20260828i
+  FAIL  ac1: the stub executor ran despite the refusal
+  PASS  ac2: RALPH_ALLOW_MONOLITHIC=1 lets the legacy shape run (marker present — positive control for ac1's probe)
+  FAIL  ac2: no warning line under RALPH_ALLOW_MONOLITHIC=1
+  PASS  ac2: single-task monolithic spec is untouched (rc=0)
+  PASS  ac2: per-task spec is untouched (rc=2)
+  PASS  ac3: ralph-build.sh passes bash -n
+  FAIL  ac4: TEMPLATE does not name tasks/T<NN>-<slug>/verify.sh
+  FAIL  ac4: TEMPLATE does not say the gates run cumulatively
+  FAIL  ac4: TEMPLATE does not ban pend from task gates
+  FAIL  ac4: the pend-preamble copy block is still in the TEMPLATE
+  PASS  ac5: TEMPLATE retains 'TRAP A'
+  PASS  ac5: TEMPLATE retains 'TRAP B'
+  PASS  ac5: TEMPLATE retains 'A-PRIME'
+  PASS  ac5: TEMPLATE retains 'ONE-QUESTION TEST'
+  FAIL  ac6: no deprecation amendment in amendments.md
+  FAIL  ac6: run doc postscript not corrected (no 20260828i citation)
+
+VERIFY: failures above

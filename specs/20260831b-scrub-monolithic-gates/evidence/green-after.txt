@@ -1,0 +1,20 @@
+  PASS  ac1: multi-task monolithic spec refused with exit 3
+  PASS  ac1: the refusal names the convention
+  PASS  ac1: refused BEFORE any executor ran (no marker)
+  PASS  ac2: RALPH_ALLOW_MONOLITHIC=1 lets the legacy shape run (marker present — positive control for ac1's probe)
+  PASS  ac2: the hatch run warns that it is deliberate
+  PASS  ac2: single-task monolithic spec is untouched (rc=0)
+  PASS  ac2: per-task spec is untouched (rc=2)
+  PASS  ac3: ralph-build.sh passes bash -n
+  PASS  ac4: TEMPLATE documents the per-task layout path
+  PASS  ac4: TEMPLATE documents cumulative gates
+  PASS  ac4: TEMPLATE bans pend from task gates
+  PASS  ac4: the pend-preamble copy block is gone
+  PASS  ac5: TEMPLATE retains 'TRAP A'
+  PASS  ac5: TEMPLATE retains 'TRAP B'
+  PASS  ac5: TEMPLATE retains 'A-PRIME'
+  PASS  ac5: TEMPLATE retains 'ONE-QUESTION TEST'
+  PASS  ac6: amendments.md carries the deprecation
+  PASS  ac6: the run doc correction cites 20260828i
+
+VERIFY: all checks passed

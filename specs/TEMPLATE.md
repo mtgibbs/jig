@@ -139,92 +139,55 @@ Both pass preflight; they are different statements.
       criterion (and each §8 safeguard) so it maps to a verify.sh assertion.
       (Hashimoto harness-engineering / TDD-for-agents.) -->
 
-### The `pend` verdict and task position
+### The gate layout — per task, since 20260828i
 
-A gate reports `pend` when its target artifact does not exist yet — meaning "a later task owns
-this". **`pend` is bounded by task POSITION**: on the final task there is no later task to defer
-to, so the loop runs that task's gate with `STRICT=1` and a `pend` there is a failure.
+**A multi-task spec carries one gate per task**: `tasks/T<NN>-<slug>/verify.sh`, one
+directory per `tasks.txt` line, in order (`specs/20260828i-per-task-gates`; enforced —
+`ralph-build.sh` refuses a multi-task spec without a `tasks/` directory unless
+`RALPH_ALLOW_MONOLITHIC=1` marks a legacy re-run). The rules:
 
-State this plainly in every spec's verify.sh preamble (copy the block below): it is not enough to
-list the three verdicts; gate authors must know why a whole-run `STRICT=1` is the wrong fix — it
-promotes every later task's `pend` from the first task onward and no early task can pass.
+  - After task N the loop runs the gates for tasks **1..N** — cumulative, so a later task
+    that breaks an earlier one still fails, while nothing beyond N is ever consulted.
+  - A task gate asserts ONLY its own task's criteria. **`pend` is banned from task
+    gates** — there is nothing to defer, because later tasks' criteria are simply not
+    there. This is the point: the old whole-spec pend-staged gate was THE ROADMAP — an
+    executor that ran it read `pend acN (not built yet)` as a to-do and did a later
+    task's work early (20260828i defect 2; re-proved twice on 20260831a, 2026-08-31 —
+    `docs/runs/2026-08-31-the-watched-run.md`).
+  - The spec-level `verify.sh` holds ONLY convergence assertions — integration and
+    end-state — and runs once, at the end, under `STRICT=1`. No pend there either: at
+    convergence "not built yet" is a failure by definition.
+  - Every task-gate assertion is named by at least one mutant, and `verify.sh --self-test`
+    must kill them all (20260828i outcomes 5–6): an assertion no mutant can trip has never
+    been observed to work.
+  - Source `specs/lib/assert.sh` for the vocabulary; see any of
+    `specs/20260828k..20260830b` for the worked shape.
 
-```
-<!-- THE THREE-VERDICT CONTRACT — copy this preamble; do NOT write a two-verdict gate.
-      ralph runs verify.sh after EVERY task, then once more at the end with STRICT=1. A
-      check whose target belongs to a LATER task must report `pend`, not `no` — otherwise
-      task 1 is gated on task 4's work and can never pass, the loop burns all its retries,
-      and it stops for a human. (Cost us a full dogfood run on specs/model-watch,
-      2026-08-11 — the gate was correct and the STAGING was not.)
+A bonus the layout buys: skip-satisfied (`ralph-build.sh`, 20260828l) runs task N's own
+gate before dispatching it — so if an earlier task overshot and already did the work, task
+N is skipped gracefully instead of dying as an unwinnable no-op.
 
-        ok(){   echo "  PASS  $1"; }
-        no(){   echo "  FAIL  $1" >&2; fail=1; }
-        pend(){ if [ "${STRICT:-0}" = 1 ]; then no "$1 — still unbuilt at the final check (STRICT)"
-                else echo "  pend  $1 (not built yet)"; fi; }
+**A single-task spec** needs no `tasks/` directory: one spec-level `verify.sh`, no `pend`
+anywhere (with one task there is no later work to defer to).
 
-      Rule of thumb: presence-gate on the artifact, not the task number —
-        [ -f path/to/thing ] && { ...assert on it... } || pend "thing"
-      so the check arms itself as soon as the target exists, in whatever order the model
-      builds. ANCHOR ON THE TASK'S OWN NARROWEST DELIVERABLE — not a container above it,
-      not a detail below it. Too coarse and an EARLIER task's scaffolding arms a LATER
-      task's checks, flipping them pend->FAIL; because the gate is whole-spec, that earlier
-      task then fails forever on work not yet due and no retry can fix it. Too narrow and
-      the check never arms at all, the task is marked done, and the loop advances on a false
-      PASS — the worse of the two, because the line keeps moving. Measured 2026-08-18 in
-      notes-from-hearing: the FIRST task created the watch target's source file (an Xcode
-      target requires one), which armed five checks belonging to the FIFTH task and took the
-      gate from 45 PASS / 0 FAIL to 49 / 6. Verify a re-anchor in BOTH directions — earlier
-      task's output alone must pend, and a WRONG implementation of the later task must still
-      arm and FAIL. STRICT=1 turns every remaining `pend` into a FAIL, so "all tasks passed"
-      can never mean "half of it was never written". The flip side, and why ralph fails a
-      no-op attempt: an EMPTY tree also satisfies a pend-staged gate, so a task whose
-      executor got blocked would otherwise "pass" having written nothing.
+**Legacy note:** specs written before 20260828i use a whole-spec three-verdict
+(`ok`/`no`/`pend`) gate run after every task, with `STRICT=1` promoting `pend` to FAIL at
+the end. Read 20260828i for that contract when maintaining an old gate. Do not author new
+ones — the shape is deprecated, and the loop will refuse it.
 
-      Corollary for §9: keep task lines SEMANTICALLY RICH. Measured on the same dogfood —
-      "write model-watch.py: the sweep, the gate logic, the DRY_RUN output contract"
-      scored 17/19 first try, while "implement the whole model-watch feature" made the
-      model build something suggested by the NAME (a filesystem poller) and scored 7/19.
-      The task line anchors harder than the spec does; a vague one lets it drift to the
-      noun. Narrow tasks + pend-staged gate, never one mega-task with a monolithic gate.
-      -->
-```
+### Task granularity, and what a task's section may hold
 
-<!-- THE THREE-VERDICT CONTRACT — copy this preamble; do NOT write a two-verdict gate.
-     ralph runs verify.sh after EVERY task, then once more at the end with STRICT=1. A
-     check whose target belongs to a LATER task must report `pend`, not `no` — otherwise
-     task 1 is gated on task 4's work and can never pass, the loop burns all its retries,
-     and it stops for a human. (Cost us a full dogfood run on specs/model-watch,
-     2026-08-11 — the gate was correct and the STAGING was not.)
-
-       ok(){   echo "  PASS  $1"; }
-       no(){   echo "  FAIL  $1" >&2; fail=1; }
-       pend(){ if [ "${STRICT:-0}" = 1 ]; then no "$1 — still unbuilt at the final check (STRICT)"
-               else echo "  pend  $1 (not built yet)"; fi; }
-
-     Rule of thumb: presence-gate on the artifact, not the task number —
-       [ -f path/to/thing ] && { ...assert on it... } || pend "thing"
-     so the check arms itself as soon as the target exists, in whatever order the model
-     builds. ANCHOR ON THE TASK'S OWN NARROWEST DELIVERABLE — not a container above it,
-     not a detail below it. Too coarse and an EARLIER task's scaffolding arms a LATER
-     task's checks, flipping them pend->FAIL; because the gate is whole-spec, that earlier
-     task then fails forever on work not yet due and no retry can fix it. Too narrow and
-     the check never arms at all, the task is marked done, and the loop advances on a false
-     PASS — the worse of the two, because the line keeps moving. Measured 2026-08-18 in
-     notes-from-hearing: the FIRST task created the watch target's source file (an Xcode
-     target requires one), which armed five checks belonging to the FIFTH task and took the
-     gate from 45 PASS / 0 FAIL to 49 / 6. Verify a re-anchor in BOTH directions — earlier
-     task's output alone must pend, and a WRONG implementation of the later task must still
-     arm and FAIL. STRICT=1 turns every remaining `pend` into a FAIL, so "all tasks passed"
-     can never mean "half of it was never written". The flip side, and why ralph fails a
-     no-op attempt: an EMPTY tree also satisfies a pend-staged gate, so a task whose
-     executor got blocked would otherwise "pass" having written nothing.
-
-     Corollary for §9: keep task lines SEMANTICALLY RICH. Measured on the same dogfood —
-     "write model-watch.py: the sweep, the gate logic, the DRY_RUN output contract"
-     scored 17/19 first try, while "implement the whole model-watch feature" made the
-     model build something suggested by the NAME (a filesystem poller) and score 7/19.
-     The task line anchors harder than the spec does; a vague one lets it drift to the
-     noun. Narrow tasks + pend-staged gate, never one mega-task with a monolithic gate. -->
+  - Tasks share a spec when they share a gate and a design; anything else is either the
+    same task or a different spec (ratified 2026-08-31, after a docs-only task rode along
+    with a behavior task for no reason but habit).
+  - **A task's anchor section holds nothing but that task's own deliverables** (20260831a
+    Tuning log): the task line anchors harder than the spec, and a section carrying two
+    tasks' payloads gets both implemented by whichever task cites it first.
+  - Keep task lines SEMANTICALLY RICH. Measured on the model-watch dogfood —
+    "write model-watch.py: the sweep, the gate logic, the DRY_RUN output contract"
+    scored 17/19 first try, while "implement the whole model-watch feature" made the
+    model build something suggested by the NAME (a filesystem poller) and scored 7/19.
+    A vague line lets the work drift to the noun.
 
 <!-- A CHECK MUST TELL ITS SIGNAL FROM WHAT WOULD BE TRUE ANYWAY.
      This is the corollary of the amendment "Gates must prove they can fail", applied to the
