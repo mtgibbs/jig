@@ -1,0 +1,1 @@
+T1: on ralph-build.sh's final-STRICT stop path, default attempt to the skip sentinel ("${attempt:-skipped}") so an all-skipped run that fails the STRICT endgame exits 2 with its status stamped terminal instead of dying on an unbound variable; correct that path's stop message to name the STRICT endgame rather than "failed verify after N attempts"

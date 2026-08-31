@@ -1,0 +1,11 @@
+  FAIL  ac1: no skip — the satisfied task was dispatched (rc=0)
+  FAIL  ac1: the executor ran despite a green gate
+  PASS  ac1: the all-skipped green run exits 0
+  FAIL  ac2: no bound report — the hang was misread or unbounded (rc=0)
+  PASS  ac2: the task ran and the run completed (fail-closed skip, then real work)
+  FAIL  ac3: _task_satisfied does not call bound()
+  FAIL  ac3: a bare timeout(1) call survives in ralph-build.sh
+  FAIL  ac3: bound.sh is not sourced
+  PASS  ac4: ralph-build.sh passes bash -n
+
+VERIFY: failures above

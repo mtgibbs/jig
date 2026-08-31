@@ -1,0 +1,10 @@
+  PASS  ac4: control — the task was skipped (all-skipped path exercised)
+  PASS  ac4: control — the executor was never invoked
+  FAIL  ac1: the loop still dies on an unbound variable
+  FAIL  ac1: expected exit 2, got 1
+  PASS  ac2: the STRICT stop banner printed
+  PASS  ac2: the convergence gate's failing assertion printed
+  FAIL  ac3: the status file froze non-terminal — "phase":"passed"
+  PASS  ac5: ralph-build.sh passes bash -n
+
+VERIFY: failures above

@@ -1,0 +1,10 @@
+  PASS  ac4: control — the task was skipped (all-skipped path exercised)
+  PASS  ac4: control — the executor was never invoked
+  PASS  ac1: no unbound-variable crash
+  PASS  ac1: the STRICT stop exits 2 (stop-needs-human), not a crash code
+  PASS  ac2: the STRICT stop banner printed
+  PASS  ac2: the convergence gate's failing assertion printed
+  PASS  ac3: the status file is stamped terminal (phase stopped)
+  PASS  ac5: ralph-build.sh passes bash -n
+
+VERIFY: all checks passed
