@@ -195,6 +195,21 @@ EOF
     | cut -c4-
 }
 
+# _reset_tree — the three-step failure reset, single-sourced so the verify-failure and
+# scope-violation paths cannot drift apart. The clean spares the loop's own bookkeeping
+# (issue #21): a NEW spec's status dir / index / metrics are untracked until first merged,
+# and a clean that eats them leaves a worker that cannot classify itself
+# (ADR-001 D6). Litter is the executor's; the record is ours. Same fixed set
+# _scope_violations excludes, and it must hold in consumer repos whose .gitignore says
+# nothing about .evidence — hence -e excludes here, not gitignore policy.
+_reset_tree() {
+  git -C "$ROOT" reset -q -- . 2>/dev/null || true   # index to HEAD so checkout -- can drop staged files
+  git -C "$ROOT" checkout -- . 2>/dev/null || true   # tracked changes from the bad attempt
+  git -C "$ROOT" clean -fd \
+    -e '.evidence/status' -e '.evidence/metrics.jsonl' \
+    -e '.evidence/index-*' -e '.evidence/runs' -- . 2>/dev/null || true
+}
+
 # Validate UP FRONT, before any task runs. A missing gate discovered mid-loop is folded into that
 # attempt's verify feedback and retried three times, so the message never reaches the loop's own
 # output and a human reading the run sees a model that could not satisfy a gate rather than a
@@ -539,9 +554,7 @@ $(_scope_lines "$scope_file")
 Out-of-scope paths it touched:
 $_viol
 Redo the work touching only in-scope paths."
-        git -C "$ROOT" reset -q -- . 2>/dev/null || true
-        git -C "$ROOT" checkout -- . 2>/dev/null || true
-        git -C "$ROOT" clean -fd -- . 2>/dev/null || true
+        _reset_tree
         continue
       fi
     fi
@@ -639,12 +652,11 @@ Keep them passing while you fix the failures above. Do not trade one check for a
 A previous attempt FAILED verification with:
 $(printf '%s' "$out" | grep -E 'FAIL|VERIFY' | head -20)
 Fix exactly those failures.${_regression_block}"
-    git -C "$ROOT" reset -q -- . 2>/dev/null || true   # reset index to HEAD so checkout -- can drop staged files
-    git -C "$ROOT" checkout -- . 2>/dev/null || true   # reset tracked changes from the bad attempt
-    git -C "$ROOT" clean -fd -- . 2>/dev/null || true  # ...and untracked files/dirs it created —
-    # `checkout --` alone leaves these behind, letting an out-of-scope file from attempt N
-    # survive into attempt N+1 (and even arm a later task's PEND-gated checks early — see
-    # the rom-library-structure dogfood PR for the real failure this caused).
+    # `checkout --` alone would leave untracked files behind, letting an out-of-scope file
+    # from attempt N survive into attempt N+1 (and even arm a later task's PEND-gated
+    # checks early — see the rom-library-structure dogfood PR for the real failure this
+    # caused); _reset_tree's clean takes them, sparing only the loop's own bookkeeping.
+    _reset_tree
   done
 
   if [ "$passed" != 1 ]; then

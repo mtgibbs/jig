@@ -1,0 +1,12 @@
+  PASS  ac1: another worker's status file survived the failure reset
+  PASS  ac2: the untracked index survived
+  PASS  ac2: untracked metrics survived
+  PASS  ac3: litter file removed
+  PASS  ac3: litter directory removed
+  PASS  ac4: no 'Removing .evidence' in the run output
+  PASS  ac4: positive control — the clean announced removing the litter
+  PASS  ac5: the run exited 2 (stop-needs-human)
+  PASS  ac6: 'clean -fd' appears once — verify-failure and scope paths share the helper
+  PASS  ac7: ralph-build.sh passes bash -n
+
+VERIFY: all checks passed
