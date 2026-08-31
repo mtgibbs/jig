@@ -1,0 +1,50 @@
+── T01-run-convergence-gate ──
+  PASS  ac1: the spec-level convergence gate RAN at the final task
+  PASS  ac1: a red convergence gate fails the run (rc=2)
+  PASS  ac2: green task gates + green convergence exit 0
+  PASS  ac3: two-task run converged with exactly one convergence run
+  PASS  ac4: legacy no-tasks-dir path still judged by the spec verify (rc=0)
+  PASS  ac5: ralph-build.sh passes bash -n
+
+VERIFY: T01 all checks passed
+── T02-strategy-env-preflight ──
+  PASS  ac1: refused with exit 3 when FX_REQUIRED_KEY is unset
+  PASS  ac1: the refusal names the missing variable
+  PASS  ac1: no phase ran before the refusal
+  PASS  ac2: an empty required variable is refused the same way
+  PASS  ac3: satisfied env reaches the build phase and exits 0 (rc=0)
+  PASS  ac3: the value never appears in output
+  PASS  ac4: undeclared strategy runs as before (rc=0)
+  PASS  ac5: no built-in conf declares required env
+  PASS  ac6: operator-exported requirement is enforced when the conf declares none
+  PASS  ac6: satisfied operator-exported requirement proceeds (rc=0)
+  PASS  ac7: loops/README.md documents the knob as operator-declared
+  PASS  ac8: run-loop.sh passes bash -n
+
+VERIFY: T02 all checks passed
+── T03-judge-prompt-logged ──
+  PASS  ac1: ralph-judge.sh references ralph-log.sh
+  PASS  ac2: a fallback log_prompt definition exists for the file-absent path
+  PASS  ac3: ralph-log.sh defines log_prompt (the import target is real)
+  PASS  ac4: ralph-log.sh is sourced (line 31) before the judge's log_prompt call (line 270)
+  PASS  ac5: ralph-judge.sh passes bash -n
+
+VERIFY: T03 all checks passed
+── T04-index-guard-label ──
+  PASS  ac1: no first-word expansion (colon kept) remains in ralph-build.sh
+  PASS  ac2: the guard's WARN lines use the bare label expansion
+  PASS  ac2: the row probe greps for the bare label
+  PASS  ac3: bare-label probe matches a real indexer row (label 'T1')
+  PASS  ac4: ralph-build.sh passes bash -n
+
+VERIFY: T04 all checks passed
+── T05-executor-gate-edits-refused ──
+  PASS  ac1: a spec-dir-editing attempt cannot take the run green (rc=2)
+  PASS  ac1: the refusal is explicit in the output
+  PASS  ac2: the gate file was restored to its committed content
+  PASS  ac3: the refusal names the edited gate file
+  PASS  ac4: an attempt touching only product files still converges (rc=0)
+  PASS  ac5: ralph-build.sh passes bash -n
+
+VERIFY: T05 all checks passed
+VERIFY: all task gates passed

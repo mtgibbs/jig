@@ -81,6 +81,21 @@ branch="$(git branch --show-current 2>/dev/null || true)"
 . "$ENV_FILE"
 : "${STRATEGY_PHASES:?$ENV_FILE must set STRATEGY_PHASES}"
 
+# Required environment, declared per strategy: STRATEGY_ENV_REQUIRED="VAR1 VAR2".
+# Executor bindings take credentials from the environment BY CONTRACT (20260825c —
+# acquisition is the operator's job), so a forgotten export must fail HERE, named,
+# before any phase — not twenty minutes in as a mid-run auth abort (notes-from-hearing
+# run 1, 2026-08-31). Names only; values are never read into output.
+_env_missing=""
+for _v in ${STRATEGY_ENV_REQUIRED:-}; do
+  eval "_val=\${$_v:-}"
+  [ -n "$_val" ] || _env_missing="$_env_missing $_v"
+done
+if [ -n "$_env_missing" ]; then
+  echo "run-loop: strategy '$STRATEGY' requires environment not set:$_env_missing — export it and relaunch (the executor binding reads it; this script never does)" >&2
+  exit 3
+fi
+
 # Preflight: validate tools and MCP declared in spec and strategy
 FIELD="$SCRIPT_DIR/spec-field.sh"
 misses=""

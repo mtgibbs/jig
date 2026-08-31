@@ -542,6 +542,33 @@ Redo the work touching only in-scope paths."
       fi
     fi
 
+    # The spec-dir guard (20260831r, notes-from-hearing run 1): the executor edited its own
+    # task gate in the same attempt that satisfied it. That edit happened to widen coverage;
+    # one that WEAKENS a check rides into the commit the same silent way — reward hacking's
+    # front door. Fail-closed, like the scope guard above: an attempt that changes ANYTHING
+    # under the spec dir is rejected wholesale before the gate. A genuine gate blind spot
+    # then deadlocks to escalation, which is correct — humans own gate changes.
+    _spec_edits="$( { git -C "$ROOT" diff --name-only -- "$SPEC_DIR"
+                      git -C "$ROOT" ls-files --others --exclude-standard -- "$SPEC_DIR"
+                    } 2>/dev/null | sort -u )"
+    if [ -n "$_spec_edits" ]; then
+      echo "  ✗ attempt $attempt edited the spec dir — rejected before the gate (the executor does not change the ruler)" >&2
+      printf '%s\n' "$_spec_edits" | sed 's/^/      | /' >&2
+      LOG_OUTCOME="spec-edit"; LOG_ENDED="$(date +%s)"; LOG_RECORDED=1; log_meta "$HB_TASK" "$attempt"
+      log_failure "$HB_TASK" "$attempt" "attempt rejected: it modified the spec dir
+$_spec_edits"
+      hb_write failed false
+      feedback="
+A previous attempt MODIFIED files under $SPEC_DIR and was rejected before the gate ran;
+NOTHING was kept, including any product work it also did. The spec, its tasks and its
+gates are the operator's ruler — never edit them. If a gate seems wrong or unpassable,
+say so in your transcript and stop; a human owns gate changes. Files it touched:
+$_spec_edits
+Redo the work without touching $SPEC_DIR."
+      _reset_tree
+      continue
+    fi
+
     # The gate: deterministic, external. The model does NOT get to say "done".
     hb_write verifying
     # Last task is HB_TIDX equals HB_TOTAL. If HB_TOTAL is empty/0, lenient (safe default).
@@ -611,9 +638,9 @@ Redo the work touching only in-scope paths."
       # able to fail the run it is recording.
       _idx="$ROOT/.evidence/index-$(basename "$SPEC_DIR").jsonl"
       if [ ! -s "$_idx" ]; then
-        echo "WARN: no $(basename "$_idx") after ${HB_TASK%% *} — the record was not collected" >&2
-      elif ! grep -q "\"task\": *\"${HB_TASK%% *}\"" "$_idx" 2>/dev/null; then
-        echo "WARN: $(basename "$_idx") has no row for ${HB_TASK%% *} — indexing ran but did not record this task" >&2
+        echo "WARN: no $(basename "$_idx") after ${HB_TASK%%:*} — the record was not collected" >&2
+      elif ! grep -q "\"task\": *\"${HB_TASK%%:*}\"" "$_idx" 2>/dev/null; then
+        echo "WARN: $(basename "$_idx") has no row for ${HB_TASK%%:*} — indexing ran but did not record this task" >&2
       fi
       break
     fi

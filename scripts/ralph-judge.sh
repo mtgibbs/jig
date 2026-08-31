@@ -24,6 +24,18 @@ JUDGE_TIMEOUT="${JUDGE_TIMEOUT:-900}"
 EXECUTOR_TIMEOUT="${EXECUTOR_TIMEOUT:-600}"
 GATE_TIMEOUT="${GATE_TIMEOUT:-300}"
 
+# Prompt artefacts — same guarded contract as the build loop (ralph-build.sh sources this
+# file for the identical reason; either may be absent without breaking the other). Without
+# it, every round printed "log_prompt: command not found" and no judge prompt was ever
+# recorded (both notes-from-hearing runs, 2026-08-31). RALPH_AGENT names the run dir.
+if [ -f "$(dirname "$0")/ralph-log.sh" ]; then
+  # shellcheck source=/dev/null
+  . "$(dirname "$0")/ralph-log.sh"
+  RALPH_AGENT="${RALPH_AGENT:-judge}" log_init
+else
+  log_init() { :; }; log_prompt() { :; }
+fi
+
 outcome="aborted"; rounds_run=0; s_base=""; total_base=""
 LEDGER=""; REPORT=""
 # One id per invocation, stamped onto every ledger record by ledger_add.
