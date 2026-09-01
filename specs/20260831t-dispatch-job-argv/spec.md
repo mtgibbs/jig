@@ -1,9 +1,9 @@
 # Spec: 20260831t-dispatch-job-argv
 
-- **Status:** In progress v1.0
+- **Status:** In progress v1.2
 - **Owner:** mtgibbs
 - **Constitution:** `specs/constitution.md` + `specs/amendments.md`
-- **Touches:** `scripts/dispatch/dispatcher.py`, `scripts/dispatch/README.md`
+- **Touches:** `scripts/dispatch/dispatcher.py`, `scripts/dispatch/README.md`, `docker/dispatcher.VERSION`
 - **Tools:** git, bash, python3
 - **MCP:** none
 
@@ -77,6 +77,16 @@ spec renders TO — T1 ac5 pins the pass-through untouched), `scripts/dispatch/a
 (hands the intent to the same `dispatch()`), issue #116 (the kubectl version pin is a
 separate image-build concern), publishing the fixed dispatcher image and bumping
 pi-cluster's tag (CI + a pi-cluster PR after merge).
+
+**Amended on review (v1.2):** `docker/dispatcher.VERSION` moved IN scope, 0.1.0 -> 0.1.1.
+v1.1 left it out on the reasoning that publishing is CI's job. That was wrong in a way
+that would have swallowed this whole fix: `build-images.yml` pushes exactly one tag,
+`<image>:${version}`, so an unbumped VERSION means CI overwrites `harness-dispatcher:0.1.0`
+in place — and pi-cluster pins that tag with no `imagePullPolicy`, which for a non-`latest`
+tag defaults to `IfNotPresent`. Every node that already pulled 0.1.0 would keep the broken
+image, `harness-fleet` runs no image automation to notice the digest moved, and the
+after-merge step "bump pi-cluster's tag" would have had nothing to bump to. Publishing
+stays CI's; naming the version a fix ships under belongs to the spec that makes the fix.
 
 ## 6. Prior decisions / facts the implementer must know · [S — Structure]
 
