@@ -1,3 +1,7 @@
+# MUTANT: ac2
+# TARGET: scripts/mutant-ledger.py
+# WHY: with zero rows the section is skipped entirely — an unmeasured fleet becomes
+# WHY: indistinguishable from an unbuilt feature.
 #!/usr/bin/env python3
 """mutant-ledger.py — render the gate-selftest evidence store into the Mutant Ledger.
 
@@ -103,9 +107,7 @@ def render_worksens_md(ws):
       "SHOULD go unnoticed (the equivalent-mutant problem), which is why these rows never "
       "fail a run and must never be read as gate failures.\n")
     if not ws:
-        a("No sensitivity rows recorded yet — the loop writes `worksens-<slug>.jsonl` at "
-          "every task commit whenever `SELFTEST_EVID` is set.\n")
-        return "\n".join(out)
+        return ""
     a("| task commit | probes | noticed | unnoticed | hung |")
     a("|---|---:|---:|---:|---:|")
     for w in ws:

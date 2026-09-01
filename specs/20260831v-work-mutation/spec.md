@@ -1,7 +1,7 @@
 # Spec: 20260831v-work-mutation
 
-- **Status:** Draft v0.1 — FOR REVIEW (the OQ2 expansion Matt called for on 20260831u's
-  wrap). Builds on `20260831u`; stacked on jig PR #120.
+- **Status:** Done v1.0 — spec merged 2026-09-01 (#121, into #120's branch; the spec
+  commit rides this implementation PR to main), implemented the same night.
 - **Owner:** mtgibbs
 - **Constitution:** `specs/constitution.md` + `specs/amendments.md`
 - **Touches:** `scripts/work-mutate.sh` (new), `scripts/ralph-build.sh`,
@@ -181,6 +181,16 @@ reading is of itself.
 
 ## 14. Tuning log
 
+- **v1.0 (2026-09-01, at implementation)** — Built as spec'd; one gate fixed by its own
+  corpus on the first selftest run: `rows-without-kind.sh` SURVIVED because T01's ac4
+  grepped the whole jsonl and the `run_complete` marker — a separate printf path — still
+  carried `kind:"work"` when the probe rows lost it. The check now reads a probe row
+  (one carrying `"operator"`). A SECOND corpus find followed: `site-labels-leak-the-
+  workspace` survived *sometimes* — T01's ac2 compared only budget-2 runs, and the
+  commit-seeded sample occasionally picked the two drop-line probes, excluding every
+  tainted revert-hunk site; the flake tracked the fixture commit's timestamp. ac2 now
+  compares full-set runs (labels) AND budgeted runs (the sampler). Two real blind spots
+  in the installing spec's own gates, both caught by their corpora on day one.
 - **v0.1 (2026-08-31)** — Drafted as the OQ2 expansion the same night 20260831u merged
   its spec. Telemetry-not-enforcement is the founding posture; the commit as the probe
   unit and deterministic seeding are what make every ledger row reproducible.

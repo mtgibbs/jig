@@ -1,9 +1,0 @@
-# MUTANT: ac1
-# TARGET: <replace-with-the-repo-relative-file-this-task-changes>
-# WHY: <the plausible wrong implementation a lazy reading of ac1 would accept>
-#
-# TEMPLATE — the loop refuses a spec whose corpus is still this stub (20260831u).
-# Author one mutant per assertion id by INVERTING the assertion — write the wrong
-# implementation that would fool the check (specs/TEMPLATE.md 11) — then delete
-# this file. Everything below the header becomes the whole replacement TARGET file.
-<replace this body with the defective implementation>

@@ -1,3 +1,7 @@
+# MUTANT: ac2
+# TARGET: scripts/ralph-build.sh
+# WHY: the operator's RALPH_WORK_MUTANTS=0 is overridden back to the default inside the
+# WHY: hook — the off switch exists, reads as consulted, and does nothing.
 #!/usr/bin/env bash
 # ralph-build.sh — THE bounded SDD build loop. One loop; the executor is a binding
 # (RALPH_EXEC_CMD), so this drives qwen, Codex, or anything else without being copied.
@@ -673,9 +677,9 @@ Redo the work without touching $SPEC_DIR."
       # conviction — the equivalent-mutant problem), so nothing here may change the run's
       # exit, retries, or history; the `|| true` and the display-only grep are that
       # contract, not sloppiness. RALPH_WORK_MUTANTS=0 disables entirely.
-      if [ "${RALPH_WORK_MUTANTS:-4}" != "0" ] && [ -n "${_st_gate:-}" ]; then
+      if [ -n "${_st_gate:-}" ]; then
         _wm_out="$( cd "$ROOT" && SELFTEST_EVID="${SELFTEST_EVID:-$ROOT/.evidence}" \
-            RALPH_WORK_MUTANTS="${RALPH_WORK_MUTANTS:-4}" \
+            RALPH_WORK_MUTANTS=4 \
             GATE_SELFTEST_TIMEOUT="${GATE_SELFTEST_TIMEOUT:-90}" \
             bash "$(dirname "$0")/work-mutate.sh" "$(dirname "$_st_gate")" 2>&1 )" || true
         printf '%s\n' "$_wm_out" | grep '^work-sensitivity:' | sed 's/^/  /'

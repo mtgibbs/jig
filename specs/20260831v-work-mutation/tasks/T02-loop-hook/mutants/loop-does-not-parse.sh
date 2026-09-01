@@ -1,3 +1,6 @@
+# MUTANT: ac4
+# TARGET: scripts/ralph-build.sh
+# WHY: a stray fi. bash -n refuses the file.
 #!/usr/bin/env bash
 # ralph-build.sh — THE bounded SDD build loop. One loop; the executor is a binding
 # (RALPH_EXEC_CMD), so this drives qwen, Codex, or anything else without being copied.
@@ -774,3 +777,5 @@ hb_write done true
 bus_say "done — ${HB_TOTAL:-?}/${HB_TOTAL:-?} tasks passed verify on $(git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null). Branch ready for PR review."
 echo "════════ all tasks passed verify — branch ready for PR review ════════"
 git -C "$ROOT" log --oneline -"$(grep -cve '^[[:space:]]*$' "$TASKS")"
+
+fi

@@ -1,3 +1,7 @@
+# MUTANT: ac1
+# TARGET: scripts/ralph-build.sh
+# WHY: the sensitivity hook is gone from the green path — every run converges exactly as
+# WHY: before 20260831v and the research dataset silently stops growing.
 #!/usr/bin/env bash
 # ralph-build.sh — THE bounded SDD build loop. One loop; the executor is a binding
 # (RALPH_EXEC_CMD), so this drives qwen, Codex, or anything else without being copied.
@@ -666,20 +670,6 @@ Redo the work without touching $SPEC_DIR."
       passed=1; hb_write passed true
       bus_say "✓ ${task%%:*} passed verify (attempt $attempt/$((RETRIES + 1))) — ${HB_TIDX}/${HB_TOTAL:-?}"
       retry_record "$out"
-      # Sensitivity telemetry (20260831v): probe the commit the gate just blessed — revert
-      # a hunk, drop an added line — and record whether the gate NOTICES. Runs after the
-      # commit LANDS because the sha is what makes every row reproducible. NON-BLOCKING by
-      # contract: verdicts are research data (an UNNOTICED probe is a lead, not a
-      # conviction — the equivalent-mutant problem), so nothing here may change the run's
-      # exit, retries, or history; the `|| true` and the display-only grep are that
-      # contract, not sloppiness. RALPH_WORK_MUTANTS=0 disables entirely.
-      if [ "${RALPH_WORK_MUTANTS:-4}" != "0" ] && [ -n "${_st_gate:-}" ]; then
-        _wm_out="$( cd "$ROOT" && SELFTEST_EVID="${SELFTEST_EVID:-$ROOT/.evidence}" \
-            RALPH_WORK_MUTANTS="${RALPH_WORK_MUTANTS:-4}" \
-            GATE_SELFTEST_TIMEOUT="${GATE_SELFTEST_TIMEOUT:-90}" \
-            bash "$(dirname "$0")/work-mutate.sh" "$(dirname "$_st_gate")" 2>&1 )" || true
-        printf '%s\n' "$_wm_out" | grep '^work-sensitivity:' | sed 's/^/  /'
-      fi
       # $(dirname $0), NOT a bare `scripts/…`: that path was relative to the TARGET
       # worktree, and a project that correctly owns only specs and gates has no scripts/
       # dir at all. notes-from-hearing#9 removed the harness from the product repo exactly

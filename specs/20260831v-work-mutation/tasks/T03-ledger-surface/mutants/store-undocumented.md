@@ -1,3 +1,8 @@
+# MUTANT: ac4
+# TARGET: .evidence/README.md
+# WHY: the worksens store vanishes from the evidence map — the next reader of .evidence/
+# WHY: finds files no document explains, and the enforcement/telemetry distinction is
+# WHY: nowhere on paper.
 # .evidence/ — the in-repo record of what the loops actually did
 
 Everything a run leaves behind is keyed by **spec slug** and committed here, per the
@@ -21,10 +26,6 @@ treats `~/.harness/` only as a fallback for what a run has not yet committed.
 - `selftest-<slug>.jsonl` — mutant kill/survivor rows from `scripts/gate-selftest.sh`
   (written when `SELFTEST_EVID` is set; one row per mutant with the install-time diff,
   plus a `run_complete` marker per corpus run — spec `20260830f-mutant-observability`)
-- `worksens-<slug>.jsonl` — work-sensitivity probe rows from `scripts/work-mutate.sh`
-  (spec `20260831v-work-mutation`): the gate re-run against mechanical mutations of the
-  task's OWN committed diff. TELEMETRY, never enforcement — an UNNOTICED probe is a lead,
-  not a conviction, and unlike a corpus survivor it fails nothing
 - `mutant-ledger.{md,html}` — the rendered Mutant Ledger; regenerate with
   `scripts/mutant-ledger.py`, never edit
 - `scripts/selftest-sweep.sh` (run from anywhere) records every corpus above in one
