@@ -1,3 +1,8 @@
+# MUTANT: ac6
+# TARGET: scripts/dispatch/coordinator.py
+# WHY: returns a well-formed 200 with an empty body. Status code right, content type right,
+# WHY: route reachable — and the board renders an empty panel that looks like a run with no
+# WHY: mutants rather than a route that returned nothing.
 #!/usr/bin/env python3
 """coordinator.py — receives what workers push, serves what a human watches.
 
@@ -137,7 +142,7 @@ class H(BaseHTTPRequestHandler):
             raw = r["artifacts"].get(name) if r else None
         if raw is None:
             return self._json(404, {"error": "no such artifact", "key": key, "name": name})
-        return self._plain(200, raw)
+        return self._plain(200, b"")
 
     def _html(self, body):
         raw = body.encode()

@@ -1,0 +1,76 @@
+── T01-selftest-artifact ──
+  PASS  ac1: the fixture run converged (rc=0) — the push did not disturb it
+  PASS  ac1: a request reached the coordinator at .../artifacts/selftest
+  PASS  ac3: the pushed record carries the mutant's verdict
+  PASS  ac3: every identifying field survives compaction (mutant, assertion, target, why)
+  PASS  ac3: the run_complete summary line is included
+  PASS  ac3: the record holds exactly one run_id — this run's rows, not the whole file
+  PASS  ac4: no diff on a KILLED row
+  PASS  ac4: the survivor's row left the worker even though the run refused
+  PASS  ac4: a non-KILLED row carries its install-time diff
+  PASS  ac4: the diff is clipped to SELFTEST_ARTIFACT_DIFF_LINES and says so
+  PASS  ac2: an unset HARNESS_REPORT_URL pushed nothing (control: ac1 proved this sink records)
+  PASS  ac2: the unconfigured run said nothing about pushing
+  PASS  ac2: the unconfigured run still converged
+  PASS  ac5: an unreachable coordinator left the run's exit code alone (rc=0)
+  PASS  ac5: the run did not hang waiting on the dead coordinator (20s)
+---
+VERIFY: PASS
+/Users/mtgibbs/dev/harness/specs/20260831s-live-board-evidence/tasks/T01-selftest-artifact/verify.sh: line 28:  7329 Terminated: 15          python3 "$W/sink.py" "$SINK_LOG" > "$W/port" 2> "$W/sink.err"
+── T02-artifact-read ──
+  PASS  ac9 control: an unauthenticated WRITE is refused (401) — the token is in effect
+  PASS  ac6: GET /api/artifact returns 200 for a stored artifact
+  PASS  ac6: the response carries the artifact's bytes
+  PASS  ac6: the bytes are returned verbatim, not re-wrapped
+  PASS  ac6: an unencoded run key in the query resolves too
+  PASS  ac10: artifacts are served text/plain; charset=utf-8
+  PASS  ac7: a request with no key is 400
+  PASS  ac7: the 400 names the missing parameter (key)
+  PASS  ac7: a request with no name is 400
+  PASS  ac7: the 400 names the missing parameter (name)
+  PASS  ac8 control: /api/runs reports the seeded run before the 404s
+  PASS  ac8: an unknown run is 404
+  PASS  ac8: a known run with an unknown artifact is 404
+  PASS  ac8: the set of runs the board reports is byte-identical across the 404s
+  PASS  ac9: an artifact read succeeds with no Authorization header, matching /api/runs
+---
+VERIFY: PASS
+/Users/mtgibbs/dev/harness/specs/20260831s-live-board-evidence/tasks/T02-artifact-read/verify.sh: line 26: 29505 Terminated: 15          COORD_PORT="$PORT" HARNESS_REPORT_TOKEN="$TOK" python3 "$COORD" > "$W/coord.out" 2>&1
+── T03-board-mutant-panel ──
+  PASS  scope: the panel region is present and non-degenerate (79 lines)
+  PASS  scope: the region is a proper subset of board.html — the filter took effect
+  PASS  ac11: the panel fetches its rows from /api/artifact
+  PASS  ac11: the panel selects the selftest artifact kind
+  PASS  ac11: all four verdicts are handled (KILLED, SURVIVOR, WRONG-REASON, HUNG)
+  PASS  ac12: VRANK orders SURVIVOR (0) ahead of KILLED (3)
+  PASS  ac12: the rows are sorted through VRANK
+  PASS  ac13: rows render assertion, target, why and diff
+  PASS  ac14 control: the innerHTML probe finds the 6 use(s) elsewhere in board.html
+  PASS  ac14: no innerHTML inside the panel region
+  PASS  ac14: the panel inserts its fields with textContent
+  PASS  ac15: the panel parses the artifact line by line
+  PASS  ac15: the JSON.parse itself is guarded, so one bad line cannot take the panel down
+---
+VERIFY: PASS
+── T04-local-board-service ──
+  PASS  ac16: jig-board.sh start exits 0
+  PASS  ac16: start prints the board URL (port 59001)
+  PASS  ac16: the pidfile is written to .jig/board.pid
+  PASS  ac16: the recorded pid names a live process
+  PASS  ac16: the board answers /api/runs on 59001
+  PASS  ac17: a second start is a no-op — same pid, exit 0
+  PASS  ac17: status on a running board exits 0
+  PASS  ac17: status names the port
+  PASS  ac17: stop ends the process
+  PASS  ac17: stop with nothing running exits 0 (idempotent)
+  PASS  ac18: run-loop.sh --board completes its phases (rc=0)
+  PASS  ac18: the board URL is printed before the phases
+  PASS  ac18: the phase saw HARNESS_REPORT_URL pointing at the board
+  PASS  ac19: the unflagged run still completes
+  PASS  ac19: no board was started without --board
+  PASS  ac19: the phase saw HARNESS_REPORT_URL unset, exactly as today (control: ac18 proved the probe reads it)
+  PASS  ac20: docs/coordinator.md documents jig-board.sh
+  PASS  ac20: docs/coordinator.md documents the --board flag
+---
+VERIFY: PASS
+VERIFY: all task gates passed

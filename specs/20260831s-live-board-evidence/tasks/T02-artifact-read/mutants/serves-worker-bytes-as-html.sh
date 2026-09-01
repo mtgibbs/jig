@@ -1,3 +1,8 @@
+# MUTANT: ac10
+# TARGET: scripts/dispatch/coordinator.py
+# WHY: serves artifacts as text/html so a diff renders with formatting in a browser tab.
+# WHY: The bytes are worker-supplied and the board is same-origin with the control route that
+# WHY: stops a run; a WHY line containing a script tag executes there.
 #!/usr/bin/env python3
 """coordinator.py — receives what workers push, serves what a human watches.
 
@@ -107,7 +112,7 @@ class H(BaseHTTPRequestHandler):
         # as anything a browser will parse as markup, a `why` field containing a script tag
         # executes there. The one content type that cannot is the one this route uses.
         self.send_response(code)
-        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(raw)))
         self.end_headers()
         self.wfile.write(raw)

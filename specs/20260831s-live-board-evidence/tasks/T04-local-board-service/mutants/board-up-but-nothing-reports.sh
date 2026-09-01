@@ -1,3 +1,8 @@
+# MUTANT: ac18
+# TARGET: scripts/run-loop.sh
+# WHY: brings the board up and prints its URL without exporting HARNESS_REPORT_URL. Every
+# WHY: visible sign of success is there — the service starts, the link is printed, the browser
+# WHY: opens — and the board stays empty for the whole run.
 #!/usr/bin/env bash
 # run-loop.sh — run a named loop strategy against a spec.
 #
@@ -185,9 +190,7 @@ echo "permissions: recorded, not verified"
 if [ "$BOARD" = 1 ]; then
   bash "$SCRIPT_DIR/jig-board.sh" start \
     || { echo "run-loop: --board was requested and the board did not start" >&2; exit 3; }
-  HARNESS_REPORT_URL="$(bash "$SCRIPT_DIR/jig-board.sh" url)"
-  export HARNESS_REPORT_URL
-  echo "board:    $HARNESS_REPORT_URL"
+  echo "board:    $(bash "$SCRIPT_DIR/jig-board.sh" url)"
 fi
 
 for phase in $STRATEGY_PHASES; do

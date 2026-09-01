@@ -1,3 +1,8 @@
+# MUTANT: ac1
+# TARGET: scripts/ralph-log.sh
+# WHY: the compaction runs, the temp file is written, and nothing is POSTed. Everything a
+# WHY: reader would grep for is present — the function exists, it is called from the loop, it
+# WHY: builds a correct record — and the verdicts still never leave the worker.
 # shellcheck shell=bash
 # ralph-log.sh — keep the evidence from a failed attempt. SOURCED, not executed.
 #
@@ -519,7 +524,6 @@ with open(out, "w", encoding="utf-8") as fh:
                         "\n--- diff clipped at %d lines ---" % clip
         fh.write(json.dumps(r) + "\n")
 ' >/dev/null 2>&1 || true
-  ralph_log_artifact_push selftest "$tmp" "$task" "$attempt"
   rm -f "$tmp" 2>/dev/null
   return 0
 }

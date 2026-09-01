@@ -1,3 +1,9 @@
+# MUTANT: ac8
+# TARGET: scripts/dispatch/coordinator.py
+# WHY: uses _touch instead of RUNS.get, which is the idiom every other handler in this file
+# WHY: uses. It still 404s correctly. It also creates a row for the key that was not found and
+# WHY: runs oldest-first eviction to make space for it — a GET that pushes a real run off the
+# WHY: board (harness#46, the same bug one route over).
 #!/usr/bin/env python3
 """coordinator.py — receives what workers push, serves what a human watches.
 
@@ -133,8 +139,8 @@ class H(BaseHTTPRequestHandler):
             # oldest-first eviction — so a read for a key that does not exist would put a ghost
             # on the board and evict a real run's record to make room for it. A GET must not be
             # able to change what the board says.
-            r = RUNS.get(key)
-            raw = r["artifacts"].get(name) if r else None
+            r = _touch(key)
+            raw = r["artifacts"].get(name)
         if raw is None:
             return self._json(404, {"error": "no such artifact", "key": key, "name": name})
         return self._plain(200, raw)

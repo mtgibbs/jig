@@ -1,3 +1,8 @@
+# MUTANT: ac5
+# TARGET: scripts/ralph-log.sh
+# WHY: checks the coordinator is reachable before pushing and aborts the run when it is not.
+# WHY: Reads like good hygiene; it makes a laptop run with a stale HARNESS_REPORT_URL fail at the
+# WHY: first green gate, and turns fire-and-forget into a dependency.
 # shellcheck shell=bash
 # ralph-log.sh — keep the evidence from a failed attempt. SOURCED, not executed.
 #
@@ -519,6 +524,8 @@ with open(out, "w", encoding="utf-8") as fh:
                         "\n--- diff clipped at %d lines ---" % clip
         fh.write(json.dumps(r) + "\n")
 ' >/dev/null 2>&1 || true
+  curl -sf --connect-timeout 2 "${HARNESS_REPORT_URL%/}/api/runs" >/dev/null 2>&1 \
+    || { echo "selftest push: coordinator unreachable" >&2; exit 7; }
   ralph_log_artifact_push selftest "$tmp" "$task" "$attempt"
   rm -f "$tmp" 2>/dev/null
   return 0

@@ -1,3 +1,8 @@
+# MUTANT: ac14
+# TARGET: scripts/dispatch/board.html
+# WHY: renders the WHY with innerHTML so an author can put a bit of emphasis in it. Every
+# WHY: field on this row came off the worker, and this page is same-origin with the control
+# WHY: route that stops a run.
 <title>Jig Fleet</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
@@ -302,7 +307,7 @@ function mutantPanel(host,txt){
     h.appendChild(el('span','mid', r.mutant||'(unnamed mutant)'));
     h.appendChild(el('span','mmeta','assertion '+(r.assertion||'?')+' · target '+(r.target||'?')));
     card.appendChild(h);
-    card.appendChild(el('div','mwhy', r.why||''));
+    const _w=el('div','mwhy'); _w.innerHTML=r.why||''; card.appendChild(_w);
     // The diff is HOW THE MUTANT WAS FORMED — the one thing that exists nowhere else once the
     // worker is gone. It rides only on rows that were not killed; a killed mutant's diff is
     // reconstructible from the corpus file committed beside the gate.

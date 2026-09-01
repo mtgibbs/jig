@@ -1,3 +1,8 @@
+# MUTANT: ac15
+# TARGET: scripts/dispatch/board.html
+# WHY: parses each line without a guard. The artifact is clipped at a byte cap BY DESIGN, so
+# WHY: its last line is routinely half a JSON object — and the panel that exists to be readable
+# WHY: when something went wrong throws instead of rendering.
 <title>Jig Fleet</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
@@ -261,8 +266,7 @@ function parseSelftest(txt){
   (txt||'').split('\n').forEach(ln=>{
     ln=ln.trim(); if(!ln) return;
     let o;
-    try{ o=JSON.parse(ln); }
-    catch(e){ bad++; return; }
+    o=JSON.parse(ln);
     if(o && o.run_complete) summary=o;
     else if(o && o.verdict) rows.push(o);
   });

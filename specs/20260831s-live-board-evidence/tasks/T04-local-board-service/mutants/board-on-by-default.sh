@@ -1,3 +1,8 @@
+# MUTANT: ac19
+# TARGET: scripts/run-loop.sh
+# WHY: defaults the board on, so every run gets one without asking. Friendlier, and it makes
+# WHY: the unconfigured path the configured one for everybody — every run now reports somewhere,
+# WHY: which is precisely the thing an operator did not opt into.
 #!/usr/bin/env bash
 # run-loop.sh — run a named loop strategy against a spec.
 #
@@ -21,7 +26,7 @@ LOOPS_DIR="$SCRIPT_DIR/loops"
 # OPT-IN, deliberately. With HARNESS_REPORT_URL unset the loop is line-for-line the run it is
 # today, and that is a contract two specs' gates assert (20260828m, 20260828o). A run-loop that
 # started a board by default would make the unconfigured path the configured one for everybody.
-BOARD=0
+BOARD=1
 if [ "${1:-}" = "--board" ]; then
   BOARD=1
   shift

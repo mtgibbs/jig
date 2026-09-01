@@ -1,3 +1,8 @@
+# MUTANT: ac13
+# TARGET: scripts/dispatch/board.html
+# WHY: drops the diff from the row on size grounds — it is the big field, and the verdict plus
+# WHY: the WHY reads like enough. It is not: the diff is how the mutant was formed, and once the
+# WHY: worker is gone it exists nowhere else.
 <title>Jig Fleet</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
@@ -306,7 +311,6 @@ function mutantPanel(host,txt){
     // The diff is HOW THE MUTANT WAS FORMED — the one thing that exists nowhere else once the
     // worker is gone. It rides only on rows that were not killed; a killed mutant's diff is
     // reconstructible from the corpus file committed beside the gate.
-    if(r.diff) card.appendChild(el('pre','mdiff', r.diff));
     host.appendChild(card);
   });
 }

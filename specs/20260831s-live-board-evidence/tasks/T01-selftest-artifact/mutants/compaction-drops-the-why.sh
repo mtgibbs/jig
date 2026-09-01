@@ -1,3 +1,8 @@
+# MUTANT: ac3
+# TARGET: scripts/ralph-log.sh
+# WHY: strips `why` along with the diff, on the reasoning that it is prose and the verdict is
+# WHY: the data. The record still parses, still carries every verdict, still has its counts — and
+# WHY: no row can say what blind spot its mutant was built to expose.
 # shellcheck shell=bash
 # ralph-log.sh — keep the evidence from a failed attempt. SOURCED, not executed.
 #
@@ -508,6 +513,7 @@ with open(out, "w", encoding="utf-8") as fh:
     for r in rows:
         if r.get("run_id") != run_id:
             continue
+        r.pop("why", None)
         d = r.get("diff")
         if d is not None:
             if r.get("verdict") == "KILLED":

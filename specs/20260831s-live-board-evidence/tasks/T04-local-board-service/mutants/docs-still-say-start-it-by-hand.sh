@@ -1,3 +1,8 @@
+# MUTANT: ac20
+# TARGET: docs/coordinator.md
+# WHY: leaves the runbook describing the hand-started coordinator. The commands it lists all
+# WHY: work, so nothing looks stale — and the operator surface built to remove that friction is
+# WHY: documented nowhere a person would look.
 # The coordinator
 
 The receiving half of the worker channel. Workers push their status, their attempt records and
@@ -7,13 +12,13 @@ their evidence; this holds them and serves a board with Stop / Pause / Resume.
 
 There is no cluster in the dependency list. A single stdlib Python file and one HTML file:
 
-    scripts/jig-board.sh start                       # http://127.0.0.1:8877
+    python3 scripts/dispatch/coordinator.py start                       # http://127.0.0.1:8877
     python3 scripts/dispatch/coordinator.py          # the same thing, by hand
     docker compose -f docker/compose.yaml up         # the same thing, containerised
 
-Then point a loop at it — or let `--board` do both at once:
+Then point a loop at it — or let `HARNESS_REPORT_URL=...` do both at once:
 
-    bash scripts/run-loop.sh --board build-converge specs/<spec>
+    bash scripts/run-loop.sh HARNESS_REPORT_URL=... build-converge specs/<spec>
     HARNESS_REPORT_URL=http://127.0.0.1:8877 bash scripts/run-loop.sh build-converge specs/<spec>
 
 That is the whole setup. **Measured, not assumed:** with no token, no state path and no
@@ -28,26 +33,26 @@ posts nothing, and prints nothing about it. An unconfigured channel is not a deg
 invokes whatever it names. qwen via opencode is the default here, and Codex or anything else is a
 different value, not a fork.
 
-## The local board (`scripts/jig-board.sh`)
+## The local board (`python3 scripts/dispatch/coordinator.py`)
 
 The laptop path, needing python3 and nothing else — no Docker, and no remembering which port
 you started it on.
 
 | command | what it does |
 |---|---|
-| `scripts/jig-board.sh start` | starts the coordinator in the background and prints the URL. Idempotent: a board already running here, or already serving that port from another worktree, is reported rather than duplicated |
-| `scripts/jig-board.sh status` | running (and where) or stopped. Exit 0 running, 3 stopped |
-| `scripts/jig-board.sh stop` | stops the board it started. Exit 0 either way |
-| `scripts/jig-board.sh url` | prints the URL and nothing else, for scripting |
+| `python3 scripts/dispatch/coordinator.py start` | starts the coordinator in the background and prints the URL. Idempotent: a board already running here, or already serving that port from another worktree, is reported rather than duplicated |
+| `python3 scripts/dispatch/coordinator.py status` | running (and where) or stopped. Exit 0 running, 3 stopped |
+| `python3 scripts/dispatch/coordinator.py stop` | stops the board it started. Exit 0 either way |
+| `python3 scripts/dispatch/coordinator.py url` | prints the URL and nothing else, for scripting |
 
 The port is `COORD_PORT` (default `8877`) — the same variable `coordinator.py` reads. State
 lives in `.jig/` at the repo root (gitignored): `board.pid`, `board.log`, and the run snapshot
 `coord-state.json`, so a restart keeps the runs it has seen.
 
-**`run-loop.sh --board`** does the whole thing in one command: it starts the board if it is
+**`run-loop.sh`** does the whole thing in one command: it starts the board if it is
 down, exports `HARNESS_REPORT_URL` for the phases, and prints the URL before the first phase.
 
-    bash scripts/run-loop.sh --board build-converge specs/<spec>
+    bash scripts/run-loop.sh HARNESS_REPORT_URL=... build-converge specs/<spec>
 
 It is **opt-in and stays that way.** Without the flag, `run-loop.sh` starts no process and
 leaves `HARNESS_REPORT_URL` exactly as it found it — an unconfigured channel is not a degraded
