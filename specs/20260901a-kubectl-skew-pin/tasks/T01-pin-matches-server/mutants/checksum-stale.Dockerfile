@@ -1,3 +1,8 @@
+# MUTANT: ac3
+# TARGET: docker/dispatcher.Dockerfile
+# WHY: the version bumps but both KUBECTL_SHA values stay v1.37.0's — the docker
+# WHY: build fails at sha256sum -c on the day someone rebuilds, or worse, a mirror
+# WHY: serving the old binary verifies clean. The exact defect a lazy bump produces.
 # dispatcher.Dockerfile — the half of fleet dispatch that creates compute.
 #
 # Follows coordinator.Dockerfile, NOT harness-base. The dispatcher runs no loop and no model: it
@@ -21,14 +26,13 @@ FROM python:3.12-slim
 # VERSION SKEW: kubectl is supported within one minor of the API server. Check the k3s server
 # version before bumping this, and bump it when the cluster moves — a kubectl far ahead of the
 # server fails at `apply` time, inside a Deployment, with a message about the resource rather than
-# about the skew.
-# matched server: v1.34.3+k3s1 (checked 2026-08-31 — pi-cluster ARCHITECTURE.md:39)
+# about the skew. Matched to server v1.34.3+k3s1, checked 2026-08-31 (pi-cluster ARCHITECTURE.md).
 ARG KUBECTL_VERSION=v1.34.11
 ARG TARGETARCH
 RUN set -eux; \
     case "$TARGETARCH" in \
-      amd64) KUBECTL_SHA=8efbb9435132a190920eb65a47a8c1ecf755ad85ab57a600c9bedbab460bb7a8 ;; \
-      arm64) KUBECTL_SHA=5b045a4712674c88a56fd98eef4285689738b7fbe8735e1b9ee3509521af5cb4 ;; \
+      amd64) KUBECTL_SHA=6129359f4e1f3848a5572ccb0b26cf28b8ca08cef38c95a765b2f64a2c961a2f ;; \
+      arm64) KUBECTL_SHA=922df28df248cc00a9e025f947704f1d1482de64ece54cfe57e61f19eaf1eef3 ;; \
       *) echo "unsupported architecture: $TARGETARCH" >&2; exit 1 ;; \
     esac; \
     apt-get update; \

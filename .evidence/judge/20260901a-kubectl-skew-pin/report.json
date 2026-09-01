@@ -1,0 +1,16 @@
+{
+  "spec_dir": "specs/20260901a-kubectl-skew-pin",
+  "baseline": {
+    "score": 1.000,
+    "total": 4
+  },
+  "session": "1788239227-57410",
+  "rounds_run": 1,
+  "ledger_sessions": 1,
+  "accepted": [],
+  "rejected": [],
+  "gate_gaps": [
+    "scope-byte-identity-ungated"
+  ],
+  "outcome": "dry"
+}

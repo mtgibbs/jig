@@ -1,0 +1,6 @@
+  FAIL  ac1: no recorded k3s server version in the file — skew cannot be computed against a file that does not say what it was matched to
+  FAIL  ac2: no comment line records 'matched ... v1.X.Y+k3sN ... YYYY-MM-DD' — the next bump re-derives what this one already knew
+  PASS  ac3: amd64 checksum matches upstream for v1.37.0
+  PASS  ac3: arm64 checksum matches upstream for v1.37.0
+
+VERIFY: failures above

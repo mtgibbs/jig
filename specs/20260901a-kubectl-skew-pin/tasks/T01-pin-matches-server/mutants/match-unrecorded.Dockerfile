@@ -1,3 +1,8 @@
+# MUTANT: ac2
+# TARGET: docker/dispatcher.Dockerfile
+# WHY: the pin and checksums move but the matched-server record is never written —
+# WHY: the next bump re-derives the server version from scratch, which is exactly
+# WHY: the re-derivation this task exists to end.
 # dispatcher.Dockerfile — the half of fleet dispatch that creates compute.
 #
 # Follows coordinator.Dockerfile, NOT harness-base. The dispatcher runs no loop and no model: it
@@ -22,7 +27,6 @@ FROM python:3.12-slim
 # version before bumping this, and bump it when the cluster moves — a kubectl far ahead of the
 # server fails at `apply` time, inside a Deployment, with a message about the resource rather than
 # about the skew.
-# matched server: v1.34.3+k3s1 (checked 2026-08-31 — pi-cluster ARCHITECTURE.md:39)
 ARG KUBECTL_VERSION=v1.34.11
 ARG TARGETARCH
 RUN set -eux; \
