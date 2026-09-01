@@ -14,9 +14,16 @@
 # - PATH includes /harness/scripts so run-task.sh and run-loop.sh are reachable by name.
 FROM node:22-bookworm-slim
 
-# Install harness prerequisites — same set as the original loop-executor.Dockerfile.
+# Install harness prerequisites.
+#
+# jq and python3 are NOT optional decoration, and neither is in node:22-bookworm-slim (it adds
+# only ca-certificates, curl, wget, gnupg, dirmngr, xz-utils, libatomic1 over debian slim). The
+# loop shells out to both: ralph-judge.sh — invoked directly by run-loop.sh — parses its verdict
+# with jq, and ralph-log.sh, ralph-status.sh and ralph-bus.sh (all sourced by ralph-build.sh) use
+# jq and python3 for evidence and heartbeats. This list was inherited verbatim from the original
+# loop-executor.Dockerfile, which ran on a host that happened to have both; the image never did.
 RUN apt-get update && \
-    apt-get install --no-install-recommends -y git ripgrep ca-certificates curl tini && \
+    apt-get install --no-install-recommends -y git ripgrep ca-certificates curl tini jq python3 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 

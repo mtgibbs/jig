@@ -30,7 +30,7 @@ Four files. Copy them.
 
 ```dockerfile
 # Dockerfile
-FROM ghcr.io/mtgibbs/harness-base:0.1.0
+FROM ghcr.io/mtgibbs/harness-base:0.1.1
 
 # 1. your CLI. This is the ONLY thing the derived image adds.
 RUN npm install -g @your-vendor/your-cli

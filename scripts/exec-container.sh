@@ -7,4 +7,4 @@
 # belongs in the loop, or every future binding has to reimplement it.
 set -uo pipefail
 R="${ROOT:-$PWD}"
-exec "${LOOP_RUNTIME:-docker}" run --rm -v "$R:$R" -w "$R" -e ROOT="$R" --user "$(id -u):$(id -g)" --network "${LOOP_NETWORK:-ai-internal}" "${LOOP_IMAGE:-ghcr.io/mtgibbs/loop-executor-opencode:0.1.0}" "$1"
+exec "${LOOP_RUNTIME:-docker}" run --rm -v "$R:$R" -w "$R" -e ROOT="$R" --user "$(id -u):$(id -g)" --network "${LOOP_NETWORK:-ai-internal}" "${LOOP_IMAGE:-ghcr.io/mtgibbs/loop-executor-opencode:0.1.1}" "$1"
