@@ -1,0 +1,51 @@
+# green-after — 2026-09-01, spec 20260831v-work-mutation
+# Convergence + --check + three corpus selftests. The corpus caught TWO real gate defects
+# on its first runs: rows-without-kind (ac4 read the marker, not a probe row) and the
+# SOMETIMES-survivor site-labels-leak-the-workspace (ac2's budgeted sample could exclude
+# every tainted site). Both gates fixed; both mutants now die deterministically. §14 v1.0.
+
+== convergence ==
+── T01-mutate-tool ──
+  PASS  ac1: a probe on marker.txt (the checked work) comes back NOTICED
+  PASS  ac1: a probe on base.txt (the ignored work) comes back UNNOTICED
+  PASS  ac1: verdicts are data — the tool exits 0 even with UNNOTICED present
+  PASS  ac2: two full runs at one commit printed identical probe lines — labels are reproducible
+  PASS  ac2: two budgeted runs chose the identical sample — the sampler is seeded, not lucky
+  PASS  ac3: the fixture tree is byte-identical after all runs
+  PASS  ac4: rows + run_complete landed in worksens-<slug>.jsonl, probe rows marked kind=work
+  PASS  ac4: with SELFTEST_EVID unset, not one byte was written
+  PASS  ac5: work-mutate.sh passes bash -n
+
+VERIFY: T01 all checks passed
+── T02-loop-hook ──
+  PASS  ac1: one work-sensitivity summary line per committed task
+  PASS  ac2: exit codes identical with the hook on (0) and off (0)
+  PASS  ac2: commit history identical with the hook on and off (1 task commit each)
+  PASS  ac2: RALPH_WORK_MUTANTS=0 disables the hook entirely
+  PASS  ac3: unnoticed probes present (2/4 noticed) and the run still converged
+  PASS  ac4: ralph-build.sh passes bash -n
+
+VERIFY: T02 all checks passed
+── T03-ledger-surface ──
+  PASS  ac1: the work-sensitivity section renders from worksens rows
+  PASS  ac1: UNNOTICED probes sort first — the leads are the headline
+  PASS  ac1: the unnoticed probe's diff is visible in the ledger
+  PASS  ac2: the section is present even with zero worksens rows
+  PASS  ac3: the section header names the telemetry posture
+  PASS  ac4: .evidence/README.md documents the worksens store and the posture
+
+VERIFY: T03 all checks passed
+VERIFY: all task gates passed
+exit: 0
+
+== new-spec.sh --check ==
+check: /Users/mtgibbs/dev/harness-work-mutation/specs/20260831v-work-mutation matches the per-task shape
+exit: 0
+
+== corpus selftests (SELFTEST_EVID=.evidence, GATE_SELFTEST_TIMEOUT=300) ==
+-- T01-mutate-tool --
+summary: killed=5 survivor=0 wrong-reason=0 hung=0
+-- T02-loop-hook --
+summary: killed=4 survivor=0 wrong-reason=0 hung=0
+-- T03-ledger-surface --
+summary: killed=4 survivor=0 wrong-reason=0 hung=0

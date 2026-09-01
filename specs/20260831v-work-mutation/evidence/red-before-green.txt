@@ -1,0 +1,26 @@
+# red-before-green — 2026-09-01, spec 20260831v-work-mutation
+# The three task gates against main at 68bf17c + the cherry-picked spec: no tool, no hook, no section.
+
+── T01-mutate-tool ──
+  FAIL  ac5: scripts/work-mutate.sh does not exist
+VERIFY: failures above
+── T02-loop-hook ──
+  FAIL  ac1: expected exactly 1 work-sensitivity line, got 0 (rc=0)
+  PASS  ac2: exit codes identical with the hook on (0) and off (0)
+  PASS  ac2: commit history identical with the hook on and off (1 task commit each)
+  PASS  ac2: RALPH_WORK_MUTANTS=0 disables the hook entirely
+  FAIL  ac3: could not parse an unnoticed-bearing summary from [] — the inert file produced no unnoticed probe
+  PASS  ac4: ralph-build.sh passes bash -n
+
+VERIFY: failures above
+── T03-ledger-surface ──
+  FAIL  ac1: no work-sensitivity section in the ledger
+  FAIL  ac1: UNNOTICED does not lead the section (unnoticed@none, noticed@none)
+  FAIL  ac1: the probe diff is missing — a lead nobody can read is not a lead
+  FAIL  ac2: the section vanishes when unmeasured — reads as unbuilt, not unmeasured
+  FAIL  ac3: nothing says telemetry — sensitivity counts will be read as gate failures
+  FAIL  ac4: .evidence/README.md does not document worksens-*.jsonl with the enforcement/telemetry distinction
+
+VERIFY: failures above
+VERIFY: task-gate failures above
+exit: 1

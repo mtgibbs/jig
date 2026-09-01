@@ -1,3 +1,7 @@
+# MUTANT: ac1
+# TARGET: scripts/mutant-ledger.py
+# WHY: load_worksens and both renderers exist, imports and all — and main() never calls
+# WHY: them. The feature is fully present and completely disconnected.
 #!/usr/bin/env python3
 """mutant-ledger.py — render the gate-selftest evidence store into the Mutant Ledger.
 
@@ -510,9 +514,8 @@ def main():
     worksens = load_worksens(args.evid)
     os.makedirs(out, exist_ok=True)
     with open(os.path.join(out, "mutant-ledger.md"), "w", encoding="utf-8") as f:
-        f.write(render_md(corpora, args.repo_url) + render_worksens_md(worksens))
+        f.write(render_md(corpora, args.repo_url))
     page = render_html(corpora, args.repo_url)
-    page = page.replace("</body></html>", render_worksens_html(worksens) + "</body></html>")
     with open(os.path.join(out, "mutant-ledger.html"), "w", encoding="utf-8") as f:
         f.write(page)
     n = sum(len(c["rows"]) for c in corpora)

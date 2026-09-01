@@ -1,3 +1,8 @@
+# MUTANT: ac3
+# TARGET: scripts/mutant-ledger.py
+# WHY: the section renders but nothing says telemetry — the first reader to skim the
+# WHY: counts will file UNNOTICED as a gate failure, which is the misread the wording
+# WHY: contract exists to prevent.
 #!/usr/bin/env python3
 """mutant-ledger.py — render the gate-selftest evidence store into the Mutant Ledger.
 
@@ -96,12 +101,8 @@ def load_worksens(evid):
 def render_worksens_md(ws):
     out = []
     a = out.append
-    a("\n## Work sensitivity — telemetry, not enforcement\n")
-    a("> Probes derived from each task's OWN committed diff (`scripts/work-mutate.sh`, "
-      "`specs/20260831v-work-mutation`): revert one hunk, drop one added line, re-run the "
-      "gate. An **UNNOTICED** probe is a lead, not a conviction — dropping an inert line "
-      "SHOULD go unnoticed (the equivalent-mutant problem), which is why these rows never "
-      "fail a run and must never be read as gate failures.\n")
+    a("\n## Work sensitivity\n")
+    a("> Probes derived from each task's own committed diff.\n")
     if not ws:
         a("No sensitivity rows recorded yet — the loop writes `worksens-<slug>.jsonl` at "
           "every task commit whenever `SELFTEST_EVID` is set.\n")

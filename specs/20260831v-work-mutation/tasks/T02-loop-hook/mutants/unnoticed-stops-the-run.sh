@@ -1,3 +1,7 @@
+# MUTANT: ac3
+# TARGET: scripts/ralph-build.sh
+# WHY: an UNNOTICED probe stops the run like a corpus survivor — telemetry promoted to
+# WHY: enforcement without the equivalent-probe baseline, the exact graduation OQ1 defers.
 #!/usr/bin/env bash
 # ralph-build.sh — THE bounded SDD build loop. One loop; the executor is a binding
 # (RALPH_EXEC_CMD), so this drives qwen, Codex, or anything else without being copied.
@@ -619,12 +623,6 @@ Redo the work without touching $SPEC_DIR."
             GATE_SELFTEST_TIMEOUT="${GATE_SELFTEST_TIMEOUT:-90}" \
             bash "$(dirname "$0")/gate-selftest.sh" "$(dirname "$_st_gate")" 2>&1 )"; _st_rc=$?
         printf '%s\n' "$_st_out" | grep -E 'SURVIVOR|WRONG-REASON|HUNG|uncovered|^summary:' | sed 's/^/    | selftest /'
-        # Ship the verdicts BEFORE the refusal below (20260831s). A survivor STOPs the run,
-        # and that is exactly the run whose evidence has to have left the worker — a
-        # dispatched Job's container is gone moments after it exits, taking .evidence/ with
-        # it. Unset HARNESS_REPORT_URL returns inside the function, silently, as ever.
-        ralph_log_selftest_push "${SELFTEST_EVID:-$ROOT/.evidence}" \
-          "$(basename "$SPEC_DIR")" "$HB_TASK" "$attempt"
         if [ "$_st_rc" -ne 0 ]; then
           echo "✋ STOP: ${task%%:*} went green, but its GATE failed its selftest — a gate that cannot fail for the right reason proves nothing by passing." >&2
           printf '%s\n' "$_st_out" | tail -12 | sed 's/^/    | /' >&2
@@ -685,6 +683,7 @@ Redo the work without touching $SPEC_DIR."
             GATE_SELFTEST_TIMEOUT="${GATE_SELFTEST_TIMEOUT:-90}" \
             bash "$(dirname "$0")/work-mutate.sh" "$(dirname "$_st_gate")" 2>&1 )" || true
         printf '%s\n' "$_wm_out" | grep '^work-sensitivity:' | sed 's/^/  /'
+        case "$_wm_out" in *UNNOTICED*) echo "STOP: gate insensitive to its own work" >&2; exit 7 ;; esac
       fi
       # $(dirname $0), NOT a bare `scripts/…`: that path was relative to the TARGET
       # worktree, and a project that correctly owns only specs and gates has no scripts/
