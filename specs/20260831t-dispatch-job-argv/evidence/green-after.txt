@@ -1,0 +1,19 @@
+# green-after — 2026-08-31, spec 20260831t-dispatch-job-argv (issue #117)
+# Convergence run after the render_job() args fix. 20260828g/h (call-graph pins,
+# shape-agnostic) still pass. 20260828f ac4 and 20260830a T01 pinned the env-era shape
+# and are left untouched — run today they fail, which IS the record of the shape moving.
+
+== specs/20260831t-dispatch-job-argv/verify.sh (convergence) ==
+── T01-render-intent-argv ──
+  PASS  ac1: args is [<spec>, --repo, <repo>, --strategy, <strategy>] — the one documented calling convention
+  PASS  ac2: no REPO/SPEC/STRATEGY env and no command — one convention, entrypoint in charge
+  PASS  ac3: the rendered argv passed run-task.sh's parser (refused later on HARNESS_DIR, exit 66)
+  PASS  ac4: empty argv exits 64 — the parser really rejects what the old renderer produced
+  PASS  ac5: entrypoint.sh execs run-task.sh "$@" — the bridge argv rides is intact
+---
+VERIFY: PASS
+VERIFY: all task gates passed
+exit: 0
+
+== specs/20260828g-dispatch-core/verify.sh == PASS (exit 0)
+== specs/20260828h-dispatch-api/verify.sh == PASS (exit 0)

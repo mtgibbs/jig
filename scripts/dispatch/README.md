@@ -32,7 +32,10 @@ A rendered Job is bounded from the start:
 - `activeDeadlineSeconds`: 1800 seconds
 - `ttlSecondsAfterFinished`: 3600 seconds
 - `image`: taken from `HARNESS_WORKER_IMAGE` env var
-- `env`: `REPO`, `SPEC`, `STRATEGY` (strategy is always `build-converge`)
+- `args`: `<spec> --repo <repo> --strategy <strategy>` — the argv `run-task.sh` parses,
+  appended to the worker image's own ENTRYPOINT. Never env, never `command` (#117: env
+  was a convention nothing in the worker read; `command` would displace the entrypoint
+  that writes the clone credential)
 
 ## Environment variables
 

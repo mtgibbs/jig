@@ -1,0 +1,13 @@
+# red-before-green — 2026-08-31, spec 20260831t-dispatch-job-argv (issue #117)
+# T01 gate against the pre-fix renderer (dispatcher.py as of origin/main a557ab9).
+# ac4/ac5 are the controls: the parser and the entrypoint bridge were never the broken half.
+
+== specs/20260831t-dispatch-job-argv/tasks/T01-render-intent-argv/verify.sh ==
+  FAIL  ac1: rendered args are not run-task.sh's convention — expected R:["specs/thing","--repo","myrepo","--strategy","build-converge"] got [R:null]
+  FAIL  ac2: the env convention is still rendered — [R:["REPO","SPEC","STRATEGY"]|NOCMD]. Nothing in the worker reads it; it is the reads-as-correct-from-either-side surface #117 hid behind
+  FAIL  ac3: no argv rendered — nothing to hand the parser
+  PASS  ac4: empty argv exits 64 — the parser really rejects what the old renderer produced
+  PASS  ac5: entrypoint.sh execs run-task.sh "$@" — the bridge argv rides is intact
+---
+VERIFY: FAIL
+exit: 1
