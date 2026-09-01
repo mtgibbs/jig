@@ -6495,6 +6495,7 @@ breaks `ac1` · ±11 lines · [mutant](../specs/20260901a-kubectl-skew-pin/tasks
 | `20260831v-work-mutation · T01-mutate-tool` @ `67b35d7b1` | 4 | 1 | 3 | 0 |
 | `20260831v-work-mutation · T02-loop-hook` @ `67b35d7b1` | 4 | 0 | 4 | 0 |
 | `20260831v-work-mutation · T03-ledger-surface` @ `67b35d7b1` | 4 | 0 | 4 | 0 |
+| `20260901a-kubectl-skew-pin · T01-pin-matches-server` @ `996cb218a` | 4 | 4 | 0 | 0 |
 
 ### ? `drop-line` @ `specs/20260831v-work-mutation/tasks/T02-loop-hook/mutants/hook-never-fires.sh` [line-362] — UNNOTICED
 `20260831v-work-mutation · T01-mutate-tool` · commit `67b35d7b1` · gate rc 0
@@ -6613,5 +6614,65 @@ breaks `ac1` · ±11 lines · [mutant](../specs/20260901a-kubectl-skew-pin/tasks
 
 ````diff
 -    n = sum(len(c["rows"]) for c in corpora)
+````
+</details>
+
+### ✓ `revert-hunk` @ `docker/dispatcher.Dockerfile` [hunk-1] — NOTICED
+`20260901a-kubectl-skew-pin · T01-pin-matches-server` · commit `996cb218a` · gate rc 1
+
+<details><summary>probe diff</summary>
+
+````diff
+diff --git a/docker/dispatcher.Dockerfile b/docker/dispatcher.Dockerfile
+index d0b48be..8f5f622 100644
+--- a/docker/dispatcher.Dockerfile
++++ b/docker/dispatcher.Dockerfile
+@@ -22,12 +22,13 @@ FROM python:3.12-slim
+ # version before bumping this, and bump it when the cluster moves — a kubectl far ahead of the
+ # server fails at `apply` time, inside a Deployment, with a message about the resource rather than
+ # about the skew.
+-ARG KUBECTL_VERSION=v1.37.0
++# matched server: v1.34.3+k3s1 (checked 2026-08-31 — pi-cluster ARCHITECTURE.md:39)
++ARG KUBECTL_VERSION=v1.34.11
+ ARG TARGETARCH
+ RUN set -eux; \
+     case "$TARGETARCH" in \
+-      amd64) KUBECTL_SHA=6129359f4e1f3848a5572ccb0b26cf28b8ca08cef38c95a765b2f64a2c961a2f ;; \
+-      arm64) KUBECTL_SHA=922df28df248cc00a9e025f947704f1d1482de64ece54cfe57e61f19eaf1eef3 ;; \
++      amd64) KUBECTL_SHA=8efbb9435132a190920eb65a47a8c1ecf755ad85ab57a600c9bedbab460bb7a8 ;; \
++      arm64) KUBECTL_SHA=5b045a4712674c88a56fd98eef4285689738b7fbe8735e1b9ee3509521af5cb4 ;; \
+       *) echo "unsupported architecture: $TARGETARCH" >&2; exit 1 ;; \
+     esac; \
+     apt-get update; \
+````
+</details>
+
+### ✓ `drop-line` @ `docker/dispatcher.Dockerfile` [line-26] — NOTICED
+`20260901a-kubectl-skew-pin · T01-pin-matches-server` · commit `996cb218a` · gate rc 1
+
+<details><summary>probe diff</summary>
+
+````diff
+-ARG KUBECTL_VERSION=v1.34.11
+````
+</details>
+
+### ✓ `drop-line` @ `docker/dispatcher.Dockerfile` [line-30] — NOTICED
+`20260901a-kubectl-skew-pin · T01-pin-matches-server` · commit `996cb218a` · gate rc 1
+
+<details><summary>probe diff</summary>
+
+````diff
+-      amd64) KUBECTL_SHA=8efbb9435132a190920eb65a47a8c1ecf755ad85ab57a600c9bedbab460bb7a8 ;; \
+````
+</details>
+
+### ✓ `drop-line` @ `docker/dispatcher.Dockerfile` [line-31] — NOTICED
+`20260901a-kubectl-skew-pin · T01-pin-matches-server` · commit `996cb218a` · gate rc 1
+
+<details><summary>probe diff</summary>
+
+````diff
+-      arm64) KUBECTL_SHA=5b045a4712674c88a56fd98eef4285689738b7fbe8735e1b9ee3509521af5cb4 ;; \
 ````
 </details>
