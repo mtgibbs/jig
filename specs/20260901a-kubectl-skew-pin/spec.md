@@ -4,7 +4,7 @@
 - **Owner:** mtgibbs
 - **Constitution:** `specs/constitution.md` + `specs/amendments.md`
 - **Touches:** `docker/dispatcher.Dockerfile`
-- **Tools:** curl (ac3 verifies checksums against dl.k8s.io — network required, fail-closed)
+- **Tools:** curl
 - **MCP:** none
 
 ## 1. Why · [R — Requirements]
