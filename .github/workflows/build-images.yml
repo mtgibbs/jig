@@ -33,6 +33,17 @@ on:
       - 'specs/lib/**'
       - '.github/workflows/build-images.yml'
 
+  # The checkpoint. Until this existed the four build jobs pushed to GHCR BEFORE `smoke` ran and
+  # independently of its result, so a red smoke had never once stopped an image from shipping —
+  # which is how a harness-base with no jq sat in GHCR behind twelve consecutive red runs. The
+  # gate could fail; it could not block. This trigger is where it blocks.
+  pull_request:
+    paths:
+      - 'docker/**'
+      - 'scripts/**'
+      - 'specs/lib/**'
+      - '.github/workflows/build-images.yml'
+
 permissions:
   contents: read
   packages: write
@@ -40,6 +51,7 @@ permissions:
 jobs:
   harness-base:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push'
     outputs:
       version: ${{ steps.version.outputs.version }}
     strategy:
@@ -80,6 +92,7 @@ jobs:
 
   loop-executor-opencode:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push'
     needs: [harness-base]
     strategy:
       matrix:
@@ -119,6 +132,7 @@ jobs:
 
   harness-coordinator:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push'
     strategy:
       matrix:
         include:
@@ -165,6 +179,7 @@ jobs:
   # that the image needs publishing.
   harness-dispatcher:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push'
     strategy:
       matrix:
         include:
@@ -212,8 +227,16 @@ jobs:
   # shipped once was exactly a tag that nothing ever tried to PULL — exec-container.sh defaulted
   # LOOP_IMAGE to loop-executor:latest, which CI has never published and which does not exist.
   # Every static check passed, because the reference was well-formed.
+  # The canary. Smoke the tags CI just PUBLISHED, pulled back from GHCR.
+  #
+  # This runs AFTER the push and cannot block it — `pr-verify` is the job that blocks. What this
+  # one adds that pr-verify structurally cannot is that the published tag is real and PULLABLE.
+  # The defect this repo already shipped once was exactly a tag nothing ever tried to pull:
+  # exec-container.sh defaulted LOOP_IMAGE to loop-executor:latest, which CI has never published
+  # and which does not exist. Every static check passed, because the reference was well-formed.
   smoke:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push'
     needs: [harness-base, loop-executor-opencode]
     steps:
       - name: Checkout
@@ -232,122 +255,65 @@ jobs:
           echo "base=ghcr.io/mtgibbs/harness-base:$(cat docker/harness-base.VERSION)" >> $GITHUB_OUTPUT
           echo "derived=ghcr.io/mtgibbs/loop-executor-opencode:$(cat docker/loop-executor-opencode.VERSION)" >> $GITHUB_OUTPUT
 
-      - name: The base carries the loop, its runtime, and NO model CLI
+      # Explicit, so "the tag is pullable" is an assertion with its own line in the log rather than
+      # a side effect of the first `docker run`.
+      - name: The published tags pull
         run: |
-          docker run --rm --entrypoint bash "${{ steps.tags.outputs.base }}" -c '
-            set -euo pipefail
-            for t in bash git jq python3 run-task.sh run-loop.sh ralph-build.sh; do
-              command -v "$t" >/dev/null || { echo "FAIL: $t is not on PATH in harness-base"; exit 1; }
-            done
-            [ -r "$HARNESS_HOME/specs/lib/assert.sh" ] || { echo "FAIL: assert.sh missing"; exit 1; }
-            run-loop.sh --list | grep -q build-converge || { echo "FAIL: --list resolves no built-ins"; exit 1; }
-            rc=0
-            for c in opencode codex claude; do
-              command -v "$c" >/dev/null 2>&1 && { echo "FAIL: $c is installed in harness-base"; rc=1; }
-            done
-            [ "$rc" = 0 ] || exit 1
-            echo "base OK: loop + runtime present, no model CLI"
-          '
+          docker pull -q "${{ steps.tags.outputs.base }}"
+          docker pull -q "${{ steps.tags.outputs.derived }}"
 
-      - name: The entrypoint is run-task.sh and it fails closed
+      - name: Smoke the published images
+        run: bash scripts/ci/smoke-images.sh "${{ steps.tags.outputs.base }}" "${{ steps.tags.outputs.derived }}"
+
+  # ── the checkpoint ───────────────────────────────────────────────────────────────────────────
+  # Build the images this PR describes and run the same suite against them, WITHOUT pushing. This
+  # is the job that decides whether a change is allowed to become an image at all.
+  #
+  # Built with plain `docker build`, not buildx: the derived Dockerfile's FROM names a ghcr tag,
+  # and on a PR that bumps the version that tag does not exist yet. The local daemon resolves the
+  # base from its own image store when it is already there, so tagging the freshly built base with
+  # the exact name the FROM line uses is what makes the derived image build against THIS PR's base
+  # rather than silently pulling the last published one.
+  #
+  # Single-arch (the runner's amd64) for the run-a-task half. Cross-arch is covered for the base
+  # only, below; the derived image is not built for arm64 here because doing so needs a registry
+  # to hand the multi-arch base to the dependent build, which is more machinery than this gate is
+  # worth. arm64 breakage in the derived image surfaces on main, where nothing has pulled the new
+  # tag yet.
+  pr-verify:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve the versions this PR declares
+        id: v
         run: |
-          set +e
-          out="$(docker run --rm "${{ steps.tags.outputs.base }}" 2>&1)"; rc=$?
-          set -e
-          echo "$out"
-          [ "$rc" != 0 ] || { echo "FAIL: entrypoint exited 0 with no spec-dir"; exit 1; }
-          echo "$out" | grep -qi usage || { echo "FAIL: entrypoint printed no usage"; exit 1; }
+          echo "base=ghcr.io/mtgibbs/harness-base:$(cat docker/harness-base.VERSION)" >> $GITHUB_OUTPUT
+          echo "derived=ghcr.io/mtgibbs/loop-executor-opencode:$(cat docker/loop-executor-opencode.VERSION)" >> $GITHUB_OUTPUT
 
-      - name: The derived image declares its binding
-        run: |
-          docker run --rm --entrypoint bash "${{ steps.tags.outputs.derived }}" -c '
-            set -euo pipefail
-            command -v opencode    >/dev/null || { echo "FAIL: the declared binding (opencode) is absent"; exit 1; }
-            command -v run-loop.sh >/dev/null || { echo "FAIL: the derived image lost the loop"; exit 1; }
-            echo "derived OK: opencode present, loop intact"
-          '
-
-      # The actual task. A stub executor stands in for the model — CI has no provider credential,
-      # and the point here is the LOOP, not the model: does run-task.sh clone, cut a worktree,
-      # route through run-loop.sh, reach a green gate, commit, and leave an attempt record behind.
-      # STRATEGY_TOOLS="opencode" is still preflighted against the real image, so "the declared
-      # binding is absent" remains a genuine failure mode of this step.
-      - name: Build the fixture repo
+      - name: Build the base and the derived image from this PR
         run: |
           set -euo pipefail
-          mkdir -p ws && git init -q --bare ws/origin.git
-          git init -q seed && cd seed
-          git config user.email smoke@ci && git config user.name smoke
-          mkdir -p specs/fx/tasks/T01-a
-          printf '# fx\n\n- **Tools:** none\n- **MCP:** none\n' > specs/fx/spec.md
-          printf 'T1: create a.txt containing the letter a.\n'  > specs/fx/tasks.txt
-          printf '#!/usr/bin/env bash\n[ -f a.txt ] && { echo "  PASS  ac1"; echo "VERIFY: PASS"; exit 0; }\necho "  FAIL  ac1" >&2; echo "VERIFY: FAIL"; exit 1\n' > specs/fx/verify.sh
-          cp specs/fx/verify.sh specs/fx/tasks/T01-a/verify.sh
-          chmod +x specs/fx/verify.sh specs/fx/tasks/T01-a/verify.sh
-          git add -A && git commit -qm fixture
-          git branch -M main && git remote add origin ../ws/origin.git && git push -q origin main
-          cd .. && git clone -q ws/origin.git ws/fx
-          printf '#!/usr/bin/env bash\necho a > "${ROOT:?}/a.txt"\necho "stub executor wrote a.txt"\n' > ws/stub-exec.sh
-          chmod +x ws/stub-exec.sh
+          docker build -f docker/harness-base.Dockerfile -t "${{ steps.v.outputs.base }}" .
+          docker build -f docker/loop-executor-opencode.Dockerfile -t "${{ steps.v.outputs.derived }}" .
 
-      - name: Run a fixture task through run-task.sh in the derived image
-        run: |
-          set -euo pipefail
-          docker run --rm \
-            -v "$PWD/ws:/ws" -w /ws \
-            --user "$(id -u):$(id -g)" \
-            -e HOME=/tmp \
-            -e HARNESS_WORKSPACE=/ws \
-            -e HARNESS_DIR=/harness \
-            -e RALPH_EXEC_CMD=/ws/stub-exec.sh \
-            -e RALPH_AGENT=smoke \
-            -e RALPH_SHEET=off \
-            -e GIT_AUTHOR_NAME=smoke -e GIT_AUTHOR_EMAIL=smoke@ci \
-            -e GIT_COMMITTER_NAME=smoke -e GIT_COMMITTER_EMAIL=smoke@ci \
-            --entrypoint run-task.sh \
-            "${{ steps.tags.outputs.derived }}" \
-            specs/fx --repo fx --strategy build-converge
+      - name: Smoke the images this PR would publish
+        run: bash scripts/ci/smoke-images.sh "${{ steps.v.outputs.base }}" "${{ steps.v.outputs.derived }}"
 
-      # Read the result from INSIDE the container, on the same mount. run-task.sh cuts a git
-      # worktree, whose .git is a FILE holding an absolute `gitdir:` pointer — written as
-      # /ws/fx/.git/worktrees/fx-fx, a path that exists only in the container. From the runner
-      # the directory is there but the gitlink dangles, so `[ -d ]` passes and every git command
-      # then fails with "not a git repository". Reading it host-side never worked; this step had
-      # never once executed before, because smoke died on assertion one for its whole history.
-      - name: A commit was produced and an attempt record was written
-        run: |
-          set -euo pipefail
-          docker run --rm \
-            -v "$PWD/ws:/ws" -w /ws \
-            --user "$(id -u):$(id -g)" \
-            -e HOME=/tmp \
-            --entrypoint bash \
-            "${{ steps.tags.outputs.derived }}" -c '
-              set -euo pipefail
-              WT=/ws/fx-fx
-              [ -d "$WT" ] || { echo "FAIL: run-task.sh cut no worktree at $WT"; exit 1; }
+      # The cluster is arm64. An apt package that resolves on amd64 and not on arm64 would
+      # otherwise be found only after merge, by main.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-              # Captured, not piped. `git log | grep -q` makes grep exit at the first match, git
-              # take SIGPIPE, and the pipeline return 141 under pipefail — reporting "no commit"
-              # about a commit that is right there. Measured: PIPESTATUS=(141 0).
-              log="$(git -C "$WT" log --oneline)"
-              printf "%s\n" "$log" | sed -n "1,5p"
-              case "$log" in
-                *"ralph(smoke)"*) ;;
-                *) echo "FAIL: no commit was produced — the loop reached no green gate"; exit 1 ;;
-              esac
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-              [ -f "$WT/a.txt" ] || { echo "FAIL: the task artifact is absent from the worktree"; exit 1; }
-
-              # Guarded, not 2>/dev/null: find on a missing directory exits 1, the assignment
-              # fails under pipefail, and set -e aborts BEFORE the message below — a gate that
-              # fails without saying why.
-              if [ -d "$WT/.evidence" ]; then
-                n="$(find "$WT/.evidence" -name "*.json" | wc -l)"
-              else
-                n=0
-              fi
-              [ "$n" -gt 0 ] || { echo "FAIL: no attempt record was written — the run left nothing to diagnose with"; exit 1; }
-
-              echo "smoke OK: commit produced, artifact present, $n attempt record(s) written"
-            '
+      - name: The base builds for arm64 too
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/harness-base.Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: false
