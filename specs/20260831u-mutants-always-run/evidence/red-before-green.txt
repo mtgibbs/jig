@@ -1,0 +1,39 @@
+# red-before-green — 2026-08-31, spec 20260831u-mutants-always-run
+# The three task gates against main's loop and scaffolder (903e8c7): no selftest step,
+# no corpus policy, no template corpus. Fixture PASSes are the controls.
+
+── T01-preflight-selftest ──
+  PASS  ac1: gate green + corpus killed -> the run converges (rc=0)
+  FAIL  ac1: no selftest verdict in the run output — the corpus did not run at gate-green
+  FAIL  ac2: expected rc=6 on a survivor, got rc=0 — a gate that cannot fail just blessed a commit
+  PASS  ac2: nothing was committed — the refusal landed before the commit the green would bless
+  FAIL  ac2: the survivor is not named in the output — undiagnosable refusal
+  FAIL  ac3: refusal wording missing 'gate failed its selftest' — an operator will read this as the executor's failure
+  FAIL  ac4: no selftest-*.jsonl in the worked repo — the research rows are not being recorded
+  PASS  ac5: ralph-build.sh passes bash -n
+
+VERIFY: failures above
+── T02-corpus-required ──
+  FAIL  ac1: expected rc=3, got rc=0 — a corpus-less new spec was allowed to run
+  FAIL  ac1: refusal does not mention mutants — the author cannot tell what is missing
+  FAIL  ac1: the executor RAN before the refusal — work was built against an unproven ruler
+  PASS  ac2: a legacy spec without a corpus still runs (rc=0) — history is not backfilled
+  FAIL  ac2: expected exactly 1 'no mutant corpus' warn line, got 0
+  FAIL  ac3: the scaffolder emitted no template corpus at all (T03 not built) — nothing to judge
+  PASS  ac4: a corpus-era spec WITH a real corpus runs and converges (rc=0)
+  PASS  ac5: ralph-build.sh passes bash -n
+
+VERIFY: failures above
+── T03-scaffolder-mutants ──
+  FAIL  ac1: template corpus missing or malformed — T01:no-corpus T02:no-corpus
+  FAIL  ac2: the template TARGET reads as a real path — an unauthored corpus could pass as authored
+  PASS  ac3: --check passes a fresh scaffold (template corpus satisfies the shape check)
+  FAIL  ac4: --check passed a corpus-less task — the authoring tool does not require the pill
+  FAIL  ac4: the failure does not mention mutants
+  FAIL  ac5: --check accepted a mutant with no MUTANT:/TARGET: header
+  FAIL  ac6: TEMPLATE.md does not teach the mutant authoring move — the convention loses to the template again
+  PASS  ac7: new-spec.sh passes bash -n
+
+VERIFY: failures above
+VERIFY: task-gate failures above
+exit: 1

@@ -1,3 +1,6 @@
+# MUTANT: ac7
+# TARGET: scripts/new-spec.sh
+# WHY: a stray fi. bash -n refuses the file.
 #!/usr/bin/env bash
 # new-spec.sh — scaffold a spec in the canonical per-task shape, or validate one.
 #
@@ -249,3 +252,5 @@ echo "new-spec: scaffolded $DIR"
 echo "  tasks: $(grep -c '^T[0-9]' "$DIR/tasks.txt") — rewrite each tasks.txt line to be semantically rich"
 echo "  next:  1) fill spec.md   2) author each tasks/T<NN>-*/verify.sh red-first"
 echo "         3) capture evidence/red-before-green.txt   4) build until green"
+
+fi

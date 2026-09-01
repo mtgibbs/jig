@@ -1,3 +1,7 @@
+# MUTANT: ac4
+# TARGET: scripts/ralph-build.sh
+# WHY: the presence test is inverted: a spec WITH an authored corpus is the one refused.
+# WHY: Both sides of the policy still 'do something', so each half reads as alive alone.
 #!/usr/bin/env bash
 # ralph-build.sh — THE bounded SDD build loop. One loop; the executor is a binding
 # (RALPH_EXEC_CMD), so this drives qwen, Codex, or anything else without being copied.
@@ -255,7 +259,7 @@ _validate_task_gates() {
       return 1
     fi
     local _md; _md="$(dirname "$(_gate_for "$i")")/mutants"
-    if ! ls "$_md"/* >/dev/null 2>&1; then
+    if ls "$_md"/* >/dev/null 2>&1; then
       if [ "$_era" -eq 1 ]; then
         echo "ralph: task $i has no mutant corpus ($_md) — a corpus-era spec ships one poison pill per task, or its gates are unproven (20260831u)" >&2
         echo "ralph: author one mutant per assertion id by inverting the assertion (specs/TEMPLATE.md §11), then run again" >&2

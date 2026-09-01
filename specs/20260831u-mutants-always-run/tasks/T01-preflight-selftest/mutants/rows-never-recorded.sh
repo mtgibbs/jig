@@ -1,3 +1,8 @@
+# MUTANT: ac4
+# TARGET: scripts/ralph-build.sh
+# WHY: SELFTEST_EVID is passed through empty instead of defaulting to the worked repo's
+# WHY: .evidence/ — every verdict is computed and then forgotten; the research dataset
+# WHY: silently stops accumulating.
 #!/usr/bin/env bash
 # ralph-build.sh — THE bounded SDD build loop. One loop; the executor is a binding
 # (RALPH_EXEC_CMD), so this drives qwen, Codex, or anything else without being copied.
@@ -615,7 +620,7 @@ Redo the work without touching $SPEC_DIR."
       _st_gate="$(_gate_for "$HB_TIDX" 2>/dev/null || true)"
       _st_dir=""; [ -n "$_st_gate" ] && _st_dir="$(dirname "$_st_gate")/mutants"
       if [ -n "$_st_dir" ] && ls "$_st_dir"/* >/dev/null 2>&1; then
-        _st_out="$( cd "$ROOT" && SELFTEST_EVID="${SELFTEST_EVID:-$ROOT/.evidence}" \
+        _st_out="$( cd "$ROOT" && SELFTEST_EVID="${SELFTEST_EVID:-}" \
             GATE_SELFTEST_TIMEOUT="${GATE_SELFTEST_TIMEOUT:-90}" \
             bash "$(dirname "$0")/gate-selftest.sh" "$(dirname "$_st_gate")" 2>&1 )"; _st_rc=$?
         printf '%s\n' "$_st_out" | grep -E 'SURVIVOR|WRONG-REASON|HUNG|uncovered|^summary:' | sed 's/^/    | selftest /'

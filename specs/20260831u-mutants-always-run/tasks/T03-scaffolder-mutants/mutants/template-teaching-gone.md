@@ -1,3 +1,8 @@
+# MUTANT: ac6
+# TARGET: specs/TEMPLATE.md
+# WHY: the authoring paragraph is gone from the template. A convention that lives only in
+# WHY: the spec that ratified it loses to the template every author copies from — proved
+# WHY: twice already (amendments, 2026-08-31).
 # Spec: <Feature Name>
 
 <!--
@@ -149,18 +154,6 @@ no override exists; a legacy spec's gate still runs directly via `bash verify.sh
 <task-slug>...` emits the whole layout with red-by-construction stub gates, and
 `scripts/new-spec.sh --check <spec-dir>` validates it before a PR (20260831q).
 
-**Every assertion ships its poison pill** (20260828k; run-always since 20260831u):
-beside each task gate lives `tasks/T<NN>-<slug>/mutants/` — one file per assertion id,
-authored WITH the gate by **inverting the assertion**: write the plausible wrong
-implementation a lazy reading of the check would accept, under `# MUTANT: <id>`,
-`# TARGET: <repo-relative path>`, `# WHY: <the blind-spot hypothesis>` headers (the body
-below the headers becomes the whole replacement TARGET file). The loop runs the corpus
-the moment the task's gate first goes green and STOPs the run if any mutant survives, is
-killed for the wrong reason, hangs, or an assertion id is uncovered — and it refuses a
-corpus-era spec up front when the corpus is missing or still the scaffold's sentinel
-template. Self-authored mutants prove gate *mechanics*, not gate *conception* — a failure
-mode you never imagined gets no mutant; when the world finds one, it comes back as a new
-assertion WITH its mutant.
 The rules:
 
   - After task N the loop runs the gates for tasks **1..N** — cumulative, so a later task

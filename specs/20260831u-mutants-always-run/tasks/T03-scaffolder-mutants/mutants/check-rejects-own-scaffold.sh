@@ -1,3 +1,8 @@
+# MUTANT: ac3
+# TARGET: scripts/new-spec.sh
+# WHY: --check refuses the sentinel too, so the scaffolder dies on its own self-check and
+# WHY: authors start from a broken state — the authoring tool and the run-time policy
+# WHY: must disagree about the template, and this makes them agree.
 #!/usr/bin/env bash
 # new-spec.sh — scaffold a spec in the canonical per-task shape, or validate one.
 #
@@ -87,7 +92,7 @@ check_spec() {
         for _m in "$td/mutants/"*; do
           [ -f "$_m" ] || continue
           grep -q '^#[[:space:]]*MUTANT:[[:space:]]' "$_m" \
-            && grep -q '^#[[:space:]]*TARGET:[[:space:]]' "$_m" \
+            && grep -q '^#[[:space:]]*TARGET:[[:space:]]' "$_m" && ! grep -q '<' "$_m" \
             && _mok=1 && break
         done
         if [ "$_mok" -eq 0 ]; then

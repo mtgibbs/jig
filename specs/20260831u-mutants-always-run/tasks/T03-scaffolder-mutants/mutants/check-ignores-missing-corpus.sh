@@ -1,3 +1,8 @@
+# MUTANT: ac4
+# TARGET: scripts/new-spec.sh
+# WHY: the corpus requirement is disconnected from --check's verdict: the loop still
+# WHY: refuses at run time, but the authoring tool green-lights the spec that will be
+# WHY: refused — the check that exists but never fires.
 #!/usr/bin/env bash
 # new-spec.sh — scaffold a spec in the canonical per-task shape, or validate one.
 #
@@ -90,7 +95,7 @@ check_spec() {
             && grep -q '^#[[:space:]]*TARGET:[[:space:]]' "$_m" \
             && _mok=1 && break
         done
-        if [ "$_mok" -eq 0 ]; then
+        if false; then
           echo "  FAIL  check: $td has no well-formed mutant (mutants/ with MUTANT:/TARGET: headers) — every assertion ships its poison pill (20260831u)" >&2; bad=1
         fi
       fi

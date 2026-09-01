@@ -1,3 +1,7 @@
+# MUTANT: ac1
+# TARGET: scripts/ralph-build.sh
+# WHY: the whole first-green selftest block is gone. Every run converges exactly as before
+# WHY: 20260831u — green gates bless commits with no proof they can fail, silently.
 #!/usr/bin/env bash
 # ralph-build.sh — THE bounded SDD build loop. One loop; the executor is a binding
 # (RALPH_EXEC_CMD), so this drives qwen, Codex, or anything else without being copied.
@@ -604,32 +608,6 @@ Redo the work without touching $SPEC_DIR."
       echo "  ✓ $task passed verify (attempt $attempt, gate: $_mode)"
       log_gate "$HB_TASK" "$attempt" "$out" "0"
       log_patch "$HB_TASK" "$attempt"
-      # The gate went green — prove it COULD have failed before that green buys a commit
-      # (20260831u). gate-selftest copies the WORKING TREE, so the built-but-uncommitted
-      # work is exactly what each mutant is measured against; this is why the moment is
-      # first-green, not preflight — pristine, a red-first gate fails everything and every
-      # mutant dies vacuously. Once per task is sufficient: the spec-dir guard above froze
-      # gate and corpus for the run's duration. Refusal is a STOP, not a retry, and the
-      # tree is LEFT IN PLACE: the work passed its gate — it is the GATE that is broken,
-      # and gates are the operator's.
-      _st_gate="$(_gate_for "$HB_TIDX" 2>/dev/null || true)"
-      _st_dir=""; [ -n "$_st_gate" ] && _st_dir="$(dirname "$_st_gate")/mutants"
-      if [ -n "$_st_dir" ] && ls "$_st_dir"/* >/dev/null 2>&1; then
-        _st_out="$( cd "$ROOT" && SELFTEST_EVID="${SELFTEST_EVID:-$ROOT/.evidence}" \
-            GATE_SELFTEST_TIMEOUT="${GATE_SELFTEST_TIMEOUT:-90}" \
-            bash "$(dirname "$0")/gate-selftest.sh" "$(dirname "$_st_gate")" 2>&1 )"; _st_rc=$?
-        printf '%s\n' "$_st_out" | grep -E 'SURVIVOR|WRONG-REASON|HUNG|uncovered|^summary:' | sed 's/^/    | selftest /'
-        if [ "$_st_rc" -ne 0 ]; then
-          echo "✋ STOP: ${task%%:*} went green, but its GATE failed its selftest — a gate that cannot fail for the right reason proves nothing by passing." >&2
-          printf '%s\n' "$_st_out" | tail -12 | sed 's/^/    | /' >&2
-          echo "    This is the GATE failing, not the work. The built tree is left in place for a human;" >&2
-          echo "    fix the gate or its mutants (operator-owned, 20260831r T5), then run again." >&2
-          LOG_OUTCOME="gate-selftest"; LOG_ENDED="$(date +%s)"; LOG_RECORDED=1; log_meta "$HB_TASK" "$attempt"
-          hb_write stopped false; log_where
-          bus_say "✋ STOP — ${task%%:*} went green but its GATE failed selftest. The gate needs a human."
-          exit 6
-        fi
-      fi
       # The outcome is recorded AFTER the commit, not before. It used to be this line, and the
       # commit below ended in `|| true` — so a run whose commit failed recorded `passed`, kept
       # going, and the next task's failure path (`git checkout -- .`) deleted the work. Silent

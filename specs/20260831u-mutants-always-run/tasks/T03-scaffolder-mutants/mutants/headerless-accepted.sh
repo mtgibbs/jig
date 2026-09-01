@@ -1,3 +1,8 @@
+# MUTANT: ac5
+# TARGET: scripts/new-spec.sh
+# WHY: presence of ANY file in mutants/ counts as a corpus; the MUTANT:/TARGET: header
+# WHY: contract is never checked, so gate-selftest meets its 'fatal if missing' error at
+# WHY: run time instead of the author meeting it at check time.
 #!/usr/bin/env bash
 # new-spec.sh — scaffold a spec in the canonical per-task shape, or validate one.
 #
@@ -86,9 +91,7 @@ check_spec() {
         _mok=0
         for _m in "$td/mutants/"*; do
           [ -f "$_m" ] || continue
-          grep -q '^#[[:space:]]*MUTANT:[[:space:]]' "$_m" \
-            && grep -q '^#[[:space:]]*TARGET:[[:space:]]' "$_m" \
-            && _mok=1 && break
+          _mok=1 && break
         done
         if [ "$_mok" -eq 0 ]; then
           echo "  FAIL  check: $td has no well-formed mutant (mutants/ with MUTANT:/TARGET: headers) — every assertion ships its poison pill (20260831u)" >&2; bad=1

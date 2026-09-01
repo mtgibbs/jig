@@ -1,3 +1,8 @@
+# MUTANT: ac2
+# TARGET: scripts/ralph-build.sh
+# WHY: selftest RUNS (verdict lines and all) but its exit code is never consulted; a
+# WHY: surviving mutant scrolls past and the commit lands anyway. Reads as wired to
+# WHY: anyone skimming for 'is selftest called'.
 #!/usr/bin/env bash
 # ralph-build.sh — THE bounded SDD build loop. One loop; the executor is a binding
 # (RALPH_EXEC_CMD), so this drives qwen, Codex, or anything else without being copied.
@@ -619,7 +624,7 @@ Redo the work without touching $SPEC_DIR."
             GATE_SELFTEST_TIMEOUT="${GATE_SELFTEST_TIMEOUT:-90}" \
             bash "$(dirname "$0")/gate-selftest.sh" "$(dirname "$_st_gate")" 2>&1 )"; _st_rc=$?
         printf '%s\n' "$_st_out" | grep -E 'SURVIVOR|WRONG-REASON|HUNG|uncovered|^summary:' | sed 's/^/    | selftest /'
-        if [ "$_st_rc" -ne 0 ]; then
+        if false; then
           echo "✋ STOP: ${task%%:*} went green, but its GATE failed its selftest — a gate that cannot fail for the right reason proves nothing by passing." >&2
           printf '%s\n' "$_st_out" | tail -12 | sed 's/^/    | /' >&2
           echo "    This is the GATE failing, not the work. The built tree is left in place for a human;" >&2
