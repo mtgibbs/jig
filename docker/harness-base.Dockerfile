@@ -34,6 +34,14 @@ WORKDIR /harness
 COPY scripts/ /harness/scripts/
 COPY specs/lib/ /harness/specs/lib/
 
+# Where the harness lives. Gates resolve specs/lib/assert.sh through this, so a consumer repo
+# does not have to vendor its own copy and let it drift (spec 20260829a, T02-search-paths ac6).
+# Never set here until now: `git log -S HARNESS_HOME -- docker/harness-base.Dockerfile` finds no
+# commit, while the T01-image-split mutants both carry it — the gate was written against the
+# intended shape and the image never matched. Smoke reads it under `set -u`, so its absence is
+# an abort, not an empty path.
+ENV HARNESS_HOME=/harness
+
 # The harness scripts directory must be on PATH.
 ENV PATH="/harness/scripts:$PATH"
 
