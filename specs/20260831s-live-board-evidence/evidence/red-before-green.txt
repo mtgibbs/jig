@@ -1,0 +1,54 @@
+── T01-selftest-artifact ──
+  PASS  ac1: the fixture run converged (rc=0) — the push did not disturb it
+  FAIL  ac1: no POST to .../artifacts/selftest arrived — the loop never pushed its selftest verdicts
+  FAIL  ac3: no KILLED verdict in the pushed record — the rows were not selected or not sent
+  FAIL  ac3: compaction dropped mutant assertion target why — a row that cannot name its assertion cannot be read
+  FAIL  ac3: no run_complete line — the panel has no counts to render
+  FAIL  ac3: the record spans 0 run_ids — the push sent the append-only file, not this run
+  FAIL  ac4: nothing was pushed, so 'no diff on a KILLED row' measures nothing
+  FAIL  ac4: the survivor's row never arrived — the STOP path pushes nothing, which loses the one row that mattered
+  FAIL  ac4: the survivor shipped no diff — how the mutant was formed is exactly what a reader needs here
+  FAIL  ac4: no clip marker at the configured budget — an unbounded diff is what the byte cap truncates into invalid JSON
+  PASS  ac2: an unset HARNESS_REPORT_URL pushed nothing (control: ac1 proved this sink records)
+  PASS  ac2: the unconfigured run said nothing about pushing
+  PASS  ac2: the unconfigured run still converged
+  PASS  ac5: an unreachable coordinator left the run's exit code alone (rc=0)
+  PASS  ac5: the run did not hang waiting on the dead coordinator (20s)
+---
+VERIFY: FAIL
+/Users/mtgibbs/dev/harness/specs/20260831s-live-board-evidence/tasks/T01-selftest-artifact/verify.sh: line 28: 50821 Terminated: 15          python3 "$W/sink.py" "$SINK_LOG" > "$W/port" 2> "$W/sink.err"
+── T02-artifact-read ──
+  PASS  ac9 control: an unauthenticated WRITE is refused (401) — the token is in effect
+  FAIL  ac6: GET /api/artifact returned 400 — the route is still the 400 stub
+  FAIL  ac6: the unencoded key returned 400 — parse the query, do not split the path
+  FAIL  ac10: wrong Content-Type — worker bytes served as html execute in the board's own origin
+  PASS  ac7: a request with no key is 400
+  PASS  ac7: the 400 names the missing parameter (key)
+  PASS  ac7: a request with no name is 400
+  FAIL  ac7: the 400 does not name 'name' — the stub's single 'key required' answers both cases wrongly
+  PASS  ac8 control: /api/runs reports the seeded run before the 404s
+  FAIL  ac8: unknown run returned 400, expected 404
+  FAIL  ac8: unknown artifact returned 400, expected 404
+  PASS  ac8: the set of runs the board reports is byte-identical across the 404s
+  FAIL  ac9: the read returned 400 without a token — the board is a browser and cannot send one
+---
+VERIFY: FAIL
+/Users/mtgibbs/dev/harness/specs/20260831s-live-board-evidence/tasks/T02-artifact-read/verify.sh: line 26: 54073 Terminated: 15          COORD_PORT="$PORT" HARNESS_REPORT_TOKEN="$TOK" python3 "$COORD" > "$W/coord.out" 2>&1
+── T03-board-mutant-panel ──
+  FAIL  scope: the MUTANT PANEL BEGIN/END region holds 0 lines — every check below would pass vacuously against an empty scope, so they are not run
+---
+VERIFY: FAIL
+── T04-local-board-service ──
+  FAIL  gate: scripts/jig-board.sh does not exist
+  FAIL  gate: scripts/jig-board.sh is not executable
+  FAIL  ac18: --board run exited 1 — the flag must not change whether the run works
+  FAIL  ac18: the run never printed the board URL — the operator has to guess where to look
+  FAIL  ac18: the probe never ran — the fixture strategy did not reach its build phase
+  PASS  ac19: the unflagged run still completes
+  PASS  ac19: no board was started without --board
+  FAIL  ac19: withheld — ac18's control never recorded a non-empty HARNESS_REPORT_URL, so an empty one here proves nothing
+  FAIL  ac20: docs/coordinator.md never mentions jig-board.sh — the doc still tells an operator to hand-start python3
+  FAIL  ac20: docs/coordinator.md never mentions --board
+---
+VERIFY: FAIL
+VERIFY: task-gate failures above

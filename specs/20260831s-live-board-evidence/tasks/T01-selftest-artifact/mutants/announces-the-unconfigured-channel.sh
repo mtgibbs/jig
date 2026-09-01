@@ -1,3 +1,8 @@
+# MUTANT: ac2
+# TARGET: scripts/ralph-log.sh
+# WHY: drops the unset-URL early return and prints a friendly notice instead. Helpful-looking,
+# WHY: and it makes an unconfigured run stop being line-for-line the run it was — the exact
+# WHY: contract 20260828m and 20260828o exist to hold.
 # shellcheck shell=bash
 # ralph-log.sh — keep the evidence from a failed attempt. SOURCED, not executed.
 #
@@ -473,7 +478,10 @@ log_where() {
 # anything happens, and no failure here is allowed to alter the run.
 ralph_log_selftest_push() {
   local evid="$1" slug="$2" task="$3" attempt="$4"
-  [ -n "${HARNESS_REPORT_URL:-}" ] || return 0
+  if [ -z "${HARNESS_REPORT_URL:-}" ]; then
+    echo "    | selftest: no coordinator configured, skipping push"
+    return 0
+  fi
   local src="$evid/selftest-$slug.jsonl"
   [ -s "$src" ] || return 0
   command -v python3 >/dev/null 2>&1 || return 0

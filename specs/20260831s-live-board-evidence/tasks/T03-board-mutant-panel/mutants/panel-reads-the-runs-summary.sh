@@ -1,3 +1,8 @@
+# MUTANT: ac11
+# TARGET: scripts/dispatch/board.html
+# WHY: points the panel at /api/runs, which already carries an `artifacts` list. The list holds
+# WHY: NAMES, never bodies, so the panel renders headings over nothing and no verdict is ever
+# WHY: read.
 <title>Jig Fleet</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
@@ -242,7 +247,7 @@ const VRANK = {SURVIVOR:0, 'WRONG-REASON':1, HUNG:2, KILLED:3};
 const VCLS  = {SURVIVOR:'no', 'WRONG-REASON':'run', HUNG:'run', KILLED:'ok'};
 
 function artUrl(key,name){
-  return '/api/artifact?key='+encodeURIComponent(key)+'&name='+encodeURIComponent(name);
+  return '/api/runs?key='+encodeURIComponent(key)+'&name='+encodeURIComponent(name);
 }
 function el(tag,cls,text){
   const n=document.createElement(tag);

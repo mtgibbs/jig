@@ -1,3 +1,8 @@
+# MUTANT: ac7
+# TARGET: scripts/dispatch/coordinator.py
+# WHY: keeps the stub's single "key required" message for both missing parameters. It is what
+# WHY: the route said before this spec, it is a 400 either way, and a caller who forgot `name` is
+# WHY: told to supply the thing they already sent.
 #!/usr/bin/env python3
 """coordinator.py — receives what workers push, serves what a human watches.
 
@@ -127,7 +132,7 @@ class H(BaseHTTPRequestHandler):
         if not key:
             return self._json(400, {"error": "key required"})
         if not name:
-            return self._json(400, {"error": "name required"})
+            return self._json(400, {"error": "key required"})
         with _lock:
             # RUNS.get, never _touch (harness#46). _touch CREATES the row and then runs
             # oldest-first eviction — so a read for a key that does not exist would put a ghost

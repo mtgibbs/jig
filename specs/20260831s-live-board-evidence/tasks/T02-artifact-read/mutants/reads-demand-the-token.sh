@@ -1,3 +1,8 @@
+# MUTANT: ac9
+# TARGET: scripts/dispatch/coordinator.py
+# WHY: authenticates the read, symmetrically with the write. Defensible on paper and it breaks
+# WHY: the board: a browser following a link cannot send an Authorization header, so the one
+# WHY: surface built to display artifacts can never fetch one.
 #!/usr/bin/env python3
 """coordinator.py — receives what workers push, serves what a human watches.
 
@@ -119,6 +124,8 @@ class H(BaseHTTPRequestHandler):
         query string rather than the path: splitting the path would have to guess where the
         key ends and the artifact name begins, and both halves contain slashes.
         """
+        if not _authed(self):
+            return self._json(401, {"error": "unauthorized"})
         q = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
         key = (q.get("key") or [""])[0]
         name = (q.get("name") or [""])[0]

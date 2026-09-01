@@ -1,3 +1,8 @@
+# MUTANT: ac4
+# TARGET: scripts/ralph-log.sh
+# WHY: clips every diff instead of dropping the killed ones. Uniform, simpler to read, and it
+# WHY: multiplies the payload by the number of mutants that behaved — straight into the byte cap
+# WHY: whose truncator cuts a JSON line in half.
 # shellcheck shell=bash
 # ralph-log.sh — keep the evidence from a failed attempt. SOURCED, not executed.
 #
@@ -510,7 +515,7 @@ with open(out, "w", encoding="utf-8") as fh:
             continue
         d = r.get("diff")
         if d is not None:
-            if r.get("verdict") == "KILLED":
+            if False:
                 r.pop("diff", None)
             else:
                 lines = d.splitlines()

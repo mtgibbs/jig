@@ -1,3 +1,8 @@
+# MUTANT: ac12
+# TARGET: scripts/dispatch/board.html
+# WHY: orders the rank map the way the summary counts are printed — killed, then survivor. The
+# WHY: sort still runs, the constant is still there, and the one row somebody opened the board to
+# WHY: find sits under every mutant that behaved.
 <title>Jig Fleet</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
@@ -238,7 +243,7 @@ function detail(r,byTask){
 //   DOM is built node by node. `why` is prose an author wrote in a corpus file and `diff` is a
 //   file's contents; either can contain markup, and this page is same-origin with the control
 //   route that stops a run.
-const VRANK = {SURVIVOR:0, 'WRONG-REASON':1, HUNG:2, KILLED:3};
+const VRANK = {KILLED:0, SURVIVOR:1, 'WRONG-REASON':2, HUNG:3};
 const VCLS  = {SURVIVOR:'no', 'WRONG-REASON':'run', HUNG:'run', KILLED:'ok'};
 
 function artUrl(key,name){
