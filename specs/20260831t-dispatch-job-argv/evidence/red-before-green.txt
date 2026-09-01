@@ -1,6 +1,6 @@
 # red-before-green — 2026-08-31, spec 20260831t-dispatch-job-argv (issue #117)
-# Run BEFORE the render_job() fix: the new T01 gate and BOTH amended historical pins
-# against the env-rendering dispatcher.py — this run is the amended gates' proof they can fail.
+# T01 gate against the pre-fix renderer (dispatcher.py as of origin/main a557ab9).
+# ac4/ac5 are the controls: the parser and the entrypoint bridge were never the broken half.
 
 == specs/20260831t-dispatch-job-argv/tasks/T01-render-intent-argv/verify.sh ==
   FAIL  ac1: rendered args are not run-task.sh's convention — expected R:["specs/thing","--repo","myrepo","--strategy","build-converge"] got [R:null]
@@ -8,20 +8,6 @@
   FAIL  ac3: no argv rendered — nothing to hand the parser
   PASS  ac4: empty argv exits 64 — the parser really rejects what the old renderer produced
   PASS  ac5: entrypoint.sh execs run-task.sh "$@" — the bridge argv rides is intact
----
-VERIFY: FAIL
-exit: 1
-
-== specs/20260828f-harness-dispatch/verify.sh (amended ac4) ==
-  FAIL  ac4: the Job is built but omits —argv spec-dir positional argv --repo argv --strategy
-
-== specs/20260830a-worker-credentials/tasks/T01-secret-map/verify.sh (amended) ==
-  PASS  ac1: a per-strategy variable selects the worker secret
-  PASS  ac2: with no per-strategy variable the shared default is used
-  FAIL  ac3: no envFrom, but the Job did not render either — the absence proves nothing. This is the control that stops a broken renderer reading as a clean one
-  PASS  ac4: a sibling strategy's secret is not inherited
-  FAIL  ac5: the three halves disagree [R:None|ghcr.io/x/codex:1|worker-codex] — a run on one strategy's image carrying another's secret is the split this assertion exists to catch
-  FAIL  ac6: the rendered Job's shape moved. expected R:[["apiVersion","kind","metadata","spec"],["activeDeadlineSeconds","backoffLimit","template","ttlSecondsAfterFinished"],["containers","nodeSelector","restartPolicy"],["args","image","name"],["s","--repo","r","--strategy","build-converge"]] got R:[["apiVersion","kind","metadata","spec"],["activeDeadlineSeconds","backoffLimit","template","ttlSecondsAfterFinished"],["containers","nodeSelector","restartPolicy"],["env","image","name"],[]] — this task adds one optional field and touches nothing else
 ---
 VERIFY: FAIL
 exit: 1

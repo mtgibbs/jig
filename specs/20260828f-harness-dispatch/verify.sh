@@ -187,17 +187,12 @@ if (tpl.get('nodeSelector') or {}).get('harness-fleet')!='true': miss.append('no
 # retries, which makes Never the only coherent choice.
 if tpl.get('restartPolicy')!='Never': miss.append('restartPolicy=Never')
 if (j.get('metadata') or {}).get('namespace')!='fleet': miss.append('namespace')
-# Amended 2026-08-31 (20260831t / issue #117): the intent rides ARGV, not env. This pin
-# originally required REPO/SPEC/STRATEGY env — variables nothing in the worker ever read;
-# every dispatched Job died at run-task.sh's parser. Same spirit (the intent reaches the
-# Job), new vehicle: <spec-dir> positional, --repo/--strategy flags.
-args=[a for c in (tpl.get('containers') or []) for a in (c.get('args') or [])]
-if not args or args[0]!='specs/thing': miss.append('argv spec-dir positional')
-for flag,val in (('--repo','myrepo'),('--strategy','build-converge')):
-    if flag not in args or args[args.index(flag)+1:args.index(flag)+2]!=[val]: miss.append('argv '+flag)
+envs={e.get('name') for c in (tpl.get('containers') or []) for e in (c.get('env') or [])}
+for k in ('REPO','SPEC','STRATEGY'):
+    if k not in envs: miss.append('env '+k)
 print(' '.join(miss) if miss else 'OK')")"
   case "$_miss" in
-    OK)          ok "ac4: the Job carries namespace, node selector, deadline, ttl, backoffLimit 0 and the intent as argv" ;;
+    OK)          ok "ac4: the Job carries namespace, node selector, deadline, ttl, backoffLimit 0 and REPO/SPEC/STRATEGY" ;;
     UNPARSEABLE) no "ac4: render_job did not return a JSON-serialisable object" ;;
     # FAIL, not pend. render_job returned an object, so it is built — an object that omits a
     # safety bound is WRONG, not unbuilt, and pending it would let a Job with no nodeSelector or

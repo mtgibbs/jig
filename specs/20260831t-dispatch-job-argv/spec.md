@@ -3,9 +3,7 @@
 - **Status:** In progress v1.0
 - **Owner:** mtgibbs
 - **Constitution:** `specs/constitution.md` + `specs/amendments.md`
-- **Touches:** `scripts/dispatch/dispatcher.py`, `scripts/dispatch/README.md`,
-  `specs/20260828f-harness-dispatch/verify.sh` (amended pin),
-  `specs/20260830a-worker-credentials/tasks/T01-secret-map/verify.sh` (amended pin)
+- **Touches:** `scripts/dispatch/dispatcher.py`, `scripts/dispatch/README.md`
 - **Tools:** git, bash, python3
 - **MCP:** none
 
@@ -42,10 +40,11 @@ point a second calling convention, i.e. it institutionalises the trap that cause
 4. The render→parse seam is gated: the gate feeds the rendered argv to the REAL
    `run-task.sh` and asserts it gets PAST the parser (fails later, on a missing
    `HARNESS_DIR`, exit 66 — not exit 64).
-5. The two historical gates that pinned the env shape —
-   `20260828f` ac4 and `20260830a` T01 (ac3 completeness probe, `strategy_of`, ac6 exact
-   shape) — are amended to pin the argv truth, and provably still fail against the old
-   renderer (the red-before-green run is exactly that proof).
+5. The historical gates that pinned the env shape — `20260828f` ac4 and `20260830a` T01
+   (ac3 completeness probe, `strategy_of`, ac6 exact shape) — are left **byte-for-byte
+   untouched**. They are the frozen record of what their specs proved when they shipped,
+   not a regression suite; run against today's renderer they fail, and that failure IS
+   the record that the shape moved here. The argv era's pin is this spec's own gate.
 
 ## 3. Entities · [E — Entities]
 
@@ -58,12 +57,14 @@ convention: `<spec-dir>` positional, `--repo`/`--strategy` flags in any position
 
 Smallest change at the diagnosed site: the `env` block in `render_job()` becomes an `args`
 list; no other key of the rendered Job moves. Dispatcher-image change only — the worker
-image, `entrypoint.sh`, and `run-task.sh` are untouched. The two historical pins are
-amended in place (dated, pointing here) rather than deleted: their *spirit* — "the intent
-reaches the Job", "no other key moved" — is unchanged; only the vehicle moved from env to
-argv. Rejected: keeping the env vars alongside args "for observability" (argv is equally
-visible in the pod spec, and two conventions is the defect); rejected: `command` instead of
-`args` (bypasses the credential-writing entry point).
+image, `entrypoint.sh`, and `run-task.sh` are untouched. Rejected: keeping the env vars
+alongside args "for observability" (argv is equally visible in the pod spec, and two
+conventions is the defect); rejected: `command` instead of `args` (bypasses the
+credential-writing entry point); rejected — on Matt's review of v1.0 — amending the two
+historical gates that pinned the env shape: an old spec's gate is the evidence of what
+that spec proved when it shipped, and rewriting it to track later behavior treats the
+evidence corpus as a regression suite and corrupts the record. The old pins stay as
+written; the new shape is pinned only here.
 
 ## 5. Scope · [S — Structure: boundary]
 
@@ -86,17 +87,17 @@ pi-cluster's tag (CI + a pi-cluster PR after merge).
   which is what makes a network-free seam test possible.
 - `parse_intent("@harness fix myrepo specs/thing")` yields strategy `build-converge` (the
   4-field default) — the amended `20260828f` ac4 asserts that exact argv.
-- `20260830a` added `envFrom` and pinned "no other key of the rendered Job moved" (ac6).
-  This spec MOVES a key, so that pin is amended to the new exact shape — same assertion,
-  new truth.
-- Per pi-cluster's "gates must prove they can fail" norm: the amended gates run RED against
-  the pre-fix renderer before the fix lands (`evidence/red-before-green.txt`).
+- `20260828f` ac4 and `20260830a` T01 pinned the env-era Job shape. Past specs' gates are
+  HISTORY — the record of what was proved at ship time — never a regression suite to keep
+  green. This spec moves the shape and does NOT touch them; anyone re-running them today
+  reads their failure as "the shape moved after 2026-08-30", and this spec is where.
 
 ## 7. Norms · [N — Norms]
 
 House gate style: behavioural through the module's own API, `launch` monkeypatched,
 asserted on the rendered DICT never on serialised YAML (`20260830a` T01's header says why).
-Gate edits to other specs carry a dated comment naming this spec and #117.
+Past specs' gates are not edited — history is append-only; a superseding spec pins the
+new truth in its own gate.
 
 ## 8. Safeguards · [S — Safeguards]
 
@@ -125,10 +126,11 @@ Gate edits to other specs carry a dated comment naming this spec and #117.
 ## 11. Verification — the gates
 
 Single task, one gate under `tasks/`, driving the real `dispatcher.py` module and the real
-`run-task.sh` — no network, no simulators. Red: `evidence/red-before-green.txt` — the new
-gate AND both amended historical gates against the pre-fix renderer (the amended pins'
-proof they can fail). Green: `evidence/green-after.txt` — the same three gates plus the
-spec-level convergence run after the one-block fix.
+`run-task.sh` — no network, no simulators. Red: `evidence/red-before-green.txt` — the T01
+gate against the pre-fix renderer (ac1–ac3 fail; the ac4/ac5 controls pass, proving the
+parser and the entrypoint bridge were never the broken half). Green:
+`evidence/green-after.txt` — the spec-level convergence run after the one-block fix, with
+`20260828g`/`20260828h` (call-graph pins that don't assert the shape) still passing.
 
 ## 12. Open questions
 
@@ -138,6 +140,11 @@ that assertion.
 
 ## 14. Tuning log
 
+- **v1.1 (2026-08-31)** — Corrected on Matt's review: v1.0 amended the two historical
+  gates (`20260828f` ac4, `20260830a` T01) to pin the argv shape — rewriting history
+  because it read them as regression tests. Reverted byte-for-byte. Past specs' gates are
+  the frozen evidence of their own era; a superseding spec carries the new pin itself,
+  and an old gate failing against newer code is the record working, not a defect.
 - **v1.0 (2026-08-31)** — Authored from issue #117 the day the farm found it. Option 1
   chosen per the issue's own analysis; env removed rather than kept-beside-args so the
   rendered object has exactly one story about how the intent travels.
