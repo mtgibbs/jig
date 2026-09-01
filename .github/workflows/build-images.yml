@@ -308,15 +308,46 @@ jobs:
             "${{ steps.tags.outputs.derived }}" \
             specs/fx --repo fx --strategy build-converge
 
+      # Read the result from INSIDE the container, on the same mount. run-task.sh cuts a git
+      # worktree, whose .git is a FILE holding an absolute `gitdir:` pointer — written as
+      # /ws/fx/.git/worktrees/fx-fx, a path that exists only in the container. From the runner
+      # the directory is there but the gitlink dangles, so `[ -d ]` passes and every git command
+      # then fails with "not a git repository". Reading it host-side never worked; this step had
+      # never once executed before, because smoke died on assertion one for its whole history.
       - name: A commit was produced and an attempt record was written
         run: |
           set -euo pipefail
-          WT=ws/fx-fx
-          [ -d "$WT" ] || { echo "FAIL: run-task.sh cut no worktree at $WT"; exit 1; }
-          git -C "$WT" log --oneline | sed -n '1,5p'
-          git -C "$WT" log --oneline | grep -qi 'ralph(smoke)' \
-            || { echo "FAIL: no commit was produced — the loop reached no green gate"; exit 1; }
-          [ -f "$WT/a.txt" ] || { echo "FAIL: the task's artifact is absent from the worktree"; exit 1; }
-          n="$(find "$WT/.evidence" -name '*.json' 2>/dev/null | wc -l)"
-          [ "$n" -gt 0 ] || { echo "FAIL: no attempt record was written — the run left nothing to diagnose with"; exit 1; }
-          echo "smoke OK: commit produced, artifact present, $n attempt record(s) written"
+          docker run --rm \
+            -v "$PWD/ws:/ws" -w /ws \
+            --user "$(id -u):$(id -g)" \
+            -e HOME=/tmp \
+            --entrypoint bash \
+            "${{ steps.tags.outputs.derived }}" -c '
+              set -euo pipefail
+              WT=/ws/fx-fx
+              [ -d "$WT" ] || { echo "FAIL: run-task.sh cut no worktree at $WT"; exit 1; }
+
+              # Captured, not piped. `git log | grep -q` makes grep exit at the first match, git
+              # take SIGPIPE, and the pipeline return 141 under pipefail — reporting "no commit"
+              # about a commit that is right there. Measured: PIPESTATUS=(141 0).
+              log="$(git -C "$WT" log --oneline)"
+              printf "%s\n" "$log" | sed -n "1,5p"
+              case "$log" in
+                *"ralph(smoke)"*) ;;
+                *) echo "FAIL: no commit was produced — the loop reached no green gate"; exit 1 ;;
+              esac
+
+              [ -f "$WT/a.txt" ] || { echo "FAIL: the task artifact is absent from the worktree"; exit 1; }
+
+              # Guarded, not 2>/dev/null: find on a missing directory exits 1, the assignment
+              # fails under pipefail, and set -e aborts BEFORE the message below — a gate that
+              # fails without saying why.
+              if [ -d "$WT/.evidence" ]; then
+                n="$(find "$WT/.evidence" -name "*.json" | wc -l)"
+              else
+                n=0
+              fi
+              [ "$n" -gt 0 ] || { echo "FAIL: no attempt record was written — the run left nothing to diagnose with"; exit 1; }
+
+              echo "smoke OK: commit produced, artifact present, $n attempt record(s) written"
+            '
