@@ -1,4 +1,4 @@
-FROM ghcr.io/mtgibbs/harness-base:0.1.0
+FROM ghcr.io/mtgibbs/harness-base:0.1.1
 
 ARG OPENCODE_VERSION=1.17.10
 

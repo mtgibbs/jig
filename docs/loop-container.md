@@ -35,7 +35,7 @@ version file. It is the only way to validate the image on a host with Docker bef
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
   --push \
-  -t ghcr.io/mtgibbs/loop-executor-opencode:0.1.0 \
+  -t ghcr.io/mtgibbs/loop-executor-opencode:0.1.1 \
   -f docker/loop-executor-opencode.Dockerfile \
   .
 ```
