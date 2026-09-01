@@ -1,3 +1,8 @@
+# MUTANT: ac1
+# TARGET: scripts/ralph-build.sh
+# WHY: the corpus policy block is deleted from _validate_task_gates. Corpus-era specs
+# WHY: with no mutants run unproven; legacy specs lose their warn. Validation still
+# WHY: exists, so a skim of 'is there a validator' passes.
 #!/usr/bin/env bash
 # ralph-build.sh — THE bounded SDD build loop. One loop; the executor is a binding
 # (RALPH_EXEC_CMD), so this drives qwen, Codex, or anything else without being copied.
@@ -252,21 +257,6 @@ _validate_task_gates() {
     # violation — that is a spec authoring error, refused up front like a missing gate.
     if _sf="$(_scope_for "$i")" && [ -z "$(_scope_lines "$_sf")" ]; then
       echo "ralph: task $i has a scope file with no globs ($_sf) — a scope that matches nothing makes every attempt a violation" >&2
-      return 1
-    fi
-    local _md; _md="$(dirname "$(_gate_for "$i")")/mutants"
-    if ! ls "$_md"/* >/dev/null 2>&1; then
-      if [ "$_era" -eq 1 ]; then
-        echo "ralph: task $i has no mutant corpus ($_md) — a corpus-era spec ships one poison pill per task, or its gates are unproven (20260831u)" >&2
-        echo "ralph: author one mutant per assertion id by inverting the assertion (specs/TEMPLATE.md §11), then run again" >&2
-        return 1
-      fi
-      echo "ralph: WARN task $i has no mutant corpus — this gate has never proven it can fail (legacy spec, pre-20260831u: warned, never backfilled)" >&2
-    elif grep -l '^#[[:space:]]*TARGET:.*<' "$_md"/* >/dev/null 2>&1; then
-      # The sentinel TARGET (<...>) is the scaffolder's stub. Refusing it HERE, not at
-      # first green, is the difference between a five-second refusal and a wasted build.
-      echo "ralph: task $i's mutant corpus is still the scaffold template ($_md) — a placeholder is not a poison pill (20260831u)" >&2
-      echo "ralph: replace the template with real mutants — one per assertion id, TARGET a real repo-relative path" >&2
       return 1
     fi
   done

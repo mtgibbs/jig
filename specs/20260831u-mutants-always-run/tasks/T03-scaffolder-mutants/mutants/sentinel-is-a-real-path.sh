@@ -1,3 +1,8 @@
+# MUTANT: ac2
+# TARGET: scripts/new-spec.sh
+# WHY: the template TARGET is a plausible real path instead of the <sentinel> — an
+# WHY: unreplaced stub can now pass for an authored corpus and selftest will happily
+# WHY: install it somewhere.
 #!/usr/bin/env bash
 # new-spec.sh — scaffold a spec in the canonical per-task shape, or validate one.
 #
@@ -186,7 +191,7 @@ EOF
   # planted-needle trap the tool's own install comment documents.
   mkdir -p "$td/mutants"
   { printf '# %s: ac1\n' "MUTANT"
-    printf '# %s: <replace-with-the-repo-relative-file-this-task-changes>\n' "TARGET"
+    printf '# %s: path/to/the-file-this-task-changes\n' "TARGET"
     printf '# %s: <the plausible wrong implementation a lazy reading of ac1 would accept>\n' "WHY"
     printf '#\n'
     printf '# TEMPLATE — the loop refuses a spec whose corpus is still this stub (20260831u).\n'

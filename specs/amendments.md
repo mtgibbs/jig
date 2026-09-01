@@ -194,3 +194,31 @@ convention that lives only in the spec that ratified it loses to the
 template every author copies from. Now it lives in the template, in this
 law, and in the loop's refusal — the three places an author, a reader, and a
 machine respectively actually look.
+
+## Gate selftest joins the loop's critical path
+
+Status: Accepted · 2026-08-31 · Source: 20260831u-mutants-always-run / the mutants
+conversation · Supersedes: `20260828k` outcome 8 ("Nothing here runs on the loop's
+critical path")
+
+A task gate must prove it can fail — for the right reason — before its green is
+allowed to buy a commit. The loop now runs the task's mutant corpus
+(`gate-selftest.sh`, unchanged) at the moment the gate first goes green; any
+SURVIVOR, WRONG-REASON, HUNG, or uncovered assertion id STOPs the run with a
+distinct exit, worded as the GATE failing, never the work. A corpus-era spec
+(id `20260831u` or later) without an authored corpus is refused up front; a
+legacy spec is warned out loud and never backfilled.
+
+**What did NOT change:** the scope is the run's OWN spec, in the run's own
+worktree — never a repo-wide sweep. Past specs' corpora are history with their
+gates; `selftest-sweep.sh` stays an operator recording tool, not a suite.
+
+**Rationale:** 20260828k proved the tool (nine gate defects in two days, all
+found by running, three gates unable to fail at all) and kept it off the
+critical path. The habit then died on schedule: no corpus was authored after
+`20260829c`, because nothing scaffolded, checked, or ran one. A rule the loop
+does not enforce loses to the deadline every author is under — the same
+lesson as the monolithic-gate deprecation, one layer down. Cost was the
+original reason for outcome 8, and it did not survive contact with the data:
+the whole historical corpus sweeps in ~35 seconds; one task's corpus at
+first-green is seconds against a run that takes minutes to hours.

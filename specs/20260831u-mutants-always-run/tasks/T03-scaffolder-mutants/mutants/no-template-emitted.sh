@@ -1,3 +1,7 @@
+# MUTANT: ac1
+# TARGET: scripts/new-spec.sh
+# WHY: the scaffolder emits no mutants/ template at all — authoring the corpus goes back
+# WHY: to being a memory, which is the state that killed the habit for two days straight.
 #!/usr/bin/env bash
 # new-spec.sh — scaffold a spec in the canonical per-task shape, or validate one.
 #
@@ -177,24 +181,6 @@ echo "  FAIL  T$nn-$s: gate is an unwritten stub — author this task's acceptan
 exit 1
 EOF
   chmod +x "$td/verify.sh"
-  # The template corpus (20260831u). Its TARGET is a SENTINEL on purpose: a placeholder
-  # that could pass selftest would let an unauthored corpus count as an authored one, and
-  # the loop refuses the sentinel up front — authoring real mutants is the price of a run.
-  # The three header lines are COMPOSED (printf '# %s:'), never literal: gate-selftest
-  # strips '# MUTANT:/TARGET:/WHY:' lines when installing a mutant, so a literal header
-  # here would be stripped out of any mutant whose TARGET is this very script — the
-  # planted-needle trap the tool's own install comment documents.
-  mkdir -p "$td/mutants"
-  { printf '# %s: ac1\n' "MUTANT"
-    printf '# %s: <replace-with-the-repo-relative-file-this-task-changes>\n' "TARGET"
-    printf '# %s: <the plausible wrong implementation a lazy reading of ac1 would accept>\n' "WHY"
-    printf '#\n'
-    printf '# TEMPLATE — the loop refuses a spec whose corpus is still this stub (20260831u).\n'
-    printf '# Author one mutant per assertion id by INVERTING the assertion — write the wrong\n'
-    printf '# implementation that would fool the check (specs/TEMPLATE.md 11) — then delete\n'
-    printf '# this file. Everything below the header becomes the whole replacement TARGET file.\n'
-    printf '<replace this body with the defective implementation>\n'
-  } > "$td/mutants/replace-me.txt"
 done
 
 cat > "$DIR/verify.sh" <<EOF

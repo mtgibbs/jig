@@ -1,8 +1,9 @@
 # Spec: 20260831u-mutants-always-run
 
-- **Status:** Draft v0.1 — FOR REVIEW. Ratification point: this spec supersedes
-  `20260828k` outcome 8 ("nothing here runs on the loop's critical path"), which is
-  Matt's call, not the author's. OQ1/OQ2 below are the other two decisions.
+- **Status:** In progress v1.1 — spec merged 2026-08-31 (#119) with Matt's direction
+  ("we just need to establish that this process always runs"); the supersession of
+  `20260828k` outcome 8 is ratified in `specs/amendments.md`. OQ2 remains open by
+  design (the post-wrap expansion Matt named).
 - **Owner:** mtgibbs
 - **Constitution:** `specs/constitution.md` + `specs/amendments.md`
 - **Touches:** `scripts/ralph-build.sh`, `scripts/new-spec.sh`, `specs/TEMPLATE.md`,
@@ -39,11 +40,13 @@ their mutants. OQ2 names the research extension that would attack conception bia
 
 ## 2. Outcomes (Definition of Done) · [R — Requirements]
 
-1. Before any attempt runs, `ralph-build.sh` runs `gate-selftest.sh` on each of the
-   current spec's task corpora (hermetic temp copy, as the tool already does). Any
-   SURVIVOR, WRONG-REASON, HUNG, or uncovered-assertion result refuses the run with a
-   distinct named exit, naming the mutant or the uncovered id — a gate that cannot fail
-   correctly is not qualified to pass anything.
+1. The loop runs `gate-selftest.sh` on a task's corpus at the moment that task's gate
+   FIRST GOES GREEN, before the commit its green would bless (v1.1 — see §14: selftest
+   measures a gate against BUILT work; pristine, a red-first gate fails everything and
+   every mutant dies vacuously, so "before any attempt" proved nothing). Any SURVIVOR,
+   WRONG-REASON, HUNG, or uncovered-assertion result STOPs the run with a distinct named
+   exit (6), the built tree left in place — a gate that cannot fail correctly is not
+   qualified to pass anything, and it is the GATE that needs the human.
 2. The preflight records: `SELFTEST_EVID` defaults to the worked repo's `.evidence/` so
    every run appends kill/survivor rows (the `20260830f` seam, unchanged) and the ledger
    stays regenerable. Dogfood runs generate the research data as a side effect of running.
@@ -141,12 +144,12 @@ corpus verdict, loud only on refusal.
 
 ## 10. Acceptance criteria (EARS) · [O — Operations made testable]
 
-- **T1** — WHEN a run starts on a spec whose corpora all kill, the loop SHALL proceed
-  having printed one verdict line per corpus (ac1); IF any mutant survives, is killed for
-  the wrong reason, hangs, or an assertion id is uncovered THEN the loop SHALL refuse
-  before any attempt, with a distinct exit naming the mutant or id (ac2); the operator's
-  tree SHALL be byte-identical after preflight (ac3); the selftest rows SHALL land in the
-  worked repo's `.evidence/` (ac4).
+- **T1** — WHEN a task's gate goes green and its corpus kills, the run SHALL converge
+  with the verdict visible in the output (ac1); IF any mutant survives THEN the loop
+  SHALL stop with exit 6 BEFORE committing, naming the verdict (ac2); the refusal
+  wording SHALL blame the GATE ("gate failed its selftest"), never the work (ac3); the
+  selftest rows SHALL land in the worked repo's `.evidence/` by default (ac4); the loop
+  SHALL parse (ac5).
 - **T2** — WHEN a new-shape spec's task has no `mutants/` THEN the loop SHALL apply
   OQ1's ratified policy (refuse, naming the task) (ac1); legacy specs SHALL get the
   ratified legacy behavior, stated out loud, never silently skipped (ac2).
@@ -165,10 +168,11 @@ corpora — the same "first consumer" move `20260828k` made for per-task gates.
 
 ## 12. Open questions
 
-- **OQ1 — corpus-required policy.** Proposal: refuse a corpus-less task in specs dated
-  `20260831u` or later (structural defect, monolithic precedent, no hatch); pre-existing
-  specs run with a loud one-line warn. Backfilling old corpora is explicitly NOT the
-  alternative — that would be editing history's rigor into existence.
+- **OQ1 — corpus-required policy.** DECIDED with the merge (2026-08-31), as proposed:
+  refuse a corpus-less task in specs dated `20260831u` or later (structural defect,
+  monolithic precedent, no hatch); pre-existing specs run with a loud one-line warn.
+  Backfilling old corpora is explicitly NOT the alternative — that would be editing
+  history's rigor into existence.
 - **OQ2 — live mutation of generated work.** The research extension that attacks
   conception bias: mutate the EXECUTOR'S actual diff (not a hand-authored replacement)
   and measure whether the gate notices — gate sensitivity against the real artifact,
@@ -177,6 +181,30 @@ corpora — the same "first consumer" move `20260828k` made for per-task gates.
 
 ## 14. Tuning log
 
+- **v1.1 (2026-08-31, at implementation)** — Three findings the build itself produced:
+  1. **The kill-proof moment moved from before-attempt-1 to FIRST-GREEN.** gate-selftest
+     measures a gate against built work (it copies the working tree); pristine, a
+     red-first gate fails everything and every mutant dies vacuously — v0.1's "before any
+     attempt runs" would have proven nothing. Preflight keeps the static half (corpus
+     present, authored, not the sentinel template); the kill-proof runs when the gate's
+     green is about to buy a commit, which is the only moment its trustworthiness is
+     consumed.
+  2. **The first selftest of this spec's own corpus found a real survivor** —
+     `headerless-accepted.sh` survived because T03's ac5 observed a `--check` failure
+     caused by ac4's leftover fixture state, not by the headerless file. The gate was
+     fixed to isolate the case (restore T02's corpus first) and the mutant now dies. The
+     mechanism caught a blind spot in the gate of the spec that installs the mechanism,
+     on its first run.
+  3. **Blast radius, recorded not repaired:** `20260831r` T01/T05 go red under the new
+     law — their fixtures scaffold future-dated specs whose corpora are the scaffold
+     template, which the corpus-era preflight now refuses. The behaviors they pinned
+     (convergence runs; spec-dir edits refused) are UNCHANGED; per the gates-are-history
+     doctrine (20260831t v1.1) those gates are not edited — their red records the law
+     arriving. Also hardened here: the scaffolder's template headers are printf-composed,
+     never literal, so a mutant targeting `new-spec.sh` itself survives gate-selftest's
+     header-strip at install (the planted-needle trap the tool documents).
+- **v1.0 (2026-08-31)** — Built from the merged draft the same day. 17 mutants across
+  the three tasks, first corpora since `20260829c`; all killed (after finding 2 above).
 - **v0.1 (2026-08-31)** — Drafted from the mutants conversation the same day: the tool
   survived, the habit died with nothing scaffolding/checking/running corpora; ratified
   direction is selftest on the loop's critical path, scoped to the run's own spec,

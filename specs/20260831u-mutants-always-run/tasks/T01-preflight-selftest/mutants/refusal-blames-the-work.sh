@@ -1,3 +1,8 @@
+# MUTANT: ac3
+# TARGET: scripts/ralph-build.sh
+# WHY: the refusal fires but its wording blames the WORK, so an operator re-prompts the
+# WHY: executor instead of fixing the gate — the exact misread the wording contract exists
+# WHY: to prevent.
 #!/usr/bin/env bash
 # ralph-build.sh — THE bounded SDD build loop. One loop; the executor is a binding
 # (RALPH_EXEC_CMD), so this drives qwen, Codex, or anything else without being copied.
@@ -620,7 +625,7 @@ Redo the work without touching $SPEC_DIR."
             bash "$(dirname "$0")/gate-selftest.sh" "$(dirname "$_st_gate")" 2>&1 )"; _st_rc=$?
         printf '%s\n' "$_st_out" | grep -E 'SURVIVOR|WRONG-REASON|HUNG|uncovered|^summary:' | sed 's/^/    | selftest /'
         if [ "$_st_rc" -ne 0 ]; then
-          echo "✋ STOP: ${task%%:*} went green, but its GATE failed its selftest — a gate that cannot fail for the right reason proves nothing by passing." >&2
+          echo "✋ STOP: ${task%%:*} went green, but verification hardening failed — the produced work did not withstand hardening." >&2
           printf '%s\n' "$_st_out" | tail -12 | sed 's/^/    | /' >&2
           echo "    This is the GATE failing, not the work. The built tree is left in place for a human;" >&2
           echo "    fix the gate or its mutants (operator-owned, 20260831r T5), then run again." >&2

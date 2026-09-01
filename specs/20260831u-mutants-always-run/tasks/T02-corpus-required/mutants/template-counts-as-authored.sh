@@ -1,3 +1,8 @@
+# MUTANT: ac3
+# TARGET: scripts/ralph-build.sh
+# WHY: the sentinel check is gone: a corpus that is still the scaffold stub counts as
+# WHY: authored, sails through preflight, and the refusal arrives only at first green —
+# WHY: after the whole build was wasted.
 #!/usr/bin/env bash
 # ralph-build.sh — THE bounded SDD build loop. One loop; the executor is a binding
 # (RALPH_EXEC_CMD), so this drives qwen, Codex, or anything else without being copied.
@@ -262,7 +267,7 @@ _validate_task_gates() {
         return 1
       fi
       echo "ralph: WARN task $i has no mutant corpus — this gate has never proven it can fail (legacy spec, pre-20260831u: warned, never backfilled)" >&2
-    elif grep -l '^#[[:space:]]*TARGET:.*<' "$_md"/* >/dev/null 2>&1; then
+    elif false; then
       # The sentinel TARGET (<...>) is the scaffolder's stub. Refusing it HERE, not at
       # first green, is the difference between a five-second refusal and a wasted build.
       echo "ralph: task $i's mutant corpus is still the scaffold template ($_md) — a placeholder is not a poison pill (20260831u)" >&2

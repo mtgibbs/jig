@@ -1,0 +1,56 @@
+# green-after — 2026-08-31, spec 20260831u-mutants-always-run
+# Full convergence + --check + the three corpus selftests (first corpora since 20260829c).
+# NOTE: the first T03 selftest run found a REAL survivor (headerless-accepted.sh) — T03's
+# ac5 was contaminated by ac4's leftover fixture state. Gate fixed to isolate; now killed.
+# Blast radius, recorded not repaired: 20260831r T01/T05 fixtures (future-dated template
+# corpora) are refused by the new corpus-era preflight — gates-are-history, left red.
+
+== specs/20260831u-mutants-always-run/verify.sh (convergence) ==
+── T01-preflight-selftest ──
+  PASS  ac1: gate green + corpus killed -> the run converges (rc=0)
+  PASS  ac1: the selftest verdict (killed=1) is visible in the run output
+  PASS  ac2: a surviving mutant refuses the run with the distinct exit (rc=6)
+  PASS  ac2: nothing was committed — the refusal landed before the commit the green would bless
+  PASS  ac2: the refusal names the surviving mutant's verdict
+  PASS  ac3: the wording says the GATE failed its selftest, not the work
+  PASS  ac4: selftest rows landed in the worked repo's .evidence/ (SELFTEST_EVID defaulted)
+  PASS  ac5: ralph-build.sh passes bash -n
+
+VERIFY: T01 all checks passed
+── T02-corpus-required ──
+  PASS  ac1: corpus-era spec without mutants/ is refused up front (rc=3, spec-needs-attention)
+  PASS  ac1: the refusal names the missing corpus
+  PASS  ac1: the executor never ran — the refusal is preflight, not mid-run
+  PASS  ac2: a legacy spec without a corpus still runs (rc=0) — history is not backfilled
+  PASS  ac2: the legacy run warned exactly once — loud, never silent, never spammed
+  PASS  ac3: an unreplaced scaffold-template corpus is refused up front (rc=3)
+  PASS  ac3: the refusal says the corpus is still the template
+  PASS  ac4: a corpus-era spec WITH a real corpus runs and converges (rc=0)
+  PASS  ac5: ralph-build.sh passes bash -n
+
+VERIFY: T02 all checks passed
+── T03-scaffolder-mutants ──
+  PASS  ac1: each task scaffolds a mutants/ template with MUTANT:/TARGET:/WHY: headers
+  PASS  ac2: the template TARGET is a sentinel (<...>) — a scaffold that selftests green would be a lie
+  PASS  ac3: --check passes a fresh scaffold (template corpus satisfies the shape check)
+  PASS  ac4: --check fails when a task has no mutant corpus (rc=1)
+  PASS  ac4: the failure names the missing corpus
+  PASS  ac5: --check refuses a headerless mutant — presence without the contract is not a corpus
+  PASS  ac6: TEMPLATE.md teaches authoring mutants by inverting each assertion
+  PASS  ac7: new-spec.sh passes bash -n
+
+VERIFY: T03 all checks passed
+VERIFY: all task gates passed
+exit: 0
+
+== new-spec.sh --check ==
+check: /Users/mtgibbs/dev/harness/specs/20260831u-mutants-always-run matches the per-task shape
+exit: 0
+
+== corpus selftests (SELFTEST_EVID=.evidence, GATE_SELFTEST_TIMEOUT=180) ==
+-- T01-preflight-selftest --
+summary: killed=5 survivor=0 wrong-reason=0 hung=0
+-- T02-corpus-required --
+summary: killed=5 survivor=0 wrong-reason=0 hung=0
+-- T03-scaffolder-mutants --
+summary: killed=7 survivor=0 wrong-reason=0 hung=0
