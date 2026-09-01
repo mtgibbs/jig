@@ -1,6 +1,6 @@
 # Spec: 20260901a-kubectl-skew-pin
 
-- **Status:** Draft v0.1
+- **Status:** Done v1.0
 - **Owner:** mtgibbs
 - **Constitution:** `specs/constitution.md` + `specs/amendments.md`
 - **Touches:** `docker/dispatcher.Dockerfile`
@@ -76,3 +76,15 @@ The gate encodes the **invariant** (skew vs. the recorded server, checksums vs.
 upstream), not the answer key: a future bump that moves pin + record + checksums
 together stays green; any one of the three moving alone goes red. Mutant corpus:
 `tasks/T01-pin-matches-server/mutants/` — one per assertion id.
+
+## 14. Changelog
+
+- **v1.0 (2026-09-01)** — Built by the qwen loop (red attempt 1, green attempt 2).
+  First live run of both 20260831u/v instruments: in-loop selftest at first green
+  `killed=3 survivor=0 wrong-reason=0 hung=0`; work sensitivity **4/4 NOTICED**
+  (revert-hunk + drop-line on the ARG and both sha lines; the added comment line
+  correctly skipped as inert). Judge (codex): 0 accepted, 1 gate-gap
+  `scope-byte-identity-ungated` — §9's "everything else stays byte-identical" is
+  promised but not gated; left report-only, escalated in the PR. Authoring lesson
+  banked in v0.2: the spec header's `Tools:` field is a list the preflight executes
+  (`command -v` per word), not prose — a parenthetical there refused the first launch.
