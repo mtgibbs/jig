@@ -49,10 +49,14 @@ def has_envfrom(job):
 def image_of(job):
     return container(job).get('image')
 
+# Amended 2026-08-31 (20260831t / issue #117): the intent moved from REPO/SPEC/STRATEGY env
+# to argv in run-task.sh's calling convention — the env was a convention nothing in the
+# worker read. The strategy now sits after --strategy in the container's args.
 def strategy_of(job):
-    for e in container(job).get('env', []):
-        if e.get('name') == 'STRATEGY':
-            return e.get('value')
+    a = container(job).get('args') or []
+    for i, v in enumerate(a[:-1]):
+        if v == '--strategy':
+            return a[i + 1]
     return None
 
 def clear():
@@ -98,7 +102,9 @@ clear()
 d.launch_run('r','s','build-converge','e3', ledger_path='$L.3', image='img:1', namespace='ns')
 j = CAPTURED[0] if CAPTURED else {}
 c = container(j)
-complete = bool(c.get('image')) and bool(c.get('env')) and bool(j.get('spec',{}).get('template'))
+# Amended 2026-08-31 (20260831t / #117): completeness reads args, not env — the intent
+# rides argv now, and a container with no args is exactly the Job that cannot run.
+complete = bool(c.get('image')) and bool(c.get('args')) and bool(j.get('spec',{}).get('template'))
 print('R:' + ('ENVFROM-PRESENT' if has_envfrom(j) else 'ABSENT') + '|' + ('COMPLETE' if complete else 'INCOMPLETE'))
 ")"
 case "$out" in
@@ -147,10 +153,13 @@ top = sorted(j.keys())
 spec = sorted(j.get('spec', {}).keys())
 pod  = sorted(j.get('spec', {}).get('template', {}).get('spec', {}).keys())
 cont = sorted(c.keys())
-envn = [e.get('name') for e in c.get('env', [])]
-print('R:' + json.dumps([top, spec, pod, cont, envn], separators=(',',':')))
+# Amended 2026-08-31 (20260831t / #117): env → args. The assertion is the same one this
+# task shipped with — no OTHER key of the rendered Job moved — re-pinned to the shape in
+# which the intent actually reaches run-task.sh.
+argv = c.get('args') or []
+print('R:' + json.dumps([top, spec, pod, cont, argv], separators=(',',':')))
 ")"
-expect='R:[["apiVersion","kind","metadata","spec"],["activeDeadlineSeconds","backoffLimit","template","ttlSecondsAfterFinished"],["containers","nodeSelector","restartPolicy"],["env","image","name"],["REPO","SPEC","STRATEGY"]]'
+expect='R:[["apiVersion","kind","metadata","spec"],["activeDeadlineSeconds","backoffLimit","template","ttlSecondsAfterFinished"],["containers","nodeSelector","restartPolicy"],["args","image","name"],["s","--repo","r","--strategy","build-converge"]]'
 if [ "$out" = "$expect" ]; then
   ok "ac6: with nothing configured every other key of the rendered Job is unchanged"
 else

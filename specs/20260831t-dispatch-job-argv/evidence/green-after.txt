@@ -1,0 +1,40 @@
+# green-after — 2026-08-31, spec 20260831t-dispatch-job-argv (issue #117)
+# Same three gates after the render_job() args fix, plus the spec-level convergence gate.
+
+== specs/20260831t-dispatch-job-argv/verify.sh (convergence) ==
+── T01-render-intent-argv ──
+  PASS  ac1: args is [<spec>, --repo, <repo>, --strategy, <strategy>] — the one documented calling convention
+  PASS  ac2: no REPO/SPEC/STRATEGY env and no command — one convention, entrypoint in charge
+  PASS  ac3: the rendered argv passed run-task.sh's parser (refused later on HARNESS_DIR, exit 66)
+  PASS  ac4: empty argv exits 64 — the parser really rejects what the old renderer produced
+  PASS  ac5: entrypoint.sh execs run-task.sh "$@" — the bridge argv rides is intact
+---
+VERIFY: PASS
+VERIFY: all task gates passed
+exit: 0
+
+== specs/20260828f-harness-dispatch/verify.sh (amended ac4) — full run ==
+  PASS  scope: spec dir holds only its own artifacts
+  PASS  scope: dispatcher.py compiles
+  PASS  ac1: a valid message yields repo, spec and the default strategy
+  PASS  control: the mock runner records a call — so 'did not launch' below means something
+  PASS  ac2: five unrecognised or malformed messages launched nothing, and none raised
+  PASS  ac3: the same event id three times launched exactly once
+  PASS  ac4: the Job carries namespace, node selector, deadline, ttl, backoffLimit 0 and the intent as argv
+  PASS  ac5: the launcher runs 'apply -f -'
+  PASS  ac5: the Job JSON arrives on stdin
+  PASS  ac6: no model call, no gate invocation, no retry loop
+  PASS  ac7: the README covers dedupe, the Job's bounds and the two env knobs
+---
+exit: 0
+
+== specs/20260830a-worker-credentials/tasks/T01-secret-map/verify.sh (amended) ==
+  PASS  ac1: a per-strategy variable selects the worker secret
+  PASS  ac2: with no per-strategy variable the shared default is used
+  PASS  ac3: with nothing configured the Job carries no envFrom key, and is otherwise complete
+  PASS  ac4: a sibling strategy's secret is not inherited
+  PASS  ac5: the Job's STRATEGY, its image and its secret come from the same requested strategy
+  PASS  ac6: with nothing configured every other key of the rendered Job is unchanged
+---
+VERIFY: PASS
+exit: 0

@@ -178,19 +178,19 @@ def render_job(intent: dict, *, image: str, namespace: str, run_id: str, secret:
     container = {
         "name": "run",
         "image": image,
-        "env": [
-            {
-                "name": "REPO",
-                "value": intent["repo"],
-            },
-            {
-                "name": "SPEC",
-                "value": intent["spec"],
-            },
-            {
-                "name": "STRATEGY",
-                "value": intent["strategy"],
-            },
+        # The intent travels as ARGV — run-task.sh's one documented calling convention
+        # (<spec-dir> positional, flags in any position). Not env: the first deployed
+        # dispatcher rendered REPO/SPEC/STRATEGY variables nothing in the worker read,
+        # and every dispatched Job died at the entrypoint's parser before cloning
+        # (issue #117). And never a "command" key: the image's own ENTRYPOINT
+        # (tini → entrypoint.sh) writes the clone credential before the loop starts,
+        # and a command would silently displace it. args is what a Job may supply.
+        "args": [
+            intent["spec"],
+            "--repo",
+            intent["repo"],
+            "--strategy",
+            intent["strategy"],
         ],
     }
     # Added only when it resolves. Assigning None or [] would satisfy a reader skimming for
