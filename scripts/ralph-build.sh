@@ -765,7 +765,14 @@ if ! _strict_out="$( { run_gates "${HB_TOTAL:-0}" 1; _r=$?
      [ -d "$SPEC_DIR/tasks" ] && { cd "$ROOT" && STRICT=1 bash "$VERIFY" 2>&1 || _r=1; }
      exit $_r; } 2>&1)"; then
    echo "✋ STOP: every task passed, but the final STRICT gate found unbuilt work:" >&2
-       printf '%s\n' "$_strict_out" | grep -E 'FAIL' | head -10 >&2
+       # FAIL lines only — anchored. `grep FAIL | head -10` also matched every task gate's
+       # "score: N PASS / 0 FAIL" summary, and nine of those filled the ten-line budget: on
+       # notes-from-hearing 20260903b (2026-09-04) the first STOP showed one FAIL and hid the
+       # second (MH-1), which then surfaced as a "new" STOP after the first was fixed. Print
+       # every real FAIL, and say how many there were.
+       _fails="$(printf '%s\n' "$_strict_out" | grep -E '^[[:space:]]*FAIL')"
+       printf '%s\n' "$_fails" | head -20 >&2
+       _nf="$(printf '%s\n' "$_fails" | grep -c .)"; [ "$_nf" -gt 20 ] && echo "   … $((_nf-20)) more FAIL lines (see the STRICT output above)" >&2
        # ${attempt:-skipped}: `attempt` is assigned only inside the attempt loop, and a run
        # whose every task was skip-satisfied never enters it — this line crashed unbound
        # under set -u before hb_write could stamp the status terminal (issue #49). The
